@@ -324,7 +324,6 @@ sbit B5 = B^5;
 sbit B6 = B^6;
 sbit B7 = B^7;
 
-
 //							7     6     5    4    3    2    1     0    Reset Value
 //sfr IE2       = 0xAF;		-     -     -    -    -    -   ESPI  ES2   0000,0000B	//Auxiliary Interrupt   
 #define		SPI_INT_ENABLE()		IE2 |=  2	//‘ –ÌSPI÷–∂œ
