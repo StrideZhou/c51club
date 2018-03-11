@@ -1,0 +1,309 @@
+C51 COMPILER V9.00   LTABLIB                                                               11/27/2017 19:45:04 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LTABLIB
+OBJECT MODULE PLACED IN .\obj\ltablib.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\ltablib.c OMF2 BROWSE DEBUG PRINT(.\ltablib.lst) OBJECT(.\ob
+                    -j\ltablib.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: ltablib.c,v 1.38.1.3 2008/02/14 16:46:58 roberto Exp $
+   3          ** Library for Table Manipulation
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <stddef.h>
+   9          
+  10          #define ltablib_c
+  11          #define LUA_LIB
+  12          
+  13          #include "lua.h"
+  14          
+  15          #include "lauxlib.h"
+*** ERROR C202 IN LINE 138 OF SRC\LAUXLIB.H: 'BUFSIZ': undefined identifier
+*** ERROR C136 IN LINE 138 OF SRC\LAUXLIB.H: invalid dimension size: [0]
+  16          #include "lualib.h"
+  17          #include "lrotable.h"
+  18          
+  19          
+  20          #define aux_getn(L,n)   (luaL_checktype(L, n, LUA_TTABLE), luaL_getn(L, n))
+  21          
+  22          
+  23          static int foreachi (lua_State *L) {
+  24   1        int i;
+  25   1        int n = aux_getn(L, 1);
+  26   1        luaL_checkanyfunction(L, 2);
+  27   1        for (i=1; i <= n; i++) {
+  28   2          lua_pushvalue(L, 2);  /* function */
+  29   2          lua_pushinteger(L, i);  /* 1st argument */
+  30   2          lua_rawgeti(L, 1, i);  /* 2nd argument */
+  31   2          lua_call(L, 2, 1);
+  32   2          if (!lua_isnil(L, -1))
+  33   2            return 1;
+  34   2          lua_pop(L, 1);  /* remove nil result */
+  35   2        }
+  36   1        return 0;
+  37   1      }
+  38          
+  39          
+  40          static int foreach (lua_State *L) {
+  41   1        luaL_checktype(L, 1, LUA_TTABLE);
+  42   1        luaL_checkanyfunction(L, 2);
+  43   1        lua_pushnil(L);  /* first key */
+  44   1        while (lua_next(L, 1)) {
+  45   2          lua_pushvalue(L, 2);  /* function */
+  46   2          lua_pushvalue(L, -3);  /* key */
+  47   2          lua_pushvalue(L, -3);  /* value */
+  48   2          lua_call(L, 2, 1);
+  49   2          if (!lua_isnil(L, -1))
+  50   2            return 1;
+  51   2          lua_pop(L, 2);  /* remove value and result */
+  52   2        }
+C51 COMPILER V9.00   LTABLIB                                                               11/27/2017 19:45:04 PAGE 2   
+
+  53   1        return 0;
+  54   1      }
+  55          
+  56          
+  57          static int maxn (lua_State *L) {
+  58   1        lua_Number max = 0;
+  59   1        luaL_checktype(L, 1, LUA_TTABLE);
+  60   1        lua_pushnil(L);  /* first key */
+  61   1        while (lua_next(L, 1)) {
+  62   2          lua_pop(L, 1);  /* remove value */
+  63   2          if (lua_type(L, -1) == LUA_TNUMBER) {
+  64   3            lua_Number v = lua_tonumber(L, -1);
+  65   3            if (v > max) max = v;
+  66   3          }
+  67   2        }
+  68   1        lua_pushnumber(L, max);
+  69   1        return 1;
+  70   1      }
+  71          
+  72          
+  73          static int getn (lua_State *L) {
+  74   1        lua_pushinteger(L, aux_getn(L, 1));
+  75   1        return 1;
+  76   1      }
+  77          
+  78          
+  79          static int setn (lua_State *L) {
+  80   1        luaL_checktype(L, 1, LUA_TTABLE);
+  81   1      #ifndef luaL_setn
+                luaL_setn(L, 1, luaL_checkint(L, 2));
+              #else
+  84   1        luaL_error(L, LUA_QL("setn") " is obsolete");
+  85   1      #endif
+  86   1        lua_pushvalue(L, 1);
+  87   1        return 1;
+  88   1      }
+  89          
+  90          
+  91          static int tinsert (lua_State *L) {
+  92   1        int e = aux_getn(L, 1) + 1;  /* first empty element */
+  93   1        int pos;  /* where to insert new element */
+  94   1        switch (lua_gettop(L)) {
+  95   2          case 2: {  /* called with only 2 arguments */
+  96   3            pos = e;  /* insert new element at the end */
+  97   3            break;
+  98   3          }
+  99   2          case 3: {
+ 100   3            int i;
+ 101   3            pos = luaL_checkint(L, 2);  /* 2nd argument is the position */
+ 102   3            if (pos > e) e = pos;  /* `grow' array if necessary */
+ 103   3            for (i = e; i > pos; i--) {  /* move up elements */
+ 104   4              lua_rawgeti(L, 1, i-1);
+ 105   4              lua_rawseti(L, 1, i);  /* t[i] = t[i-1] */
+ 106   4            }
+ 107   3            break;
+ 108   3          }
+ 109   2          default: {
+ 110   3            return luaL_error(L, "wrong number of arguments to " LUA_QL("insert"));
+ 111   3          }
+ 112   2        }
+ 113   1        luaL_setn(L, 1, e);  /* new size */
+ 114   1        lua_rawseti(L, 1, pos);  /* t[pos] = v */
+C51 COMPILER V9.00   LTABLIB                                                               11/27/2017 19:45:04 PAGE 3   
+
+ 115   1        return 0;
+ 116   1      }
+ 117          
+ 118          
+ 119          static int tremove (lua_State *L) {
+ 120   1        int e = aux_getn(L, 1);
+ 121   1        int pos = luaL_optint(L, 2, e);
+ 122   1        if (!(1 <= pos && pos <= e))  /* position is outside bounds? */
+ 123   1         return 0;  /* nothing to remove */
+ 124   1        luaL_setn(L, 1, e - 1);  /* t.n = n-1 */
+ 125   1        lua_rawgeti(L, 1, pos);  /* result = t[pos] */
+ 126   1        for ( ;pos<e; pos++) {
+ 127   2          lua_rawgeti(L, 1, pos+1);
+ 128   2          lua_rawseti(L, 1, pos);  /* t[pos] = t[pos+1] */
+ 129   2        }
+ 130   1        lua_pushnil(L);
+ 131   1        lua_rawseti(L, 1, e);  /* t[e] = nil */
+ 132   1        return 1;
+ 133   1      }
+ 134          
+ 135          
+ 136          static void addfield (lua_State *L, luaL_Buffer *b, int i) {
+ 137   1        lua_rawgeti(L, 1, i);
+ 138   1        if (!lua_isstring(L, -1))
+ 139   1          luaL_error(L, "invalid value (%s) at index %d in table for "
+ 140   1                        LUA_QL("concat"), luaL_typename(L, -1), i);
+ 141   1        luaL_addvalue(b);
+ 142   1      }
+ 143          
+ 144          
+ 145          static int tconcat (lua_State *L) {
+ 146   1        luaL_Buffer b;
+ 147   1        size_t lsep;
+ 148   1        int i, last;
+ 149   1        const char *sep = luaL_optlstring(L, 2, "", &lsep);
+ 150   1        luaL_checktype(L, 1, LUA_TTABLE);
+ 151   1        i = luaL_optint(L, 3, 1);
+ 152   1        last = luaL_opt(L, luaL_checkint, 4, luaL_getn(L, 1));
+ 153   1        luaL_buffinit(L, &b);
+ 154   1        for (; i < last; i++) {
+ 155   2          addfield(L, &b, i);
+ 156   2          luaL_addlstring(&b, sep, lsep);
+ 157   2        }
+ 158   1        if (i == last)  /* add last value (if interval was not empty) */
+ 159   1          addfield(L, &b, i);
+ 160   1        luaL_pushresult(&b);
+ 161   1        return 1;
+ 162   1      }
+ 163          
+ 164          
+ 165          
+ 166          /*
+ 167          ** {======================================================
+ 168          ** Quicksort
+ 169          ** (based on `Algorithms in MODULA-3', Robert Sedgewick;
+ 170          **  Addison-Wesley, 1993.)
+ 171          */
+ 172          
+ 173          
+ 174          static void set2 (lua_State *L, int i, int j) {
+ 175   1        lua_rawseti(L, 1, i);
+ 176   1        lua_rawseti(L, 1, j);
+C51 COMPILER V9.00   LTABLIB                                                               11/27/2017 19:45:04 PAGE 4   
+
+ 177   1      }
+ 178          
+ 179          static int sort_comp (lua_State *L, int a, int b) {
+ 180   1        if (!lua_isnil(L, 2)) {  /* function? */
+ 181   2          int res;
+ 182   2          lua_pushvalue(L, 2);
+ 183   2          lua_pushvalue(L, a-1);  /* -1 to compensate function */
+ 184   2          lua_pushvalue(L, b-2);  /* -2 to compensate function and `a' */
+ 185   2          lua_call(L, 2, 1);
+ 186   2          res = lua_toboolean(L, -1);
+ 187   2          lua_pop(L, 1);
+ 188   2          return res;
+ 189   2        }
+ 190   1        else  /* a < b? */
+ 191   1          return lua_lessthan(L, a, b);
+ 192   1      }
+ 193          
+ 194          static void auxsort (lua_State *L, int l, int u) {
+ 195   1        while (l < u) {  /* for tail recursion */
+ 196   2          int i, j;
+ 197   2          /* sort elements a[l], a[(l+u)/2] and a[u] */
+ 198   2          lua_rawgeti(L, 1, l);
+ 199   2          lua_rawgeti(L, 1, u);
+ 200   2          if (sort_comp(L, -1, -2))  /* a[u] < a[l]? */
+ 201   2            set2(L, l, u);  /* swap a[l] - a[u] */
+ 202   2          else
+ 203   2            lua_pop(L, 2);
+ 204   2          if (u-l == 1) break;  /* only 2 elements */
+ 205   2          i = (l+u)/2;
+ 206   2          lua_rawgeti(L, 1, i);
+ 207   2          lua_rawgeti(L, 1, l);
+ 208   2          if (sort_comp(L, -2, -1))  /* a[i]<a[l]? */
+ 209   2            set2(L, i, l);
+ 210   2          else {
+ 211   3            lua_pop(L, 1);  /* remove a[l] */
+ 212   3            lua_rawgeti(L, 1, u);
+ 213   3            if (sort_comp(L, -1, -2))  /* a[u]<a[i]? */
+ 214   3              set2(L, i, u);
+ 215   3            else
+ 216   3              lua_pop(L, 2);
+ 217   3          }
+ 218   2          if (u-l == 2) break;  /* only 3 elements */
+ 219   2          lua_rawgeti(L, 1, i);  /* Pivot */
+ 220   2          lua_pushvalue(L, -1);
+ 221   2          lua_rawgeti(L, 1, u-1);
+ 222   2          set2(L, i, u-1);
+ 223   2          /* a[l] <= P == a[u-1] <= a[u], only need to sort from l+1 to u-2 */
+ 224   2          i = l; j = u-1;
+ 225   2          for (;;) {  /* invariant: a[l..i] <= P <= a[j..u] */
+ 226   3            /* repeat ++i until a[i] >= P */
+ 227   3            while (lua_rawgeti(L, 1, ++i), sort_comp(L, -1, -2)) {
+ 228   4              if (i>u) luaL_error(L, "invalid order function for sorting");
+ 229   4              lua_pop(L, 1);  /* remove a[i] */
+ 230   4            }
+ 231   3            /* repeat --j until a[j] <= P */
+ 232   3            while (lua_rawgeti(L, 1, --j), sort_comp(L, -3, -1)) {
+ 233   4              if (j<l) luaL_error(L, "invalid order function for sorting");
+ 234   4              lua_pop(L, 1);  /* remove a[j] */
+ 235   4            }
+ 236   3            if (j<i) {
+ 237   4              lua_pop(L, 3);  /* pop pivot, a[i], a[j] */
+ 238   4              break;
+C51 COMPILER V9.00   LTABLIB                                                               11/27/2017 19:45:04 PAGE 5   
+
+ 239   4            }
+ 240   3            set2(L, i, j);
+ 241   3          }
+ 242   2          lua_rawgeti(L, 1, u-1);
+ 243   2          lua_rawgeti(L, 1, i);
+ 244   2          set2(L, u-1, i);  /* swap pivot (a[u-1]) with a[i] */
+ 245   2          /* a[l..i-1] <= a[i] == P <= a[i+1..u] */
+ 246   2          /* adjust so that smaller half is in [j..i] and larger one in [l..u] */
+ 247   2          if (i-l < u-i) {
+ 248   3            j=l; i=i-1; l=i+2;
+ 249   3          }
+ 250   2          else {
+ 251   3            j=i+1; i=u; u=j-2;
+ 252   3          }
+ 253   2          auxsort(L, j, i);  /* call recursively the smaller one */
+ 254   2        }  /* repeat the routine for the larger one */
+ 255   1      }
+ 256          
+ 257          static int sort (lua_State *L) {
+ 258   1        int n = aux_getn(L, 1);
+ 259   1        luaL_checkstack(L, 40, "");  /* assume array is smaller than 2^40 */
+ 260   1        if (!lua_isnoneornil(L, 2))  /* is there a 2nd argument? */
+ 261   1          luaL_checktype(L, 2, LUA_TFUNCTION);
+ 262   1        lua_settop(L, 2);  /* make sure there is two arguments */
+ 263   1        auxsort(L, 1, n);
+ 264   1        return 0;
+ 265   1      }
+ 266          
+ 267          /* }====================================================== */
+ 268          
+ 269          
+ 270          #define MIN_OPT_LEVEL 1
+ 271          #include "lrodefs.h"
+ 272          const LUA_REG_TYPE tab_funcs[] = {
+ 273            {LSTRKEY("concat"), LFUNCVAL(tconcat)},
+ 274            {LSTRKEY("foreach"), LFUNCVAL(foreach)},
+ 275            {LSTRKEY("foreachi"), LFUNCVAL(foreachi)},
+ 276            {LSTRKEY("getn"), LFUNCVAL(getn)},
+ 277            {LSTRKEY("maxn"), LFUNCVAL(maxn)},
+ 278            {LSTRKEY("insert"), LFUNCVAL(tinsert)},
+ 279            {LSTRKEY("remove"), LFUNCVAL(tremove)},
+ 280            {LSTRKEY("setn"), LFUNCVAL(setn)},
+ 281            {LSTRKEY("sort"), LFUNCVAL(sort)},
+ 282            {LNILKEY, LNILVAL}
+ 283          };
+ 284          
+ 285          LUALIB_API int luaopen_table (lua_State *L) {
+ 286   1        LREGISTER(L, LUA_TABLIBNAME, tab_funcs);
+ 287   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  2 ERROR(S)

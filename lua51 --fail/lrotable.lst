@@ -1,0 +1,157 @@
+C51 COMPILER V9.00   LROTABLE                                                              11/27/2017 19:45:03 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LROTABLE
+OBJECT MODULE PLACED IN .\obj\lrotable.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lrotable.c OMF2 BROWSE DEBUG PRINT(.\lrotable.lst) OBJECT(.\
+                    -obj\lrotable.obj)
+
+line level    source
+
+   1          /* Read-only tables for Lua */
+   2          
+   3          #include <string.h>
+   4          #include "lrotable.h"
+   5          #include "lua.h"
+   6          #include "lauxlib.h"
+*** ERROR C202 IN LINE 138 OF SRC\LAUXLIB.H: 'BUFSIZ': undefined identifier
+*** ERROR C136 IN LINE 138 OF SRC\LAUXLIB.H: invalid dimension size: [0]
+   7          #include "lstring.h"
+   8          #include "lobject.h"
+   9          #include "lapi.h"
+  10          
+  11          /* Local defines */
+  12          #define LUAR_FINDFUNCTION     0
+  13          #define LUAR_FINDVALUE        1
+  14          
+  15          /* Externally defined read-only table array */
+  16          extern const luaR_table lua_rotable[];
+  17          
+  18          /* Find a global "read only table" in the constant lua_rotable array */
+  19          void* luaR_findglobal(const char *name, unsigned len) {
+  20   1        unsigned i;    
+  21   1        
+  22   1        if (strlen(name) > LUA_MAX_ROTABLE_NAME)
+  23   1          return NULL;
+  24   1        for (i=0; lua_rotable[i].name; i ++)
+  25   1          if (*lua_rotable[i].name != '\0' && strlen(lua_rotable[i].name) == len && !strncmp(lua_rotable[i].name
+             -, name, len)) {
+  26   2            return (void*)(lua_rotable[i].pentries);
+  27   2          }
+  28   1        return NULL;
+  29   1      }
+  30          
+  31          /* Find an entry in a rotable and return it */
+  32          static const TValue* luaR_auxfind(const luaR_entry *pentry, const char *strkey, luaR_numkey numkey, unsign
+             -ed *ppos) {
+  33   1        const TValue *res = NULL;
+  34   1        unsigned i = 0;
+  35   1        
+  36   1        if (pentry == NULL)
+  37   1          return NULL;  
+  38   1        while(pentry->key.type != LUA_TNIL) {
+  39   2          if ((strkey && (pentry->key.type == LUA_TSTRING) && (!strcmp(pentry->key.id.strkey, strkey))) || 
+  40   2              (!strkey && (pentry->key.type == LUA_TNUMBER) && ((luaR_numkey)pentry->key.id.numkey == numkey))) 
+             -{
+  41   3            res = &pentry->value;
+  42   3            break;
+  43   3          }
+  44   2          i ++; pentry ++;
+  45   2        }
+  46   1        if (res && ppos)
+  47   1          *ppos = i;   
+  48   1        return res;
+  49   1      }
+C51 COMPILER V9.00   LROTABLE                                                              11/27/2017 19:45:03 PAGE 2   
+
+  50          
+  51          int luaR_findfunction(lua_State *L, const luaR_entry *ptable) {
+  52   1        const TValue *res = NULL;
+  53   1        const char *key = luaL_checkstring(L, 2);
+  54   1          
+  55   1        res = luaR_auxfind(ptable, key, 0, NULL);  
+  56   1        if (res && ttislightfunction(res)) {
+  57   2          luaA_pushobject(L, res);
+  58   2          return 1;
+  59   2        }
+  60   1        else
+  61   1          return 0;
+  62   1      }
+  63          
+  64          /* Find an entry in a rotable and return its type 
+  65             If "strkey" is not NULL, the function will look for a string key,
+  66             otherwise it will look for a number key */
+  67          const TValue* luaR_findentry(void *data_, const char *strkey, luaR_numkey numkey, unsigned *ppos) {
+  68   1        return luaR_auxfind((const luaR_entry*)data, strkey, numkey, ppos);
+*** ERROR C141 IN LINE 68 OF SRC\LROTABLE.C: syntax error near 'data'
+  69   1      }
+  70          
+  71          /* Find the metatable of a given table */
+  72          void* luaR_getmeta(void *data_) {
+  73   1      #ifdef LUA_META_ROTABLES
+                const TValue *res = luaR_auxfind((const luaR_entry*)data, "__metatable", 0, NULL);
+                return res && ttisrotable(res) ? rvalue(res) : NULL;
+              #else
+  77   1        return NULL;
+  78   1      #endif
+  79   1      }
+  80          
+  81          static void luaR_next_helper(lua_State *L, const luaR_entry *pentries, int pos, TValue *key, TValue *val) 
+             -{
+  82   1        setnilvalue(key);
+  83   1        setnilvalue(val);
+  84   1        if (pentries[pos].key.type != LUA_TNIL) {
+  85   2          /* Found an entry */
+  86   2          if (pentries[pos].key.type == LUA_TSTRING)
+  87   2            setsvalue(L, key, luaS_newro(L, pentries[pos].key.id.strkey))
+  88   2          else
+  89   2            setnvalue(key, (lua_Number)pentries[pos].key.id.numkey)
+  90   2         setobj2s(L, val, &pentries[pos].value);
+  91   2        }
+  92   1      }
+  93          /* next (used for iteration) */
+  94          void luaR_next(lua_State *L, void *data_, TValue *key, TValue *val) {
+  95   1        const luaR_entry* pentries = (const luaR_entry*)data;
+  96   1        char strkey[LUA_MAX_ROTABLE_NAME + 1], *pstrkey = NULL;
+  97   1        luaR_numkey numkey = 0;
+  98   1        unsigned keypos;
+  99   1        
+ 100   1        /* Special case: if key is nil, return the first element of the rotable */
+ 101   1        if (ttisnil(key)) 
+ 102   1          luaR_next_helper(L, pentries, 0, key, val);
+ 103   1        else if (ttisstring(key) || ttisnumber(key)) {
+ 104   2          /* Find the previoud key again */  
+ 105   2          if (ttisstring(key)) {
+ 106   3            luaR_getcstr(strkey, rawtsvalue(key), LUA_MAX_ROTABLE_NAME);          
+ 107   3            pstrkey = strkey;
+ 108   3          } else   
+ 109   2            numkey = (luaR_numkey)nvalue(key);
+C51 COMPILER V9.00   LROTABLE                                                              11/27/2017 19:45:03 PAGE 3   
+
+ 110   2          luaR_findentry(data, pstrkey, numkey, &keypos);
+ 111   2          /* Advance to next key */
+ 112   2          keypos ++;    
+ 113   2          luaR_next_helper(L, pentries, keypos, key, val);
+ 114   2        }
+ 115   1      }
+ 116          
+ 117          /* Convert a Lua string to a C string */
+ 118          void luaR_getcstr(char *dest, const TString *src, size_t maxsize) {
+ 119   1        if (src->tsv.len+1 > maxsize)
+ 120   1          dest[0] = '\0';
+ 121   1        else {
+ 122   2          memcpy(dest, getstr(src), src->tsv.len);
+ 123   2          dest[src->tsv.len] = '\0';
+ 124   2        } 
+ 125   1      }
+ 126          
+ 127          /* Return 1 if the given pointer is a rotable */
+ 128          #ifdef LUA_META_ROTABLES
+              extern char stext;
+              extern char etext;
+              int luaR_isrotable(void *p) {
+                return &stext <= ( char* )p && ( char* )p <= &etext;
+              }
+              #endif
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  3 ERROR(S)

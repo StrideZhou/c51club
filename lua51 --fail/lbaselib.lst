@@ -1,0 +1,742 @@
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LBASELIB
+OBJECT MODULE PLACED IN .\obj\lbaselib.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lbaselib.c OMF2 BROWSE DEBUG PRINT(.\lbaselib.lst) OBJECT(.\
+                    -obj\lbaselib.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lbaselib.c,v 1.191.1.6 2008/02/14 16:46:22 roberto Exp $
+   3          ** Basic library
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          
+   9          #include <ctype.h>
+  10          #include <stdio.h>
+  11          #include <stdlib.h>
+  12          #include <string.h>
+  13          
+  14          #define lbaselib_c
+  15          #define LUA_LIB
+  16          
+  17          #include "lua.h"
+  18          
+  19          #include "lauxlib.h"
+*** ERROR C202 IN LINE 138 OF SRC\LAUXLIB.H: 'BUFSIZ': undefined identifier
+*** ERROR C136 IN LINE 138 OF SRC\LAUXLIB.H: invalid dimension size: [0]
+  20          #include "lualib.h"
+  21          #include "lrotable.h"
+  22          
+  23          #ifndef LUA_CROSS_COMPILER
+              #include "platform_conf.h"
+              #endif
+  26          
+  27          /*
+  28          ** If your system does not support `stdout', you can just remove this function.
+  29          ** If you need, you can define your own `print' function, following this
+  30          ** model but changing `fputs' to put the strings at a proper place
+  31          ** (a console window or a log file, for instance).
+  32          */
+  33          static int luaB_print (lua_State *L) {
+  34   1        int n = lua_gettop(L);  /* number of arguments */
+  35   1        int i;
+  36   1        lua_getglobal(L, "tostring");
+  37   1        for (i=1; i<=n; i++) {
+  38   2          const char *s;
+  39   2          lua_pushvalue(L, -1);  /* function to be called */
+  40   2          lua_pushvalue(L, i);   /* value to print */
+  41   2          lua_call(L, 1, 1);
+  42   2          s = lua_tostring(L, -1);  /* get result */
+  43   2          if (s == NULL)
+  44   2            return luaL_error(L, LUA_QL("tostring") " must return a string to "
+  45   2                                 LUA_QL("print"));
+  46   2          if (i>1) fputs("\t", stdout);
+  47   2          fputs(s, stdout);
+  48   2          lua_pop(L, 1);  /* pop result */
+  49   2        }
+  50   1        fputs("\n", stdout);
+  51   1        return 0;
+  52   1      }
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 2   
+
+  53          
+  54          
+  55          static int luaB_tonumber (lua_State *L) {
+  56   1        int base = luaL_optint(L, 2, 10);
+  57   1        if (base == 10) {  /* standard conversion */
+  58   2          luaL_checkany(L, 1);
+  59   2          if (lua_isnumber(L, 1)) {
+  60   3            lua_pushnumber(L, lua_tonumber(L, 1));
+  61   3            return 1;
+  62   3          }
+  63   2        }
+  64   1        else {
+  65   2          const char *s1 = luaL_checkstring(L, 1);
+  66   2          char *s2;
+  67   2          unsigned long n;
+  68   2          luaL_argcheck(L, 2 <= base && base <= 36, 2, "base out of range");
+  69   2          n = strtoul(s1, &s2, base);
+  70   2          if (s1 != s2) {  /* at least one valid digit? */
+  71   3            while (isspace((unsigned char)(*s2))) s2++;  /* skip trailing spaces */
+  72   3            if (*s2 == '\0') {  /* no invalid trailing characters? */
+  73   4              lua_pushnumber(L, (lua_Number)n);
+  74   4              return 1;
+  75   4            }
+  76   3          }
+  77   2        }
+  78   1        lua_pushnil(L);  /* else not a number */
+  79   1        return 1;
+  80   1      }
+  81          
+  82          
+  83          static int luaB_error (lua_State *L) {
+  84   1        int level = luaL_optint(L, 2, 1);
+  85   1        lua_settop(L, 1);
+  86   1        if (lua_isstring(L, 1) && level > 0) {  /* add extra information? */
+  87   2          luaL_where(L, level);
+  88   2          lua_pushvalue(L, 1);
+  89   2          lua_concat(L, 2);
+  90   2        }
+  91   1        return lua_error(L);
+  92   1      }
+  93          
+  94          
+  95          static int luaB_getmetatable (lua_State *L) {
+  96   1        luaL_checkany(L, 1);
+  97   1        if (!lua_getmetatable(L, 1)) {
+  98   2          lua_pushnil(L);
+  99   2          return 1;  /* no metatable */
+ 100   2        }
+ 101   1        luaL_getmetafield(L, 1, "__metatable");
+ 102   1        return 1;  /* returns either __metatable field (if present) or metatable */
+ 103   1      }
+ 104          
+ 105          
+ 106          static int luaB_setmetatable (lua_State *L) {
+ 107   1        int t = lua_type(L, 2);
+ 108   1        luaL_checktype(L, 1, LUA_TTABLE);
+ 109   1        luaL_argcheck(L, t == LUA_TNIL || t == LUA_TTABLE || t == LUA_TROTABLE, 2,
+ 110   1                          "nil or table expected");
+ 111   1        if (luaL_getmetafield(L, 1, "__metatable"))
+ 112   1          luaL_error(L, "cannot change a protected metatable");
+ 113   1        lua_settop(L, 2);
+ 114   1        lua_setmetatable(L, 1);
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 3   
+
+ 115   1        return 1;
+ 116   1      }
+ 117          
+ 118          
+ 119          static void getfunc (lua_State *L, int opt) {
+ 120   1        if (lua_isfunction(L, 1)) lua_pushvalue(L, 1);
+ 121   1        else {
+ 122   2          lua_Debug ar;
+ 123   2          int level = opt ? luaL_optint(L, 1, 1) : luaL_checkint(L, 1);
+ 124   2          luaL_argcheck(L, level >= 0, 1, "level must be non-negative");
+ 125   2          if (lua_getstack(L, level, &ar) == 0)
+ 126   2            luaL_argerror(L, 1, "invalid level");
+ 127   2          lua_getinfo(L, "f", &ar);
+ 128   2          if (lua_isnil(L, -1))
+ 129   2            luaL_error(L, "no function environment for tail call at level %d",
+ 130   2                          level);
+ 131   2        }
+ 132   1      }
+ 133          
+ 134          
+ 135          static int luaB_getfenv (lua_State *L) {
+ 136   1        getfunc(L, 1);
+ 137   1        if (lua_iscfunction(L, -1))  /* is a C function? */
+ 138   1          lua_pushvalue(L, LUA_GLOBALSINDEX);  /* return the thread's global env. */
+ 139   1        else
+ 140   1          lua_getfenv(L, -1);
+ 141   1        return 1;
+ 142   1      }
+ 143          
+ 144          
+ 145          static int luaB_setfenv (lua_State *L) {
+ 146   1        luaL_checktype(L, 2, LUA_TTABLE);
+ 147   1        getfunc(L, 0);
+ 148   1        lua_pushvalue(L, 2);
+ 149   1        if (lua_isnumber(L, 1) && lua_tonumber(L, 1) == 0) {
+ 150   2          /* change environment of current thread */
+ 151   2          lua_pushthread(L);
+ 152   2          lua_insert(L, -2);
+ 153   2          lua_setfenv(L, -2);
+ 154   2          return 0;
+ 155   2        }
+ 156   1        else if (lua_iscfunction(L, -2) || lua_setfenv(L, -2) == 0)
+ 157   1          luaL_error(L,
+ 158   1                LUA_QL("setfenv") " cannot change environment of given object");
+ 159   1        return 1;
+ 160   1      }
+ 161          
+ 162          
+ 163          static int luaB_rawequal (lua_State *L) {
+ 164   1        luaL_checkany(L, 1);
+ 165   1        luaL_checkany(L, 2);
+ 166   1        lua_pushboolean(L, lua_rawequal(L, 1, 2));
+ 167   1        return 1;
+ 168   1      }
+ 169          
+ 170          
+ 171          static int luaB_rawget (lua_State *L) {
+ 172   1        luaL_checkanytable(L, 1);
+ 173   1        luaL_checkany(L, 2);
+ 174   1        lua_settop(L, 2);
+ 175   1        lua_rawget(L, 1);
+ 176   1        return 1;
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 4   
+
+ 177   1      }
+ 178          
+ 179          static int luaB_rawset (lua_State *L) {
+ 180   1        luaL_checktype(L, 1, LUA_TTABLE);
+ 181   1        luaL_checkany(L, 2);
+ 182   1        luaL_checkany(L, 3);
+ 183   1        lua_settop(L, 3);
+ 184   1        lua_rawset(L, 1);
+ 185   1        return 1;
+ 186   1      }
+ 187          
+ 188          
+ 189          static int luaB_gcinfo (lua_State *L) {
+ 190   1        lua_pushinteger(L, lua_getgccount(L));
+ 191   1        return 1;
+ 192   1      }
+ 193          
+ 194          
+ 195          static int luaB_collectgarbage (lua_State *L) {
+ 196   1        static const char *const opts[] = {"stop", "restart", "collect",
+ 197   1          "count", "step", "setpause", "setstepmul","setmemlimit","getmemlimit", NULL};
+ 198   1        static const int optsnum[] = {LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
+ 199   1          LUA_GCCOUNT, LUA_GCSTEP, LUA_GCSETPAUSE, LUA_GCSETSTEPMUL,
+ 200   1                      LUA_GCSETMEMLIMIT,LUA_GCGETMEMLIMIT};
+ 201   1        int o = luaL_checkoption(L, 1, "collect", opts);
+ 202   1        int ex = luaL_optint(L, 2, 0);
+ 203   1        int res = lua_gc(L, optsnum[o], ex);
+ 204   1        switch (optsnum[o]) {
+ 205   2          case LUA_GCCOUNT: {
+ 206   3            int b = lua_gc(L, LUA_GCCOUNTB, 0);
+ 207   3            lua_pushnumber(L, res + ((lua_Number)b/1024));
+ 208   3            return 1;
+ 209   3          }
+ 210   2          case LUA_GCSTEP: {
+ 211   3            lua_pushboolean(L, res);
+ 212   3            return 1;
+ 213   3          }
+ 214   2          default: {
+ 215   3            lua_pushnumber(L, res);
+ 216   3            return 1;
+ 217   3          }
+ 218   2        }
+ 219   1      }
+ 220          
+ 221          
+ 222          static int luaB_type (lua_State *L) {
+ 223   1        luaL_checkany(L, 1);
+ 224   1        lua_pushstring(L, luaL_typename(L, 1));
+ 225   1        return 1;
+ 226   1      }
+ 227          
+ 228          
+ 229          static int luaB_next (lua_State *L) {
+ 230   1        luaL_checkanytable(L, 1);
+ 231   1        lua_settop(L, 2);  /* create a 2nd argument if there isn't one */
+ 232   1        if (lua_next(L, 1))
+ 233   1          return 2;
+ 234   1        else {
+ 235   2          lua_pushnil(L);
+ 236   2          return 1;
+ 237   2        }
+ 238   1      }
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 5   
+
+ 239          
+ 240          
+ 241          static int luaB_pairs (lua_State *L) {
+ 242   1        luaL_checkanytable(L, 1);
+ 243   1        lua_pushvalue(L, lua_upvalueindex(1));  /* return generator, */
+ 244   1        lua_pushvalue(L, 1);  /* state, */
+ 245   1        lua_pushnil(L);  /* and initial value */
+ 246   1        return 3;
+ 247   1      }
+ 248          
+ 249          
+ 250          static int ipairsaux (lua_State *L) {
+ 251   1        int i = luaL_checkint(L, 2);
+ 252   1        luaL_checkanytable(L, 1);
+ 253   1        i++;  /* next value */
+ 254   1        lua_pushinteger(L, i);
+ 255   1        lua_rawgeti(L, 1, i);
+ 256   1        return (lua_isnil(L, -1)) ? 0 : 2;
+ 257   1      }
+ 258          
+ 259          
+ 260          static int luaB_ipairs (lua_State *L) {
+ 261   1        luaL_checkanytable(L, 1);
+ 262   1        lua_pushvalue(L, lua_upvalueindex(1));  /* return generator, */
+ 263   1        lua_pushvalue(L, 1);  /* state, */
+ 264   1        lua_pushinteger(L, 0);  /* and initial value */
+ 265   1        return 3;
+ 266   1      }
+ 267          
+ 268          
+ 269          static int load_aux (lua_State *L, int status) {
+ 270   1        if (status == 0)  /* OK? */
+ 271   1          return 1;
+ 272   1        else {
+ 273   2          lua_pushnil(L);
+ 274   2          lua_insert(L, -2);  /* put before error message */
+ 275   2          return 2;  /* return nil plus error message */
+ 276   2        }
+ 277   1      }
+ 278          
+ 279          
+ 280          static int luaB_loadstring (lua_State *L) {
+ 281   1        size_t l;
+ 282   1        const char *s = luaL_checklstring(L, 1, &l);
+ 283   1        const char *chunkname = luaL_optstring(L, 2, s);
+ 284   1        return load_aux(L, luaL_loadbuffer(L, s, l, chunkname));
+ 285   1      }
+ 286          
+ 287          
+ 288          static int luaB_loadfile (lua_State *L) {
+ 289   1        const char *fname = luaL_optstring(L, 1, NULL);
+ 290   1        return load_aux(L, luaL_loadfile(L, fname));
+ 291   1      }
+ 292          
+ 293          
+ 294          /*
+ 295          ** Reader for generic `load' function: `lua_load' uses the
+ 296          ** stack for internal stuff, so the reader cannot change the
+ 297          ** stack top. Instead, it keeps its resulting string in a
+ 298          ** reserved slot inside the stack.
+ 299          */
+ 300          static const char *generic_reader (lua_State *L, void *ud, size_t *size) {
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 6   
+
+ 301   1        (void)ud;  /* to avoid warnings */
+ 302   1        if (L == NULL && size == NULL) // direct mode check, doesn't happen
+ 303   1          return NULL;
+ 304   1        luaL_checkstack(L, 2, "too many nested functions");
+ 305   1        lua_pushvalue(L, 1);  /* get function */
+ 306   1        lua_call(L, 0, 1);  /* call it */
+ 307   1        if (lua_isnil(L, -1)) {
+ 308   2          *size = 0;
+ 309   2          return NULL;
+ 310   2        }
+ 311   1        else if (lua_isstring(L, -1)) {
+ 312   2          lua_replace(L, 3);  /* save string in a reserved stack slot */
+ 313   2          return lua_tolstring(L, 3, size);
+ 314   2        }
+ 315   1        else luaL_error(L, "reader function must return a string");
+ 316   1        return NULL;  /* to avoid warnings */
+ 317   1      }
+ 318          
+ 319          
+ 320          static int luaB_load (lua_State *L) {
+ 321   1        int status;
+ 322   1        const char *cname = luaL_optstring(L, 2, "=(load)");
+ 323   1        luaL_checktype(L, 1, LUA_TFUNCTION);
+ 324   1        lua_settop(L, 3);  /* function, eventual name, plus one reserved slot */
+ 325   1        status = lua_load(L, generic_reader, NULL, cname);
+ 326   1        return load_aux(L, status);
+ 327   1      }
+ 328          
+ 329          
+ 330          static int luaB_dofile (lua_State *L) {
+ 331   1        const char *fname = luaL_optstring(L, 1, NULL);
+ 332   1        int n = lua_gettop(L);
+ 333   1        if (luaL_loadfile(L, fname) != 0) lua_error(L);
+ 334   1        lua_call(L, 0, LUA_MULTRET);
+ 335   1        return lua_gettop(L) - n;
+ 336   1      }
+ 337          
+ 338          
+ 339          static int luaB_assert (lua_State *L) {
+ 340   1        luaL_checkany(L, 1);
+ 341   1        if (!lua_toboolean(L, 1))
+ 342   1          return luaL_error(L, "%s", luaL_optstring(L, 2, "assertion failed!"));
+ 343   1        return lua_gettop(L);
+ 344   1      }
+ 345          
+ 346          
+ 347          static int luaB_unpack (lua_State *L) {
+ 348   1        int i, e, n;
+ 349   1        luaL_checktype(L, 1, LUA_TTABLE);
+ 350   1        i = luaL_optint(L, 2, 1);
+ 351   1        e = luaL_opt(L, luaL_checkint, 3, luaL_getn(L, 1));
+ 352   1        if (i > e) return 0;  /* empty range */
+ 353   1        n = e - i + 1;  /* number of elements */
+ 354   1        if (n <= 0 || !lua_checkstack(L, n))  /* n <= 0 means arith. overflow */
+ 355   1          return luaL_error(L, "too many results to unpack");
+ 356   1        lua_rawgeti(L, 1, i);  /* push arg[i] (avoiding overflow problems) */
+ 357   1        while (i++ < e)  /* push arg[i + 1...e] */
+ 358   1          lua_rawgeti(L, 1, i);
+ 359   1        return n;
+ 360   1      }
+ 361          
+ 362          
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 7   
+
+ 363          static int luaB_select (lua_State *L) {
+ 364   1        int n = lua_gettop(L);
+ 365   1        if (lua_type(L, 1) == LUA_TSTRING && *lua_tostring(L, 1) == '#') {
+ 366   2          lua_pushinteger(L, n-1);
+ 367   2          return 1;
+ 368   2        }
+ 369   1        else {
+ 370   2          int i = luaL_checkint(L, 1);
+ 371   2          if (i < 0) i = n + i;
+ 372   2          else if (i > n) i = n;
+ 373   2          luaL_argcheck(L, 1 <= i, 1, "index out of range");
+ 374   2          return n - i;
+ 375   2        }
+ 376   1      }
+ 377          
+ 378          
+ 379          static int luaB_pcall (lua_State *L) {
+ 380   1        int status;
+ 381   1        luaL_checkany(L, 1);
+ 382   1        status = lua_pcall(L, lua_gettop(L) - 1, LUA_MULTRET, 0);
+ 383   1        lua_pushboolean(L, (status == 0));
+ 384   1        lua_insert(L, 1);
+ 385   1        return lua_gettop(L);  /* return status + all results */
+ 386   1      }
+ 387          
+ 388          
+ 389          static int luaB_xpcall (lua_State *L) {
+ 390   1        int status;
+ 391   1        luaL_checkany(L, 2);
+ 392   1        lua_settop(L, 2);
+ 393   1        lua_insert(L, 1);  /* put error function under function to be called */
+ 394   1        status = lua_pcall(L, 0, LUA_MULTRET, 1);
+ 395   1        lua_pushboolean(L, (status == 0));
+ 396   1        lua_replace(L, 1);
+ 397   1        return lua_gettop(L);  /* return status + all results */
+ 398   1      }
+ 399          
+ 400          
+ 401          static int luaB_tostring (lua_State *L) {
+ 402   1        luaL_checkany(L, 1);
+ 403   1        if (luaL_callmeta(L, 1, "__tostring"))  /* is there a metafield? */
+ 404   1          return 1;  /* use its value */
+ 405   1        switch (lua_type(L, 1)) {
+ 406   2          case LUA_TNUMBER:
+ 407   2            lua_pushstring(L, lua_tostring(L, 1));
+ 408   2            break;
+ 409   2          case LUA_TSTRING:
+ 410   2            lua_pushvalue(L, 1);
+ 411   2            break;
+ 412   2          case LUA_TBOOLEAN:
+ 413   2            lua_pushstring(L, (lua_toboolean(L, 1) ? "true" : "false"));
+ 414   2            break;
+ 415   2          case LUA_TNIL:
+ 416   2            lua_pushliteral(L, "nil");
+ 417   2            break;
+ 418   2          default:
+ 419   2            lua_pushfstring(L, "%s: %p", luaL_typename(L, 1), lua_topointer(L, 1));
+ 420   2            break;
+ 421   2        }
+ 422   1        return 1;
+ 423   1      }
+ 424          
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 8   
+
+ 425          
+ 426          static int luaB_newproxy (lua_State *L) {
+ 427   1        lua_settop(L, 1);
+ 428   1        lua_newuserdata(L, 0);  /* create proxy */
+ 429   1        if (lua_toboolean(L, 1) == 0)
+ 430   1          return 1;  /* no metatable */
+ 431   1        else if (lua_isboolean(L, 1)) {
+ 432   2          lua_newtable(L);  /* create a new metatable `m' ... */
+ 433   2          lua_pushvalue(L, -1);  /* ... and mark `m' as a valid metatable */
+ 434   2          lua_pushboolean(L, 1);
+ 435   2          lua_rawset(L, lua_upvalueindex(1));  /* weaktable[m] = true */
+ 436   2        }
+ 437   1        else {
+ 438   2          int validproxy = 0;  /* to check if weaktable[metatable(u)] == true */
+ 439   2          if (lua_getmetatable(L, 1)) {
+ 440   3            lua_rawget(L, lua_upvalueindex(1));
+ 441   3            validproxy = lua_toboolean(L, -1);
+ 442   3            lua_pop(L, 1);  /* remove value */
+ 443   3          }
+ 444   2          luaL_argcheck(L, validproxy, 1, "boolean or proxy expected");
+ 445   2          lua_getmetatable(L, 1);  /* metatable is valid; get it */
+ 446   2        }
+ 447   1        lua_setmetatable(L, 2);
+ 448   1        return 1;
+ 449   1      }
+ 450          
+ 451          #define LUA_BASELIB_FUNCLIST\
+ 452            {LSTRKEY("assert"), LFUNCVAL(luaB_assert)},\
+ 453            {LSTRKEY("collectgarbage"), LFUNCVAL(luaB_collectgarbage)},\
+ 454            {LSTRKEY("dofile"), LFUNCVAL(luaB_dofile)},\
+ 455            {LSTRKEY("error"), LFUNCVAL(luaB_error)},\
+ 456            {LSTRKEY("gcinfo"), LFUNCVAL(luaB_gcinfo)},\
+ 457            {LSTRKEY("getfenv"), LFUNCVAL(luaB_getfenv)},\
+ 458            {LSTRKEY("getmetatable"), LFUNCVAL(luaB_getmetatable)},\
+ 459            {LSTRKEY("loadfile"), LFUNCVAL(luaB_loadfile)},\
+ 460            {LSTRKEY("load"), LFUNCVAL(luaB_load)},\
+ 461            {LSTRKEY("loadstring"), LFUNCVAL(luaB_loadstring)},\
+ 462            {LSTRKEY("next"), LFUNCVAL(luaB_next)},\
+ 463            {LSTRKEY("pcall"), LFUNCVAL(luaB_pcall)},\
+ 464            {LSTRKEY("print"), LFUNCVAL(luaB_print)},\
+ 465            {LSTRKEY("rawequal"), LFUNCVAL(luaB_rawequal)},\
+ 466            {LSTRKEY("rawget"), LFUNCVAL(luaB_rawget)},\
+ 467            {LSTRKEY("rawset"), LFUNCVAL(luaB_rawset)},\
+ 468            {LSTRKEY("select"), LFUNCVAL(luaB_select)},\
+ 469            {LSTRKEY("setfenv"), LFUNCVAL(luaB_setfenv)},\
+ 470            {LSTRKEY("setmetatable"), LFUNCVAL(luaB_setmetatable)},\
+ 471            {LSTRKEY("tonumber"), LFUNCVAL(luaB_tonumber)},\
+ 472            {LSTRKEY("tostring"), LFUNCVAL(luaB_tostring)},\
+ 473            {LSTRKEY("type"), LFUNCVAL(luaB_type)},\
+ 474            {LSTRKEY("unpack"), LFUNCVAL(luaB_unpack)},\
+ 475            {LSTRKEY("xpcall"), LFUNCVAL(luaB_xpcall)}
+ 476            
+ 477          #if LUA_OPTIMIZE_MEMORY == 2
+              #define MIN_OPT_LEVEL 2
+              #include "lrodefs.h"
+              const LUA_REG_TYPE base_funcs_list[] = {
+                LUA_BASELIB_FUNCLIST,
+                {LNILKEY, LNILVAL}
+              };
+              #endif
+ 485          
+ 486          
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 9   
+
+ 487          static int luaB_index(lua_State *L) {
+ 488   1      #if LUA_OPTIMIZE_MEMORY == 2
+                int fres;
+                if ((fres = luaR_findfunction(L, base_funcs_list)) != 0)
+                  return fres;
+              #endif  
+ 493   1        const char *keyname = luaL_checkstring(L, 2);
+ 494   1        if (!strcmp(keyname, "_VERSION")) {
+ 495   2          lua_pushliteral(L, LUA_VERSION);
+ 496   2          return 1;
+ 497   2        }
+ 498   1        void *res = luaR_findglobal(keyname, strlen(keyname));
+ 499   1        if (!res)
+ 500   1          return 0;
+ 501   1        else {
+ 502   2          lua_pushrotable(L, res);
+ 503   2          return 1;
+ 504   2        }
+ 505   1      }
+ 506          
+ 507          static const luaL_Reg base_funcs[] = {
+ 508          #if LUA_OPTIMIZE_MEMORY != 2
+ 509          #undef MIN_OPT_LEVEL
+ 510          #define MIN_OPT_LEVEL 0
+ 511          #include "lrodefs.h"
+ 512            LUA_BASELIB_FUNCLIST,
+ 513          #endif
+ 514            {"__index", luaB_index},
+ 515            {NULL, NULL}
+ 516          };
+ 517          
+ 518          
+ 519          /*
+ 520          ** {======================================================
+ 521          ** Coroutine library
+ 522          ** =======================================================
+ 523          */
+ 524          
+ 525          #define CO_RUN  0       /* running */
+ 526          #define CO_SUS  1       /* suspended */
+ 527          #define CO_NOR  2       /* 'normal' (it resumed another coroutine) */
+ 528          #define CO_DEAD 3
+ 529          
+ 530          static const char *const statnames[] =
+ 531              {"running", "suspended", "normal", "dead"};
+ 532          
+ 533          static int costatus (lua_State *L, lua_State *co) {
+ 534   1        if (L == co) return CO_RUN;
+ 535   1        switch (lua_status(co)) {
+ 536   2          case LUA_YIELD:
+ 537   2            return CO_SUS;
+ 538   2          case 0: {
+ 539   3            lua_Debug ar;
+ 540   3            if (lua_getstack(co, 0, &ar) > 0)  /* does it have frames? */
+ 541   3              return CO_NOR;  /* it is running */
+ 542   3            else if (lua_gettop(co) == 0)
+ 543   3                return CO_DEAD;
+ 544   3            else
+ 545   3              return CO_SUS;  /* initial state */
+ 546   3          }
+ 547   2          default:  /* some error occured */
+ 548   2            return CO_DEAD;
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 10  
+
+ 549   2        }
+ 550   1      }
+ 551          
+ 552          
+ 553          static int luaB_costatus (lua_State *L) {
+ 554   1        lua_State *co = lua_tothread(L, 1);
+ 555   1        luaL_argcheck(L, co, 1, "coroutine expected");
+ 556   1        lua_pushstring(L, statnames[costatus(L, co)]);
+ 557   1        return 1;
+ 558   1      }
+ 559          
+ 560          
+ 561          static int auxresume (lua_State *L, lua_State *co, int narg) {
+ 562   1        int status = costatus(L, co);
+ 563   1        if (!lua_checkstack(co, narg))
+ 564   1          luaL_error(L, "too many arguments to resume");
+ 565   1        if (status != CO_SUS) {
+ 566   2          lua_pushfstring(L, "cannot resume %s coroutine", statnames[status]);
+ 567   2          return -1;  /* error flag */
+ 568   2        }
+ 569   1        lua_xmove(L, co, narg);
+ 570   1        lua_setlevel(L, co);
+ 571   1        status = lua_resume(co, narg);
+ 572   1        if (status == 0 || status == LUA_YIELD) {
+ 573   2          int nres = lua_gettop(co);
+ 574   2          if (!lua_checkstack(L, nres + 1))
+ 575   2            luaL_error(L, "too many results to resume");
+ 576   2          lua_xmove(co, L, nres);  /* move yielded values */
+ 577   2          return nres;
+ 578   2        }
+ 579   1        else {
+ 580   2          lua_xmove(co, L, 1);  /* move error message */
+ 581   2          return -1;  /* error flag */
+ 582   2        }
+ 583   1      }
+ 584          
+ 585          
+ 586          static int luaB_coresume (lua_State *L) {
+ 587   1        lua_State *co = lua_tothread(L, 1);
+ 588   1        int r;
+ 589   1        luaL_argcheck(L, co, 1, "coroutine expected");
+ 590   1        r = auxresume(L, co, lua_gettop(L) - 1);
+ 591   1        if (r < 0) {
+ 592   2          lua_pushboolean(L, 0);
+ 593   2          lua_insert(L, -2);
+ 594   2          return 2;  /* return false + error message */
+ 595   2        }
+ 596   1        else {
+ 597   2          lua_pushboolean(L, 1);
+ 598   2          lua_insert(L, -(r + 1));
+ 599   2          return r + 1;  /* return true + `resume' returns */
+ 600   2        }
+ 601   1      }
+ 602          
+ 603          
+ 604          static int luaB_auxwrap (lua_State *L) {
+ 605   1        lua_State *co = lua_tothread(L, lua_upvalueindex(1));
+ 606   1        int r = auxresume(L, co, lua_gettop(L));
+ 607   1        if (r < 0) {
+ 608   2          if (lua_isstring(L, -1)) {  /* error object is a string? */
+ 609   3            luaL_where(L, 1);  /* add extra info */
+ 610   3            lua_insert(L, -2);
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 11  
+
+ 611   3            lua_concat(L, 2);
+ 612   3          }
+ 613   2          lua_error(L);  /* propagate error */
+ 614   2        }
+ 615   1        return r;
+ 616   1      }
+ 617          
+ 618          
+ 619          static int luaB_cocreate (lua_State *L) {
+ 620   1        lua_State *NL = lua_newthread(L);
+ 621   1        luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+ 622   1          "Lua function expected");
+ 623   1        lua_pushvalue(L, 1);  /* move function to top */
+ 624   1        lua_xmove(L, NL, 1);  /* move function from L to NL */
+ 625   1        return 1;
+ 626   1      }
+ 627          
+ 628          
+ 629          static int luaB_cowrap (lua_State *L) {
+ 630   1        luaB_cocreate(L);
+ 631   1        lua_pushcclosure(L, luaB_auxwrap, 1);
+ 632   1        return 1;
+ 633   1      }
+ 634          
+ 635          
+ 636          static int luaB_yield (lua_State *L) {
+ 637   1        return lua_yield(L, lua_gettop(L));
+ 638   1      }
+ 639          
+ 640          
+ 641          static int luaB_corunning (lua_State *L) {
+ 642   1        if (lua_pushthread(L))
+ 643   1          lua_pushnil(L);  /* main thread is not a coroutine */
+ 644   1        return 1;
+ 645   1      }
+ 646          
+ 647          #undef MIN_OPT_LEVEL
+ 648          #define MIN_OPT_LEVEL 1
+ 649          #include "lrodefs.h"
+ 650          const LUA_REG_TYPE co_funcs[] = {
+ 651            {LSTRKEY("create"), LFUNCVAL(luaB_cocreate)},
+ 652            {LSTRKEY("resume"), LFUNCVAL(luaB_coresume)},
+ 653            {LSTRKEY("running"), LFUNCVAL(luaB_corunning)},
+ 654            {LSTRKEY("status"), LFUNCVAL(luaB_costatus)},
+ 655            {LSTRKEY("wrap"), LFUNCVAL(luaB_cowrap)},
+ 656            {LSTRKEY("yield"), LFUNCVAL(luaB_yield)},
+ 657            {LNILKEY, LNILVAL}
+ 658          };
+ 659          
+ 660          /* }====================================================== */
+ 661          
+ 662          
+ 663          static void auxopen (lua_State *L, const char *name,
+ 664                               lua_CFunction f, lua_CFunction u) {
+ 665   1        lua_pushcfunction(L, u);
+ 666   1        lua_pushcclosure(L, f, 1);
+ 667   1        lua_setfield(L, -2, name);
+ 668   1      }
+ 669          
+ 670          
+ 671          static void base_open (lua_State *L) {
+ 672   1        /* set global _G */
+C51 COMPILER V9.00   LBASELIB                                                              11/27/2017 19:45:00 PAGE 12  
+
+ 673   1        lua_pushvalue(L, LUA_GLOBALSINDEX);
+ 674   1        lua_setglobal(L, "_G");
+ 675   1        /* open lib into global table */
+ 676   1        luaL_register_light(L, "_G", base_funcs);
+ 677   1      #if LUA_OPTIMIZE_MEMORY > 0
+                lua_pushvalue(L, -1);
+                lua_setmetatable(L, -2);  
+              #else
+ 681   1        lua_pushliteral(L, LUA_VERSION);
+ 682   1        lua_setglobal(L, "_VERSION");  /* set global _VERSION */
+ 683   1      #endif
+ 684   1        /* `ipairs' and `pairs' need auxliliary functions as upvalues */
+ 685   1        auxopen(L, "ipairs", luaB_ipairs, ipairsaux);
+ 686   1        auxopen(L, "pairs", luaB_pairs, luaB_next);
+ 687   1        /* `newproxy' needs a weaktable as upvalue */
+ 688   1        lua_createtable(L, 0, 1);  /* new table `w' */
+ 689   1        lua_pushvalue(L, -1);  /* `w' will be its own metatable */
+ 690   1        lua_setmetatable(L, -2);
+ 691   1        lua_pushliteral(L, "kv");
+ 692   1        lua_setfield(L, -2, "__mode");  /* metatable(w).__mode = "kv" */
+ 693   1        lua_pushcclosure(L, luaB_newproxy, 1);
+ 694   1        lua_setglobal(L, "newproxy");  /* set global `newproxy' */
+ 695   1      }
+ 696          
+ 697          
+ 698          LUALIB_API int luaopen_base (lua_State *L) {
+ 699   1        base_open(L);
+ 700   1      #if LUA_OPTIMIZE_MEMORY == 0 && defined( MODULE_LUA_CO_LINE )
+                luaL_register(L, LUA_COLIBNAME, co_funcs);
+                return 2;
+              #else
+ 704   1        return 1;
+ 705   1      #endif
+ 706   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  2 ERROR(S)

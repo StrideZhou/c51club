@@ -1,0 +1,5 @@
+$080008B0  _delay_ms
+$1E0008B6  _EEPROM_read_n
+$080008B0  _EEPROM_SectorErase
+$1E0008B6  _EEPROM_write_n
+$08000800  DisableEEPROM

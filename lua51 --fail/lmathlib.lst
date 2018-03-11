@@ -1,0 +1,421 @@
+C51 COMPILER V9.00   LMATHLIB                                                              11/27/2017 19:45:02 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LMATHLIB
+OBJECT MODULE PLACED IN .\obj\lmathlib.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lmathlib.c OMF2 BROWSE DEBUG PRINT(.\lmathlib.lst) OBJECT(.\
+                    -obj\lmathlib.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lmathlib.c,v 1.67.1.1 2007/12/27 13:02:25 roberto Exp $
+   3          ** Standard mathematical library
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <stdlib.h>
+   9          #include <math.h>
+  10          
+  11          #define lmathlib_c
+  12          #define LUA_LIB
+  13          
+  14          #include "lua.h"
+  15          
+  16          #include "lauxlib.h"
+*** ERROR C202 IN LINE 138 OF SRC\LAUXLIB.H: 'BUFSIZ': undefined identifier
+*** ERROR C136 IN LINE 138 OF SRC\LAUXLIB.H: invalid dimension size: [0]
+  17          #include "lualib.h"
+  18          #include "lrotable.h"
+  19          
+  20          #undef PI
+  21          #define PI (3.14159265358979323846)
+  22          #define RADIANS_PER_DEGREE (PI/180.0)
+  23          
+  24          
+  25          
+  26          static int math_abs (lua_State *L) {
+  27   1      #ifdef LUA_NUMBER_INTEGRAL
+                lua_Number x = luaL_checknumber(L, 1);
+                if (x < 0) x = -x;    //fails for -2^31
+                lua_pushnumber(L, x);
+              #else
+  32   1        lua_pushnumber(L, fabs(luaL_checknumber(L, 1)));
+  33   1      #endif
+  34   1        return 1;
+  35   1      }
+  36          
+  37          #ifndef LUA_NUMBER_INTEGRAL
+  38          
+  39          static int math_sin (lua_State *L) {
+  40   1        lua_pushnumber(L, sin(luaL_checknumber(L, 1)));
+  41   1        return 1;
+  42   1      }
+  43          
+  44          static int math_sinh (lua_State *L) {
+  45   1        lua_pushnumber(L, sinh(luaL_checknumber(L, 1)));
+  46   1        return 1;
+  47   1      }
+  48          
+  49          static int math_cos (lua_State *L) {
+  50   1        lua_pushnumber(L, cos(luaL_checknumber(L, 1)));
+  51   1        return 1;
+  52   1      }
+C51 COMPILER V9.00   LMATHLIB                                                              11/27/2017 19:45:02 PAGE 2   
+
+  53          
+  54          static int math_cosh (lua_State *L) {
+  55   1        lua_pushnumber(L, cosh(luaL_checknumber(L, 1)));
+  56   1        return 1;
+  57   1      }
+  58          
+  59          static int math_tan (lua_State *L) {
+  60   1        lua_pushnumber(L, tan(luaL_checknumber(L, 1)));
+  61   1        return 1;
+  62   1      }
+  63          
+  64          static int math_tanh (lua_State *L) {
+  65   1        lua_pushnumber(L, tanh(luaL_checknumber(L, 1)));
+  66   1        return 1;
+  67   1      }
+  68          
+  69          static int math_asin (lua_State *L) {
+  70   1        lua_pushnumber(L, asin(luaL_checknumber(L, 1)));
+  71   1        return 1;
+  72   1      }
+  73          
+  74          static int math_acos (lua_State *L) {
+  75   1        lua_pushnumber(L, acos(luaL_checknumber(L, 1)));
+  76   1        return 1;
+  77   1      }
+  78          
+  79          static int math_atan (lua_State *L) {
+  80   1        lua_pushnumber(L, atan(luaL_checknumber(L, 1)));
+  81   1        return 1;
+  82   1      }
+  83          
+  84          static int math_atan2 (lua_State *L) {
+  85   1        lua_pushnumber(L, atan2(luaL_checknumber(L, 1), luaL_checknumber(L, 2)));
+  86   1        return 1;
+  87   1      }
+  88          
+  89          static int math_ceil (lua_State *L) {
+  90   1        lua_pushnumber(L, ceil(luaL_checknumber(L, 1)));
+  91   1        return 1;
+  92   1      }
+  93          
+  94          static int math_floor (lua_State *L) {
+  95   1        lua_pushnumber(L, floor(luaL_checknumber(L, 1)));
+  96   1        return 1;
+  97   1      }
+  98          
+  99          static int math_fmod (lua_State *L) {
+ 100   1        lua_pushnumber(L, fmod(luaL_checknumber(L, 1), luaL_checknumber(L, 2)));
+ 101   1        return 1;
+ 102   1      }
+ 103          
+ 104          static int math_modf (lua_State *L) {
+ 105   1        double ip;
+ 106   1        double fp = modf(luaL_checknumber(L, 1), &ip);
+ 107   1        lua_pushnumber(L, ip);
+ 108   1        lua_pushnumber(L, fp);
+ 109   1        return 2;
+ 110   1      }
+ 111          
+ 112          #else  // #ifndef LUA_NUMBER_INTEGRAL
+              
+              // In integer math, floor() and ceil() give the same value;
+C51 COMPILER V9.00   LMATHLIB                                                              11/27/2017 19:45:02 PAGE 3   
+
+              // having them in the integer library allows you to write code_ that
+              // works in both integer and floating point versions of Lua.
+              // This identity function is used for them.
+              
+              static int math_identity (lua_State *L) {
+                lua_pushnumber(L, luaL_checknumber(L, 1));
+                return 1;
+              }
+              
+              #endif // #ifndef LUA_NUMBER_INTEGRAL
+ 125          
+ 126          #ifdef LUA_NUMBER_INTEGRAL
+              // Integer square root for integer version
+              static lua_Number isqrt(lua_Number x)
+              {
+                lua_Number op, res, one;
+              
+                op = x; res = 0;
+              
+                /* "one" starts at the highest power of four <= than the argument. */
+                one = 1 << 30;  /* second-to-top bit set */
+                while (one > op) one >>= 2;
+              
+                while (one != 0) {
+                  if (op >= res + one) {
+                    op = op - (res + one);
+                    res = res +  2 * one;
+                  }
+                  res >>= 1;
+                  one >>= 2;
+                }
+                return(res);
+              }
+              #endif
+ 149          
+ 150          static int math_sqrt (lua_State *L) {
+ 151   1      #ifdef LUA_NUMBER_INTEGRAL
+                lua_Number x = luaL_checknumber(L, 1);
+                luaL_argcheck(L, 0<=x, 1, "negative");
+                lua_pushnumber(L, isqrt(x));
+              #else
+ 156   1        lua_pushnumber(L, sqrt(luaL_checknumber(L, 1)));
+ 157   1      #endif
+ 158   1        return 1;
+ 159   1      }
+ 160          
+ 161          #ifdef LUA_NUMBER_INTEGRAL
+              extern LUA_NUMBER luai_ipow(LUA_NUMBER a, LUA_NUMBER b);
+              # define pow(a,b) luai_ipow(a,b)
+              #endif
+ 165          
+ 166          static int math_pow (lua_State *L) {
+ 167   1        lua_pushnumber(L, pow(luaL_checknumber(L, 1), luaL_checknumber(L, 2)));
+ 168   1        return 1;
+ 169   1      }
+ 170          
+ 171          #ifdef LUA_NUMBER_INTEGRAL
+              # undef pow
+              #endif
+ 174          
+ 175          
+ 176          #ifndef LUA_NUMBER_INTEGRAL
+C51 COMPILER V9.00   LMATHLIB                                                              11/27/2017 19:45:02 PAGE 4   
+
+ 177          
+ 178          static int math_log (lua_State *L) {
+ 179   1        lua_pushnumber(L, log(luaL_checknumber(L, 1)));
+ 180   1        return 1;
+ 181   1      }
+ 182          
+ 183          static int math_log10 (lua_State *L) {
+ 184   1        lua_pushnumber(L, log10(luaL_checknumber(L, 1)));
+ 185   1        return 1;
+ 186   1      }
+ 187          
+ 188          static int math_exp (lua_State *L) {
+ 189   1        lua_pushnumber(L, exp(luaL_checknumber(L, 1)));
+ 190   1        return 1;
+ 191   1      }
+ 192          
+ 193          static int math_deg (lua_State *L) {
+ 194   1        lua_pushnumber(L, luaL_checknumber(L, 1)/RADIANS_PER_DEGREE);
+ 195   1        return 1;
+ 196   1      }
+ 197          
+ 198          static int math_rad (lua_State *L) {
+ 199   1        lua_pushnumber(L, luaL_checknumber(L, 1)*RADIANS_PER_DEGREE);
+ 200   1        return 1;
+ 201   1      }
+ 202          
+ 203          static int math_frexp (lua_State *L) {
+ 204   1        int e;
+ 205   1        lua_pushnumber(L, frexp(luaL_checknumber(L, 1), &e));
+ 206   1        lua_pushinteger(L, e);
+ 207   1        return 2;
+ 208   1      }
+ 209          
+ 210          static int math_ldexp (lua_State *L) {
+ 211   1        lua_pushnumber(L, ldexp(luaL_checknumber(L, 1), luaL_checkint(L, 2)));
+ 212   1        return 1;
+ 213   1      }
+ 214          
+ 215          #endif // #ifdef LUA_NUMBER_INTEGRAL
+ 216          
+ 217          static int math_min (lua_State *L) {
+ 218   1        int n = lua_gettop(L);  /* number of arguments */
+ 219   1        lua_Number dmin = luaL_checknumber(L, 1);
+ 220   1        int i;
+ 221   1        for (i=2; i<=n; i++) {
+ 222   2          lua_Number d = luaL_checknumber(L, i);
+ 223   2          if (d < dmin)
+ 224   2            dmin = d;
+ 225   2        }
+ 226   1        lua_pushnumber(L, dmin);
+ 227   1        return 1;
+ 228   1      }
+ 229          
+ 230          
+ 231          static int math_max (lua_State *L) {
+ 232   1        int n = lua_gettop(L);  /* number of arguments */
+ 233   1        lua_Number dmax = luaL_checknumber(L, 1);
+ 234   1        int i;
+ 235   1        for (i=2; i<=n; i++) {
+ 236   2          lua_Number d = luaL_checknumber(L, i);
+ 237   2          if (d > dmax)
+ 238   2            dmax = d;
+C51 COMPILER V9.00   LMATHLIB                                                              11/27/2017 19:45:02 PAGE 5   
+
+ 239   2        }
+ 240   1        lua_pushnumber(L, dmax);
+ 241   1        return 1;
+ 242   1      }
+ 243          
+ 244          
+ 245          #ifdef LUA_NUMBER_INTEGRAL
+              
+              static int math_random (lua_State *L) {
+                lua_Number r = (lua_Number)(rand()%RAND_MAX);
+              
+                switch (lua_gettop(L)) {  /* check number of arguments */
+                  case 0: {  /* no arguments */
+                    lua_pushnumber(L, 0);  /* Number between 0 and 1 - always 0 with ints */
+                    break;
+                  }
+                  case 1: {  /* only upper limit */
+                    int u = luaL_checkint(L, 1);
+                    luaL_argcheck(L, 1<=u, 1, "interval is empty");
+                    lua_pushnumber(L, (r % u)+1);  /* int between 1 and `u' */
+                    break;
+                  }
+                  case 2: {  /* lower and upper limits */
+                    int l = luaL_checkint(L, 1);
+                    int u = luaL_checkint(L, 2);
+                    luaL_argcheck(L, l<=u, 2, "interval is empty");
+                    lua_pushnumber(L, (r%(u-l+1))+l);  /* int between `l' and `u' */
+                    break;
+                  }
+                  default: return luaL_error(L, "wrong number of arguments");
+                }
+                return 1;
+              }
+              
+              #else
+ 274          
+ 275          static int math_random (lua_State *L) {
+ 276   1        /* the `%' avoids the (rare) case of r==1, and is needed also because on
+ 277   1           some systems (SunOS!) `rand()' may return a value larger than RAND_MAX */
+ 278   1        lua_Number r = (lua_Number)(rand()%RAND_MAX) / (lua_Number)RAND_MAX;
+ 279   1        switch (lua_gettop(L)) {  /* check number of arguments */
+ 280   2          case 0: {  /* no arguments */
+ 281   3            lua_pushnumber(L, r);  /* Number between 0 and 1 */
+ 282   3            break;
+ 283   3          }
+ 284   2          case 1: {  /* only upper limit */
+ 285   3            int u = luaL_checkint(L, 1);
+ 286   3            luaL_argcheck(L, 1<=u, 1, "interval is empty");
+ 287   3            lua_pushnumber(L, floor(r*u)+1);  /* int between 1 and `u' */
+ 288   3            break;
+ 289   3          }
+ 290   2          case 2: {  /* lower and upper limits */
+ 291   3            int l = luaL_checkint(L, 1);
+ 292   3            int u = luaL_checkint(L, 2);
+ 293   3            luaL_argcheck(L, l<=u, 2, "interval is empty");
+ 294   3            lua_pushnumber(L, floor(r*(u-l+1))+l);  /* int between `l' and `u' */
+ 295   3            break;
+ 296   3          }
+ 297   2          default: return luaL_error(L, "wrong number of arguments");
+ 298   2        }
+ 299   1        return 1;
+ 300   1      }
+C51 COMPILER V9.00   LMATHLIB                                                              11/27/2017 19:45:02 PAGE 6   
+
+ 301          
+ 302          #endif
+ 303          
+ 304          
+ 305          static int math_randomseed (lua_State *L) {
+ 306   1        srand(luaL_checkint(L, 1));
+ 307   1        return 0;
+ 308   1      }
+ 309          
+ 310          #define MIN_OPT_LEVEL 1
+ 311          #include "lrodefs.h"
+ 312          const LUA_REG_TYPE math_map[] = {
+ 313          #ifdef LUA_NUMBER_INTEGRAL
+                {LSTRKEY("abs"),   LFUNCVAL(math_abs)},
+                {LSTRKEY("ceil"),  LFUNCVAL(math_identity)},
+                {LSTRKEY("floor"), LFUNCVAL(math_identity)},
+                {LSTRKEY("max"),   LFUNCVAL(math_max)},
+                {LSTRKEY("min"),   LFUNCVAL(math_min)},
+                {LSTRKEY("pow"),   LFUNCVAL(math_pow)},
+                {LSTRKEY("random"),     LFUNCVAL(math_random)},
+                {LSTRKEY("randomseed"), LFUNCVAL(math_randomseed)},
+                {LSTRKEY("sqrt"),  LFUNCVAL(math_sqrt)},
+              #if LUA_OPTIMIZE_MEMORY > 0
+                {LSTRKEY("huge"),  LNUMVAL(LONG_MAX)},
+              #endif
+              #else
+ 327            {LSTRKEY("abs"),   LFUNCVAL(math_abs)},
+ 328            {LSTRKEY("acos"),  LFUNCVAL(math_acos)},
+ 329            {LSTRKEY("asin"),  LFUNCVAL(math_asin)},
+ 330            {LSTRKEY("atan2"), LFUNCVAL(math_atan2)},
+ 331            {LSTRKEY("atan"),  LFUNCVAL(math_atan)},
+ 332            {LSTRKEY("ceil"),  LFUNCVAL(math_ceil)},
+ 333            {LSTRKEY("cosh"),  LFUNCVAL(math_cosh)},
+ 334            {LSTRKEY("cos"),   LFUNCVAL(math_cos)},
+ 335            {LSTRKEY("deg"),   LFUNCVAL(math_deg)},
+ 336            {LSTRKEY("exp"),   LFUNCVAL(math_exp)},
+ 337            {LSTRKEY("floor"), LFUNCVAL(math_floor)},
+ 338            {LSTRKEY("fmod"),  LFUNCVAL(math_fmod)},
+ 339          #if LUA_OPTIMIZE_MEMORY > 0 && defined(LUA_COMPAT_MOD)
+                {LSTRKEY("mod"),   LFUNCVAL(math_fmod)}, 
+              #endif
+ 342            {LSTRKEY("frexp"), LFUNCVAL(math_frexp)},
+ 343            {LSTRKEY("ldexp"), LFUNCVAL(math_ldexp)},
+ 344            {LSTRKEY("log10"), LFUNCVAL(math_log10)},
+ 345            {LSTRKEY("log"),   LFUNCVAL(math_log)},
+ 346            {LSTRKEY("max"),   LFUNCVAL(math_max)},
+ 347            {LSTRKEY("min"),   LFUNCVAL(math_min)},
+ 348            {LSTRKEY("modf"),   LFUNCVAL(math_modf)},
+ 349            {LSTRKEY("pow"),   LFUNCVAL(math_pow)},
+ 350            {LSTRKEY("rad"),   LFUNCVAL(math_rad)},
+ 351            {LSTRKEY("random"),     LFUNCVAL(math_random)},
+ 352            {LSTRKEY("randomseed"), LFUNCVAL(math_randomseed)},
+ 353            {LSTRKEY("sinh"),   LFUNCVAL(math_sinh)},
+ 354            {LSTRKEY("sin"),   LFUNCVAL(math_sin)},
+ 355            {LSTRKEY("sqrt"),  LFUNCVAL(math_sqrt)},
+ 356            {LSTRKEY("tanh"),   LFUNCVAL(math_tanh)},
+ 357            {LSTRKEY("tan"),   LFUNCVAL(math_tan)},
+ 358          #if LUA_OPTIMIZE_MEMORY > 0
+                {LSTRKEY("pi"),    LNUMVAL(PI)},
+                {LSTRKEY("huge"),  LNUMVAL(HUGE_VAL)},
+              #endif // #if LUA_OPTIMIZE_MEMORY > 0
+ 362          #endif // #ifdef LUA_NUMBER_INTEGRAL
+C51 COMPILER V9.00   LMATHLIB                                                              11/27/2017 19:45:02 PAGE 7   
+
+ 363            {LNILKEY, LNILVAL}
+ 364          };
+ 365          
+ 366          
+ 367          /*
+ 368          ** Open math library
+ 369          */
+ 370          
+ 371          #if defined LUA_NUMBER_INTEGRAL
+              # include <limits.h>            /* for LONG_MAX */
+              #endif
+ 374          
+ 375          LUALIB_API int luaopen_math (lua_State *L) {
+ 376   1      #if LUA_OPTIMIZE_MEMORY > 0
+                return 0;
+              #else
+ 379   1        luaL_register(L, LUA_MATHLIBNAME, math_map);
+ 380   1      # if defined LUA_NUMBER_INTEGRAL
+                lua_pushnumber(L, LONG_MAX);
+                lua_setfield(L, -2, "huge");
+              # else
+ 384   1        lua_pushnumber(L, PI);
+ 385   1        lua_setfield(L, -2, "pi");
+ 386   1        lua_pushnumber(L, HUGE_VAL);
+ 387   1        lua_setfield(L, -2, "huge");
+ 388   1      #  if defined(LUA_COMPAT_MOD)
+ 389   1        lua_getfield(L, -1, "fmod");
+ 390   1        lua_setfield(L, -2, "mod");
+ 391   1      #  endif
+ 392   1      # endif
+ 393   1        return 1;
+ 394   1      #endif
+ 395   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  2 ERROR(S)

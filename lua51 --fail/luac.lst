@@ -1,0 +1,275 @@
+C51 COMPILER V9.00   LUAC                                                                  11/27/2017 19:45:05 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LUAC
+OBJECT MODULE PLACED IN .\obj\luac.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\luac.c OMF2 BROWSE DEBUG PRINT(.\luac.lst) OBJECT(.\obj\luac
+                    -.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: luac.c,v 1.54 2006/06/02 17:37:11 lhf Exp $
+   3          ** Lua compiler (saves bytecodes to files; also list bytecodes)
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          #include <errno.h>
+   8          #include <stdio.h>
+   9          #include <stdlib.h>
+  10          #include <string.h>
+  11          
+  12          #define luac_c
+  13          #define LUA_CORE
+  14          
+  15          #include "lua.h"
+  16          #include "lauxlib.h"
+*** ERROR C202 IN LINE 138 OF SRC\LAUXLIB.H: 'BUFSIZ': undefined identifier
+*** ERROR C136 IN LINE 138 OF SRC\LAUXLIB.H: invalid dimension size: [0]
+  17          
+  18          #include "ldo.h"
+  19          #include "lfunc.h"
+  20          #include "lmem.h"
+  21          #include "lobject.h"
+  22          #include "lopcodes.h"
+  23          #include "lstring.h"
+  24          #include "lundump.h"
+  25          
+  26          #define PROGNAME        "luac"          /* default program name */
+  27          #define OUTPUT          PROGNAME ".out" /* default output file */
+  28          
+  29          static int listing=0;                   /* list bytecodes? */
+  30          static int dumping=1;                   /* dump bytecodes? */
+  31          static int stripping=0;                 /* strip debug information? */
+  32          static char Output[]={ OUTPUT };        /* default output file name */
+  33          static const char* output=Output;       /* actual output file name */
+  34          static const char* progname=PROGNAME;   /* actual program name */
+  35          static DumpTargetInfo target;
+  36          
+  37          static void fatal(const char* message)
+  38          {
+  39   1       fprintf(stderr,"%s: %s\n",progname,message);
+*** ERROR C202 IN LINE 39 OF SRC\LUAC.C: 'stderr': undefined identifier
+  40   1       exit(EXIT_FAILURE);
+*** ERROR C202 IN LINE 40 OF SRC\LUAC.C: 'EXIT_FAILURE': undefined identifier
+  41   1      }
+  42          
+  43          static void cannot(const char* what)
+  44          {
+  45   1       fprintf(stderr,"%s: cannot %s %s: %s\n",progname,what,output,strerror(errno));
+*** ERROR C202 IN LINE 45 OF SRC\LUAC.C: 'stderr': undefined identifier
+  46   1       exit(EXIT_FAILURE);
+*** ERROR C202 IN LINE 46 OF SRC\LUAC.C: 'EXIT_FAILURE': undefined identifier
+  47   1      }
+  48          
+C51 COMPILER V9.00   LUAC                                                                  11/27/2017 19:45:05 PAGE 2   
+
+  49          static void usage(const char* message)
+  50          {
+  51   1       if (*message=='-')
+  52   1        fprintf(stderr,"%s: unrecognized option " LUA_QS "\n",progname,message);
+*** ERROR C202 IN LINE 52 OF SRC\LUAC.C: 'stderr': undefined identifier
+  53   1       else
+  54   1        fprintf(stderr,"%s: %s\n",progname,message);
+*** ERROR C202 IN LINE 54 OF SRC\LUAC.C: 'stderr': undefined identifier
+  55   1       fprintf(stderr,
+*** ERROR C202 IN LINE 55 OF SRC\LUAC.C: 'stderr': undefined identifier
+  56   1       "usage: %s [options] [filenames].\n"
+  57   1       "Available options are:\n"
+  58   1       "  -        process stdin\n"
+  59   1       "  -l       list\n"
+  60   1       "  -o name  output to file " LUA_QL("name") " (default is \"%s\")\n"
+  61   1       "  -p       parse only\n"
+  62   1       "  -s       strip debug information\n"
+  63   1       "  -v       show version information\n"
+  64   1       "  -cci bits       cross-compile with given integer size\n"
+  65   1       "  -ccn type bits  cross-compile with given lua_Number type and size\n"
+  66   1       "  -cce endian     cross-compile with given endianness ('big' or 'little')\n"
+  67   1       "  --       stop handling options\n",
+  68   1       progname,Output);
+  69   1       exit(EXIT_FAILURE);
+*** ERROR C202 IN LINE 69 OF SRC\LUAC.C: 'EXIT_FAILURE': undefined identifier
+  70   1      }
+  71          
+  72          #define IS(s)   (strcmp(argv[i],s)==0)
+  73          
+  74          static int doargs(int argc, char* argv[])
+  75          {
+  76   1       int i;
+  77   1       int version=0;
+  78   1       if (argv[0]!=NULL && *argv[0]!=0) progname=argv[0];
+  79   1       for (i=1; i<argc; i++)
+  80   1       {
+  81   2        if (*argv[i]!='-')                    /* end of options; keep it */
+  82   2         break;
+  83   2        else if (IS("--"))                    /* end of options; skip it */
+  84   2        {
+  85   3         ++i;
+  86   3         if (version) ++version;
+  87   3         break;
+  88   3        }
+  89   2        else if (IS("-"))                     /* end of options; use stdin */
+  90   2         break;
+  91   2        else if (IS("-l"))                    /* list */
+  92   2         ++listing;
+  93   2        else if (IS("-o"))                    /* output file */
+  94   2        {
+  95   3         output=argv[++i];
+  96   3         if (output==NULL || *output==0) usage(LUA_QL("-o") " needs argument");
+  97   3         if (IS("-")) output=NULL;
+  98   3        }
+  99   2        else if (IS("-p"))                    /* parse only */
+ 100   2         dumping=0;
+ 101   2        else if (IS("-s"))                    /* strip debug information */
+ 102   2         stripping=1;
+ 103   2        else if (IS("-v"))                    /* show version */
+ 104   2         ++version;
+ 105   2        else if (IS("-cci")) /* target integer size */
+ 106   2        {
+C51 COMPILER V9.00   LUAC                                                                  11/27/2017 19:45:05 PAGE 3   
+
+ 107   3         int s = target.sizeof_int = atoi(argv[++i])/8;
+ 108   3         if (!(s==1 || s==2 || s==4)) fatal(LUA_QL("-cci") " must be 8, 16 or 32");
+ 109   3        }
+ 110   2        else if (IS("-ccn")) /* target lua_Number type and size */
+ 111   2        {
+ 112   3         const char *type=argv[++i];
+ 113   3         if (strcmp(type,"int")==0) target.lua_Number_integral=1;
+ 114   3         else if (strcmp(type,"float")==0) target.lua_Number_integral=0;
+ 115   3         else if (strcmp(type,"float_arm")==0)
+ 116   3         {
+ 117   4           target.lua_Number_integral=0;
+ 118   4           target.is_arm_fpa=1;
+ 119   4         }
+ 120   3         else fatal(LUA_QL("-ccn") " type must be " LUA_QL("int") " or " LUA_QL("float") " or " LUA_QL("float_ar
+             -m"));
+ 121   3         int s = target.sizeof_lua_Number = atoi(argv[++i])/8;
+ 122   3         if (target.lua_Number_integral && !(s==1 || s==2 || s==4)) fatal(LUA_QL("-ccn") " size must be 8, 16, o
+             -r 32 for int");
+ 123   3         if (!target.lua_Number_integral && !(s==4 || s==8)) fatal(LUA_QL("-ccn") " size must be 32 or 64 for fl
+             -oat");
+ 124   3        }
+ 125   2        else if (IS("-cce")) /* target endianness */
+ 126   2        {
+ 127   3         const char *val=argv[++i];
+ 128   3         if (strcmp(val,"big")==0) target.little_endian=0;
+ 129   3         else if (strcmp(val,"little")==0) target.little_endian=1;
+ 130   3         else fatal(LUA_QL("-cce") " must be " LUA_QL("big") " or " LUA_QL("little"));
+ 131   3        }
+ 132   2        else                                  /* unknown option */
+ 133   2         usage(argv[i]);
+ 134   2       }
+ 135   1       if (i==argc && (listing || !dumping))
+ 136   1       {
+ 137   2        dumping=0;
+ 138   2        argv[--i]=Output;
+ 139   2       }
+ 140   1       if (version)
+ 141   1       {
+ 142   2        printf("%s  %s\n",LUA_RELEASE,LUA_COPYRIGHT);
+ 143   2        if (version==argc-1) exit(EXIT_SUCCESS);
+ 144   2       }
+ 145   1       return i;
+ 146   1      }
+ 147          
+ 148          #define toproto(L,i) (clvalue(L->top+(i))->l.p)
+ 149          
+ 150          static const Proto* combine(lua_State* L, int n)
+ 151          {
+ 152   1       if (n==1)
+ 153   1        return toproto(L,-1);
+ 154   1       else
+ 155   1       {
+ 156   2        int i,pc;
+ 157   2        Proto* f=luaF_newproto(L);
+ 158   2        setptvalue2s(L,L->top,f); incr_top(L);
+ 159   2        f->source=luaS_newliteral(L,"=(" PROGNAME ")");
+ 160   2        f->maxstacksize=1;
+ 161   2        pc=2*n+1;
+ 162   2        f->code=luaM_newvector(L,pc,Instruction);
+ 163   2        f->sizecode=pc;
+ 164   2        f->p=luaM_newvector(L,n,Proto*);
+ 165   2        f->sizep=n;
+C51 COMPILER V9.00   LUAC                                                                  11/27/2017 19:45:05 PAGE 4   
+
+ 166   2        pc=0;
+ 167   2        for (i=0; i<n; i++)
+ 168   2        {
+ 169   3         f->p[i]=toproto(L,i-n-1);
+ 170   3         f->code[pc++]=CREATE_ABx(OP_CLOSURE,0,i);
+ 171   3         f->code[pc++]=CREATE_ABC(OP_CALL,0,1,1);
+ 172   3        }
+ 173   2        f->code[pc++]=CREATE_ABC(OP_RETURN,0,1,0);
+ 174   2        return f;
+ 175   2       }
+ 176   1      }
+ 177          
+ 178          static int writer(lua_State* L, const void* p, size_t size, void* u)
+ 179          {
+ 180   1       UNUSED(L);
+ 181   1       return (fwrite(p,size,1,(FILE*)u)!=1) && (size!=0);
+ 182   1      }
+ 183          
+ 184          struct Smain {
+ 185           int argc;
+ 186           char** argv;
+ 187          };
+ 188          
+ 189          static int pmain(lua_State* L)
+ 190          {
+ 191   1       struct Smain* s = (struct Smain*)lua_touserdata(L, 1);
+ 192   1       int argc=s->argc;
+ 193   1       char** argv=s->argv;
+ 194   1       const Proto* f;
+ 195   1       int i;
+ 196   1       if (!lua_checkstack(L,argc)) fatal("too many input files");
+ 197   1       for (i=0; i<argc; i++)
+ 198   1       {
+ 199   2        const char* filename=IS("-") ? NULL : argv[i];
+ 200   2        if (luaL_loadfile(L,filename)!=0) fatal(lua_tostring(L,-1));
+ 201   2       }
+ 202   1       f=combine(L,argc);
+ 203   1       if (listing) luaU_print(f,listing>1);
+ 204   1       if (dumping)
+ 205   1       {
+ 206   2        FILE* D= (output==NULL) ? stdout : fopen(output,"wb");
+ 207   2        if (D==NULL) cannot("open");
+ 208   2        lua_lock(L);
+ 209   2        int result=luaU_dump_crosscompile(L,f,writer,D,stripping,target);
+ 210   2        lua_unlock(L);
+ 211   2        if (result==LUA_ERR_CC_INTOVERFLOW) fatal("value too big or small for target integer type");
+ 212   2        if (result==LUA_ERR_CC_NOTINTEGER) fatal("target lua_Number is integral but fractional value found");
+ 213   2        if (ferror(D)) cannot("write");
+ 214   2        if (fclose(D)) cannot("close");
+ 215   2       }
+ 216   1       return 0;
+ 217   1      }
+ 218          
+ 219          int main(int argc, char* argv[])
+ 220          {
+ 221   1       lua_State* L;
+ 222   1       struct Smain s;
+ 223   1       
+ 224   1       int test=1;
+ 225   1       target.little_endian=*(char*)&test;
+ 226   1       target.sizeof_int=sizeof(int);
+ 227   1       target.sizeof_strsize_t=sizeof(strsize_t);
+C51 COMPILER V9.00   LUAC                                                                  11/27/2017 19:45:05 PAGE 5   
+
+ 228   1       target.sizeof_lua_Number=sizeof(lua_Number);
+ 229   1       target.lua_Number_integral=(((lua_Number)0.5)==0);
+ 230   1       target.is_arm_fpa=0;
+ 231   1      
+ 232   1       int i=doargs(argc,argv);
+ 233   1       argc-=i; argv+=i;
+ 234   1       if (argc<=0) usage("no input files given");
+ 235   1       L=lua_open();
+ 236   1       if (L==NULL) fatal("not enough memory for state");
+ 237   1       s.argc=argc;
+ 238   1       s.argv=argv;
+ 239   1       if (lua_cpcall(L,pmain,&s)!=0) fatal(lua_tostring(L,-1));
+ 240   1       lua_close(L);
+ 241   1       return EXIT_SUCCESS;
+ 242   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  10 ERROR(S)

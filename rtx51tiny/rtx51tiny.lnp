@@ -1,0 +1,10 @@
+"rtx51tiny.obj",
+"Conf_tny.obj",
+"EEPROM.obj",
+"delay.obj" 
+TO "rtx51tiny" 
+Rtx51Tiny REGFILE (.\rtx51tiny.ORC) 
+IXREF 
+REMOVEUNUSED 
+CLASSES (XDATA (X:0x0-X:0x6FF), HDATA (X:0x0-X:0x6FF), CODE (C:0x0-C:0xEFF8), CONST (C:0x0-C:0xEFF8), 
+ECODE (C:0x0-C:0xEFF8), HCONST (C:0x0-C:0xEFF8)) 

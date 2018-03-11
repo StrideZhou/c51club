@@ -1,0 +1,133 @@
+C51 COMPILER V9.00   RTX51FULL                                                             10/15/2017 13:25:56 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE RTX51FULL
+OBJECT MODULE PLACED IN rtx51full.OBJ
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE rtx51full.c LARGE RTX51 OPTIMIZE(9,SPEED) REGFILE(.\rtx51full.OR
+                    -C) BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #pragma large
+   2          
+   3          #include <config.h>            
+   4          
+   5          #define PRODUCER_NBR 1 /* Task number for the producer task */
+   6          #define CONSUMER_NBR 0 /* Task number for the consumer task */
+   7          #define SSS 2 /* Task number for the consumer task */
+   8          #define OS_STARTUP 3
+   9          
+  10          
+  11          #pragma REGISTERBANK (2)
+  12          void example_2 (void) _task_ SSS _priority_ 3
+  13          {
+  14   1              static u16 ch;
+  15   1              u8 i = 0;
+  16   1              while(1)
+  17   1              {
+  18   2                      
+  19   2                      os_wait (K_MBX+1, 0xff, &ch);
+  20   2                      for(i = 0;i<10;i++)
+  21   2                      {
+  22   3                              os_wait2 (K_IVL, 100);//10ms
+  23   3                      }
+  24   2                      
+  25   2                      printf("\x0c\033[1;32m");
+  26   2                      printf("tasks%d\n",(int)os_running_task_id());
+  27   2                      printf("%s", *( (u8 *xdata*)(ch)));
+  28   2                      os_wait (K_MBX+1, 0xff, &ch);
+  29   2                      printf(" %s", *( (u8 *xdata*)(ch)));
+  30   2                      printf("\r\n");
+  31   2      
+  32   2                      printf("\033[1;35;40m good!!! \033[1;37m Hello,NSFocus \n");
+  33   2      //              printf("\n\rby DoYoung V1.0 2006.11.11\a");
+  34   2      //              SendString("\x0c\033[1;32m");
+  35   2      
+  36   2              }
+  37   1      }
+  38          #pragma REGISTERBANK (0)
+  39          
+  40          
+  41          void serial_init ()
+  42          {
+  43   1              S1_8bit();
+  44   1              S1_RX_Enable();
+  45   1              S1_BRT_UseTimer2();             
+  46   1              Timer2_1T();
+  47   1              Timer2_Load(0xFFC3);
+  48   1              Timer2_Run();
+  49   1              os_enable_isr (4);                 /* enable serial port interrupt        */
+  50   1      }
+  51          
+  52          void producer_task (void) _task_ PRODUCER_NBR
+  53          {
+  54   1              unsigned int send_mes;
+C51 COMPILER V9.00   RTX51FULL                                                             10/15/2017 13:25:56 PAGE 2   
+
+  55   1              u8 * ss = __TIME__;
+  56   1              send_mes = 1;
+  57   1              for (;;) { /* end-less loop */
+  58   2              /* Send actual value of "send_mes" to the mailbox 0 */
+  59   2              /* If the mailbox is full, wait until there is room */
+  60   2              /* for the message */
+  61   2                      os_send_message (0, send_mes, 0xff);
+  62   2                      send_mes++;
+  63   2                      os_send_message (1, (u16)&ss, 0xff);
+  64   2      
+  65   2              }
+  66   1      }
+  67          
+  68          
+  69          void consumer_task (void) _task_ CONSUMER_NBR _priority_ 1
+  70          {
+  71   1              unsigned int rec_mes;
+  72   1              u8* sd = __DATE__;
+  73   1              for (;;) {
+  74   2              /* Read from the mailbox 0 to the variable "rec_mes" */
+  75   2              /* Wait for a message if the mailbox is empty */
+  76   2                      os_wait (K_MBX+0, 0xff, &rec_mes);
+  77   2                      /*
+  78   2                      ... Perform some calculations with "rec_mes"
+  79   2                      */
+  80   2                      os_send_message (1, (u16)&sd, 0xff);
+  81   2              }
+  82   1      }
+  83          void startup_task (void) _task_ OS_STARTUP 
+  84          {
+  85   1              os_set_slice(2800);//0.1ms
+  86   1              serial_init ();
+  87   1              os_create_task (PRODUCER_NBR); 
+  88   1              os_create_task (CONSUMER_NBR); /* Create the consumer task */
+  89   1              os_create_task (SSS); /* Create the consumer task */
+  90   1              os_delete_task (OS_STARTUP);
+  91   1      }
+  92          
+  93          void main (void)
+  94          {
+  95   1      /* Initialize the system and start the producer task */
+  96   1              
+  97   1              S1_USE_P16P17();
+  98   1      
+  99   1              Timer1_1T();
+ 100   1              Timer0_1T();
+ 101   1              TI = 1;
+ 102   1              os_start_system (OS_STARTUP);
+ 103   1              
+ 104   1      }
+ 105          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    328    ----
+   CONSTANT SIZE    =     92    ----
+   XDATA SIZE       =      2      11
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+C51 COMPILER V9.00   RTX51FULL                                                             10/15/2017 13:25:56 PAGE 3   
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,118 @@
+C51 COMPILER V9.00   LOPCODES                                                              11/27/2017 19:45:03 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LOPCODES
+OBJECT MODULE PLACED IN .\obj\lopcodes.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lopcodes.c OMF2 BROWSE DEBUG PRINT(.\lopcodes.lst) OBJECT(.\
+                    -obj\lopcodes.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lopcodes.c,v 1.37.1.1 2007/12/27 13:02:25 roberto Exp $
+   3          ** See Copyright Notice in lua.h
+   4          */
+   5          
+   6          
+   7          #define lopcodes_c
+   8          #define LUA_CORE
+   9          
+  10          
+  11          #include "lopcodes.h"
+  12          
+  13          
+  14          /* ORDER OP */
+  15          
+  16          const char *const luaP_opnames[NUM_OPCODES+1] = {
+  17            "MOVE",
+  18            "LOADK",
+  19            "LOADBOOL",
+  20            "LOADNIL",
+  21            "GETUPVAL",
+  22            "GETGLOBAL",
+  23            "GETTABLE",
+  24            "SETGLOBAL",
+  25            "SETUPVAL",
+  26            "SETTABLE",
+  27            "NEWTABLE",
+  28            "SELF",
+  29            "ADD",
+  30            "SUB",
+  31            "MUL",
+  32            "DIV",
+  33            "MOD",
+  34            "POW",
+  35            "UNM",
+  36            "NOT",
+  37            "LEN",
+  38            "CONCAT",
+  39            "JMP",
+  40            "EQ",
+  41            "LT",
+  42            "LE",
+  43            "TEST",
+  44            "TESTSET",
+  45            "CALL",
+  46            "TAILCALL",
+  47            "RETURN",
+  48            "FORLOOP",
+  49            "FORPREP",
+  50            "TFORLOOP",
+  51            "SETLIST",
+  52            "CLOSE",
+  53            "CLOSURE",
+  54            "VARARG",
+C51 COMPILER V9.00   LOPCODES                                                              11/27/2017 19:45:03 PAGE 2   
+
+  55            NULL
+  56          };
+  57          
+  58          
+  59          #define opmode(t,a,b,c,m) (((t)<<7) | ((a)<<6) | ((b)<<4) | ((c)<<2) | (m))
+  60          
+  61          const lu_byte luaP_opmodes[NUM_OPCODES] = {
+  62          /*       T  A    B       C     mode                opcode       */
+  63            opmode(0, 1, OpArgR, OpArgN, iABC)            /* OP_MOVE */
+  64           ,opmode(0, 1, OpArgK, OpArgN, iABx)            /* OP_LOADK */
+  65           ,opmode(0, 1, OpArgU, OpArgU, iABC)            /* OP_LOADBOOL */
+  66           ,opmode(0, 1, OpArgR, OpArgN, iABC)            /* OP_LOADNIL */
+  67           ,opmode(0, 1, OpArgU, OpArgN, iABC)            /* OP_GETUPVAL */
+  68           ,opmode(0, 1, OpArgK, OpArgN, iABx)            /* OP_GETGLOBAL */
+  69           ,opmode(0, 1, OpArgR, OpArgK, iABC)            /* OP_GETTABLE */
+  70           ,opmode(0, 0, OpArgK, OpArgN, iABx)            /* OP_SETGLOBAL */
+  71           ,opmode(0, 0, OpArgU, OpArgN, iABC)            /* OP_SETUPVAL */
+  72           ,opmode(0, 0, OpArgK, OpArgK, iABC)            /* OP_SETTABLE */
+  73           ,opmode(0, 1, OpArgU, OpArgU, iABC)            /* OP_NEWTABLE */
+  74           ,opmode(0, 1, OpArgR, OpArgK, iABC)            /* OP_SELF */
+  75           ,opmode(0, 1, OpArgK, OpArgK, iABC)            /* OP_ADD */
+  76           ,opmode(0, 1, OpArgK, OpArgK, iABC)            /* OP_SUB */
+  77           ,opmode(0, 1, OpArgK, OpArgK, iABC)            /* OP_MUL */
+  78           ,opmode(0, 1, OpArgK, OpArgK, iABC)            /* OP_DIV */
+  79           ,opmode(0, 1, OpArgK, OpArgK, iABC)            /* OP_MOD */
+  80           ,opmode(0, 1, OpArgK, OpArgK, iABC)            /* OP_POW */
+  81           ,opmode(0, 1, OpArgR, OpArgN, iABC)            /* OP_UNM */
+  82           ,opmode(0, 1, OpArgR, OpArgN, iABC)            /* OP_NOT */
+  83           ,opmode(0, 1, OpArgR, OpArgN, iABC)            /* OP_LEN */
+  84           ,opmode(0, 1, OpArgR, OpArgR, iABC)            /* OP_CONCAT */
+  85           ,opmode(0, 0, OpArgR, OpArgN, iAsBx)           /* OP_JMP */
+  86           ,opmode(1, 0, OpArgK, OpArgK, iABC)            /* OP_EQ */
+  87           ,opmode(1, 0, OpArgK, OpArgK, iABC)            /* OP_LT */
+  88           ,opmode(1, 0, OpArgK, OpArgK, iABC)            /* OP_LE */
+  89           ,opmode(1, 1, OpArgR, OpArgU, iABC)            /* OP_TEST */
+  90           ,opmode(1, 1, OpArgR, OpArgU, iABC)            /* OP_TESTSET */
+  91           ,opmode(0, 1, OpArgU, OpArgU, iABC)            /* OP_CALL */
+  92           ,opmode(0, 1, OpArgU, OpArgU, iABC)            /* OP_TAILCALL */
+  93           ,opmode(0, 0, OpArgU, OpArgN, iABC)            /* OP_RETURN */
+  94           ,opmode(0, 1, OpArgR, OpArgN, iAsBx)           /* OP_FORLOOP */
+  95           ,opmode(0, 1, OpArgR, OpArgN, iAsBx)           /* OP_FORPREP */
+  96           ,opmode(1, 0, OpArgN, OpArgU, iABC)            /* OP_TFORLOOP */
+  97           ,opmode(0, 0, OpArgU, OpArgU, iABC)            /* OP_SETLIST */
+  98           ,opmode(0, 0, OpArgN, OpArgN, iABC)            /* OP_CLOSE */
+  99           ,opmode(0, 1, OpArgU, OpArgN, iABx)            /* OP_CLOSURE */
+ 100           ,opmode(0, 1, OpArgU, OpArgN, iABC)            /* OP_VARARG */
+ 101          };
+ 102          
+*** WARNING C230 IN LINE 102 OF SRC\LOPCODES.C: 'lua_State': uses undefined struct/union tag 'lua_State'
+*** ERROR C249 IN LINE 102 OF SRC\LOPCODES.C: 'DATA': SEGMENT TOO LARGE
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  1 ERROR(S)

@@ -1,0 +1,287 @@
+C51 COMPILER V9.00   LSTATE                                                                11/27/2017 19:45:04 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LSTATE
+OBJECT MODULE PLACED IN .\obj\lstate.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lstate.c OMF2 BROWSE DEBUG PRINT(.\lstate.lst) OBJECT(.\obj\
+                    -lstate.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lstate.c,v 2.36.1.2 2008/01/03 15:20:39 roberto Exp $
+   3          ** Global State
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <stddef.h>
+   9          
+  10          #define lstate_c
+  11          #define LUA_CORE
+  12          
+  13          #include "lua.h"
+  14          
+  15          #include "ldebug.h"
+  16          #include "ldo.h"
+  17          #include "lfunc.h"
+  18          #include "lgc.h"
+  19          #include "llex.h"
+  20          #include "lmem.h"
+  21          #include "lstate.h"
+  22          #include "lstring.h"
+  23          #include "ltable.h"
+  24          #include "ltm.h"
+  25          // BogdanM: modified for Lua interrupt support
+  26          #ifndef LUA_CROSS_COMPILER
+              #include "platform_conf.h"
+              #include "elua_int.h"
+              #include "platform.h"
+              #endif
+  31          // BogdanM: linenoise clenaup
+  32          #include "linenoise.h"
+*** WARNING C318 IN LINE 32 OF src\lstate.c: can't open file 'linenoise.h'
+  33          
+  34          #define state_size(x)   (sizeof(x) + LUAI_EXTRASPACE)
+  35          #define fromstate(l)    (cast(lu_byte *, (l)) - LUAI_EXTRASPACE)
+  36          #define tostate(l)   (cast(lua_State *, cast(lu_byte *, l) + LUAI_EXTRASPACE))
+  37          
+  38          
+  39          /*
+  40          ** Main thread combines a thread state and the global state
+  41          */
+  42          typedef struct LG {
+  43            lua_State l;
+  44            global_State g;
+  45          } LG;
+  46            
+  47          
+  48          
+  49          static void stack_init (lua_State *L1, lua_State *L) {
+  50   1        /* initialize CallInfo array */
+  51   1        L1->base_ci = luaM_newvector(L, BASIC_CI_SIZE, CallInfo);
+  52   1        L1->ci = L1->base_ci;
+  53   1        L1->size_ci = BASIC_CI_SIZE;
+C51 COMPILER V9.00   LSTATE                                                                11/27/2017 19:45:04 PAGE 2   
+
+  54   1        L1->end_ci = L1->base_ci + L1->size_ci - 1;
+  55   1        /* initialize stack array */
+  56   1        L1->stack = luaM_newvector(L, BASIC_STACK_SIZE + EXTRA_STACK, TValue);
+  57   1        L1->stacksize = BASIC_STACK_SIZE + EXTRA_STACK;
+  58   1        L1->top = L1->stack;
+  59   1        L1->stack_last = L1->stack+(L1->stacksize - EXTRA_STACK)-1;
+  60   1        /* initialize first ci */
+  61   1        L1->ci->func = L1->top;
+  62   1        setnilvalue(L1->top++);  /* `function' entry for this `ci' */
+  63   1        L1->base = L1->ci->base = L1->top;
+  64   1        L1->ci->top = L1->top + LUA_MINSTACK;
+  65   1      }
+  66          
+  67          
+  68          static void freestack (lua_State *L, lua_State *L1) {
+  69   1        luaM_freearray(L, L1->base_ci, L1->size_ci, CallInfo);
+  70   1        luaM_freearray(L, L1->stack, L1->stacksize, TValue);
+  71   1      }
+  72          
+  73          
+  74          /*
+  75          ** open parts that may cause memory-allocation errors
+  76          */
+  77          static void f_luaopen (lua_State *L, void *ud) {
+  78   1        global_State *g = G(L);
+  79   1        UNUSED(ud);
+*** WARNING C275 IN LINE 79 OF SRC\LSTATE.C: expression with possibly no effect
+  80   1        stack_init(L, L);  /* init stack */
+  81   1        sethvalue(L, gt(L), luaH_new(L, 0, 2));  /* table of globals */
+*** WARNING C275 IN LINE 81 OF SRC\LSTATE.C: expression with possibly no effect
+  82   1        sethvalue(L, registry(L), luaH_new(L, 0, 2));  /* registry */
+*** WARNING C275 IN LINE 82 OF SRC\LSTATE.C: expression with possibly no effect
+  83   1        luaS_resize(L, MINSTRTABSIZE);  /* initial size of string table */
+  84   1        luaT_init(L);
+  85   1        luaX_init(L);
+  86   1        luaS_fix(luaS_newliteral(L, MEMERRMSG));
+  87   1        g->GCthreshold = 4*g->totalbytes;
+  88   1      }
+  89          
+  90          
+  91          static void preinit_state (lua_State *L, global_State *g) {
+  92   1        G(L) = g;
+  93   1        L->stack = NULL;
+  94   1        L->stacksize = 0;
+  95   1        L->errorJmp = NULL;
+  96   1        L->hook = NULL;
+  97   1        L->hookmask = 0;
+  98   1        L->basehookcount = 0;
+  99   1        L->allowhook = 1;
+ 100   1        resethookcount(L);
+ 101   1        L->openupval = NULL;
+ 102   1        L->size_ci = 0;
+ 103   1        L->nCcalls = L->baseCcalls = 0;
+ 104   1        L->status = 0;
+ 105   1        L->base_ci = L->ci = NULL;
+ 106   1        L->savedpc = NULL;
+ 107   1        L->errfunc = 0;
+ 108   1        setnilvalue(gt(L));
+ 109   1      }
+ 110          
+ 111          
+ 112          static void close_state (lua_State *L) {
+C51 COMPILER V9.00   LSTATE                                                                11/27/2017 19:45:04 PAGE 3   
+
+ 113   1        global_State *g = G(L);
+ 114   1        luaF_close(L, L->stack);  /* close all upvalues for this thread */
+ 115   1        luaC_freeall(L);  /* collect all objects */
+ 116   1        lua_assert(g->rootgc == obj2gco(L));
+*** WARNING C275 IN LINE 116 OF SRC\LSTATE.C: expression with possibly no effect
+ 117   1        lua_assert(g->strt.nuse == 0);
+*** WARNING C275 IN LINE 117 OF SRC\LSTATE.C: expression with possibly no effect
+ 118   1        luaM_freearray(L, G(L)->strt.hash, G(L)->strt.size, TString *);
+ 119   1        luaZ_freebuffer(L, &g->buff);
+ 120   1        freestack(L, L);
+ 121   1        lua_assert(g->totalbytes == sizeof(LG));
+*** WARNING C275 IN LINE 121 OF SRC\LSTATE.C: expression with possibly no effect
+ 122   1        (*g->frealloc)(g->ud, fromstate(L), state_size(LG), 0);
+*** ERROR C212 IN LINE 122 OF SRC\LSTATE.C: indirect call: parameters do not fit within registers
+ 123   1      }
+ 124          
+ 125          
+ 126          lua_State *luaE_newthread (lua_State *L) {
+ 127   1        lua_State *L1 = tostate(luaM_malloc(L, state_size(lua_State)));
+ 128   1        luaC_link(L, obj2gco(L1), LUA_TTHREAD);
+ 129   1        setthvalue(L, L->top, L1); /* put thread on stack */
+ 130   1        incr_top(L);
+ 131   1        preinit_state(L1, G(L));
+ 132   1        stack_init(L1, L);  /* init stack */
+ 133   1        setobj2n(L, gt(L1), gt(L));  /* share table of globals */
+ 134   1        L1->hookmask = L->hookmask;
+ 135   1        L1->basehookcount = L->basehookcount;
+ 136   1        L1->hook = L->hook;
+ 137   1        resethookcount(L1);
+ 138   1        lua_assert(!isdead(G(L), obj2gco(L1)));
+ 139   1        L->top--; /* remove thread from stack */
+ 140   1        return L1;
+ 141   1      }
+ 142          
+ 143          
+ 144          void luaE_freethread (lua_State *L, lua_State *L1) {
+ 145   1        luaF_close(L1, L1->stack);  /* close all upvalues for this thread */
+ 146   1        lua_assert(L1->openupval == NULL);
+ 147   1        luai_userstatefree(L1);
+ 148   1        freestack(L, L1);
+ 149   1        luaM_freemem(L, fromstate(L1), state_size(lua_State));
+ 150   1      }
+ 151          
+ 152          
+ 153          LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
+ 154   1        int i;
+ 155   1        lua_State *L;
+ 156   1        global_State *g;
+ 157   1        void *l = (*f)(ud, NULL, 0, state_size(LG));
+*** ERROR C212 IN LINE 157 OF SRC\LSTATE.C: indirect call: parameters do not fit within registers
+ 158   1        if (l == NULL) return NULL;
+ 159   1        L = tostate(l);
+ 160   1        g = &((LG *)L)->g;
+ 161   1        L->next = NULL;
+ 162   1        L->tt = LUA_TTHREAD;
+ 163   1        g->currentwhite = bit2mask(WHITE0BIT, FIXEDBIT);
+ 164   1        L->marked = luaC_white(g);
+ 165   1        set2bits(L->marked, FIXEDBIT, SFIXEDBIT);
+ 166   1        preinit_state(L, g);
+ 167   1        g->frealloc = f;
+ 168   1        g->ud = ud;
+ 169   1        g->mainthread = L;
+C51 COMPILER V9.00   LSTATE                                                                11/27/2017 19:45:04 PAGE 4   
+
+ 170   1        g->uvhead.u.l.prev = &g->uvhead;
+ 171   1        g->uvhead.u.l.next = &g->uvhead;
+ 172   1        g->GCthreshold = 0;  /* mark it as unfinished state */
+ 173   1        g->estimate = 0;
+ 174   1        g->strt.size = 0;
+ 175   1        g->strt.nuse = 0;
+ 176   1        g->strt.hash = NULL;
+ 177   1        setnilvalue(registry(L));
+ 178   1        luaZ_initbuffer(L, &g->buff);
+ 179   1        g->panic = NULL;
+ 180   1        g->gcstate = GCSpause;
+ 181   1        g->gcflags = GCFlagsNone;
+ 182   1        g->rootgc = obj2gco(L);
+ 183   1        g->sweepstrgc = 0;
+ 184   1        g->sweepgc = &g->rootgc;
+ 185   1        g->gray = NULL;
+ 186   1        g->grayagain = NULL;
+ 187   1        g->weak = NULL;
+ 188   1        g->tmudata = NULL;
+ 189   1        g->totalbytes = sizeof(LG);
+ 190   1        g->memlimit = 0;
+ 191   1        g->gcpause = LUAI_GCPAUSE;
+ 192   1        g->gcstepmul = LUAI_GCMUL;
+ 193   1        g->gcdept = 0;
+ 194   1      #ifdef EGC_INITIAL_MODE
+                g->egcmode = EGC_INITIAL_MODE;
+              #else
+ 197   1        g->egcmode = 0;
+ 198   1      #endif
+ 199   1      #ifdef EGC_INITIAL_MEMLIMIT
+                g->memlimit = EGC_INITIAL_MEMLIMIT;
+              #else
+ 202   1        g->memlimit = 0;
+ 203   1      #endif
+ 204   1        for (i=0; i<NUM_TAGS; i++) g->mt[i] = NULL;
+ 205   1        if (luaD_rawrunprotected(L, f_luaopen, NULL) != 0) {
+ 206   2          /* memory allocation error: free partial state */
+ 207   2          close_state(L);
+ 208   2          L = NULL;
+ 209   2        }
+ 210   1        else
+ 211   1          luai_userstateopen(L);
+ 212   1        return L;
+ 213   1      }
+ 214          
+ 215          
+ 216          static void callallgcTM (lua_State *L, void *ud) {
+ 217   1        UNUSED(ud);
+ 218   1        luaC_callGCTM(L);  /* call GC metamethods for all udata */
+ 219   1      }
+ 220          
+ 221          // BogdanM: modified for eLua interrupt support
+ 222          extern lua_State *luaL_newstate (void);
+ 223          static lua_State *lua_crtstate;
+ 224          
+ 225          lua_State *lua_open(void) {
+ 226   1        lua_crtstate = luaL_newstate(); 
+ 227   1        return lua_crtstate;
+ 228   1      }
+ 229          
+ 230          lua_State *lua_getstate(void) {
+ 231   1        return lua_crtstate;
+C51 COMPILER V9.00   LSTATE                                                                11/27/2017 19:45:04 PAGE 5   
+
+ 232   1      }
+ 233          LUA_API void lua_close (lua_State *L) {
+ 234   1      #ifndef LUA_CROSS_COMPILER  
+                int oldstate = platform_cpu_set_global_interrupts( PLATFORM_CPU_DISABLE );
+                lua_sethook( L, NULL, 0, 0 );
+                lua_crtstate = NULL;
+                lua_pushnil( L );
+                lua_rawseti( L, LUA_REGISTRYINDEX, LUA_INT_HANDLER_KEY );
+                elua_int_cleanup();
+                platform_cpu_set_global_interrupts( oldstate );
+                linenoise_cleanup( LINENOISE_ID_LUA );
+              #endif  
+ 244   1        L = G(L)->mainthread;  /* only the main thread can be closed */
+ 245   1        lua_lock(L);
+ 246   1        luaF_close(L, L->stack);  /* close all upvalues for this thread */
+ 247   1        luaC_separateudata(L, 1);  /* separate udata that have GC metamethods */
+ 248   1        L->errfunc = 0;  /* no error function during GC metamethods */
+ 249   1        do {  /* repeat until no more errors */
+ 250   2          L->ci = L->base_ci;
+ 251   2          L->base = L->top = L->ci->base;
+ 252   2          L->nCcalls = L->baseCcalls = 0;
+ 253   2        } while (luaD_rawrunprotected(L, callallgcTM, NULL) != 0);
+ 254   1        lua_assert(G(L)->tmudata == NULL);
+ 255   1        luai_userstateclose(L);
+ 256   1        close_state(L);
+ 257   1      }
+ 258          
+
+C51 COMPILATION COMPLETE.  7 WARNING(S),  2 ERROR(S)

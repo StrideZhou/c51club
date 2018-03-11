@@ -1,0 +1,390 @@
+C51 COMPILER V9.00   LUNDUMP                                                               11/27/2017 19:45:05 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LUNDUMP
+OBJECT MODULE PLACED IN .\obj\lundump.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lundump.c OMF2 BROWSE DEBUG PRINT(.\lundump.lst) OBJECT(.\ob
+                    -j\lundump.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lundump.c,v 2.7.1.4 2008/04/04 19:51:41 roberto Exp $
+   3          ** load precompiled Lua chunks
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          #include <string.h>
+   8          
+   9          #define lundump_c
+  10          #define LUA_CORE
+  11          
+  12          #include "lua.h"
+  13          
+  14          #include "ldebug.h"
+  15          #include "ldo.h"
+  16          #include "lfunc.h"
+  17          #include "lmem.h"
+  18          #include "lobject.h"
+  19          #include "lstring.h"
+  20          #include "lundump.h"
+  21          #include "lzio.h"
+  22          
+  23          typedef struct {
+  24           lua_State* L;
+  25           ZIO* Z;
+  26           Mbuffer* b;
+  27           const char* name;
+  28           int swap;
+  29           int numsize;
+  30           int toflt;
+  31           size_t total;
+  32          } LoadState;
+  33          
+  34          #ifdef LUAC_TRUST_BINARIES
+              #define IF(c,s)
+              #define error(S,s)
+              #else
+  38          #define IF(c,s)         if (c) error(S,s)
+  39          
+  40          static void error(LoadState* S, const char* why)
+  41          {
+  42   1       luaO_pushfstring(S->L,"%s: %s in precompiled chunk",S->name,why);
+  43   1       luaD_throw(S->L,LUA_ERRSYNTAX);
+  44   1      }
+  45          #endif
+  46          
+  47          #define LoadByte(S)             (lu_byte)LoadChar(S)
+  48          #define LoadVar(S,x)            LoadMem(S,&x,1,sizeof(x))
+  49          #define LoadVector(S,b,n,size)  LoadMem(S,b,n,size)
+  50          
+  51          static void LoadBlock(LoadState* S, void* b, size_t size)
+  52          {
+  53   1       size_t r=luaZ_read(S->Z,b,size);
+  54   1       IF (r!=0, "unexpected end");
+C51 COMPILER V9.00   LUNDUMP                                                               11/27/2017 19:45:05 PAGE 2   
+
+  55   1       S->total+=size;
+  56   1      }
+  57          
+  58          static void LoadMem (LoadState* S, void* b, int n, size_t size)
+  59          {
+  60   1        LoadBlock(S,b,n*size);
+  61   1        if (S->swap && b)
+  62   1        {
+  63   2          char* p=(char*) b;
+  64   2          char c;
+  65   2          switch (size)
+  66   2          {
+  67   3            case 1:
+  68   3              break;
+  69   3            case 2:
+  70   3                    while (n--)
+  71   3                    {
+  72   4                      c=p[0]; p[0]=p[1]; p[1]=c;
+  73   4                      p+=2;
+  74   4                    }
+  75   3                  break;
+  76   3            case 4:
+  77   3                    while (n--)
+  78   3                    {
+  79   4                      c=p[0]; p[0]=p[3]; p[3]=c;
+  80   4                      c=p[1]; p[1]=p[2]; p[2]=c;
+  81   4                      p+=4;
+  82   4                    }
+  83   3                  break;
+  84   3            case 8:
+  85   3                    while (n--)
+  86   3                    {
+  87   4                c=p[0]; p[0]=p[7]; p[7]=c;
+  88   4                c=p[1]; p[1]=p[6]; p[6]=c;
+  89   4                c=p[2]; p[2]=p[5]; p[5]=c;
+  90   4                c=p[3]; p[3]=p[4]; p[4]=c;
+  91   4                p+=8;
+  92   4              }
+  93   3                  break;
+  94   3            default:
+  95   3                  IF(1, "bad size");
+  96   3                  break;
+  97   3          }
+  98   2        }
+  99   1      }
+ 100          
+ 101          static int LoadChar(LoadState* S)
+ 102          {
+ 103   1       char x;
+ 104   1       LoadVar(S,x);
+ 105   1       return x;
+ 106   1      }
+ 107          
+ 108          static void Align4(LoadState* S)
+ 109          {
+ 110   1       while(S->total&3)
+ 111   1        LoadChar(S);
+ 112   1      }
+ 113          
+ 114          static int LoadInt(LoadState* S)
+ 115          {
+ 116   1       int x;
+C51 COMPILER V9.00   LUNDUMP                                                               11/27/2017 19:45:05 PAGE 3   
+
+ 117   1       LoadVar(S,x);
+ 118   1       IF (x<0, "bad integer");
+ 119   1       return x;
+ 120   1      }
+ 121          
+ 122          static lua_Number LoadNumber(LoadState* S)
+ 123          {
+ 124   1       lua_Number x;
+ 125   1       if(S->toflt)
+ 126   1       {
+ 127   2        switch(S->numsize)
+ 128   2        {
+ 129   3         case 1: {
+ 130   4          int8_t y;
+ 131   4          LoadVar(S,y);
+ 132   4          x = (lua_Number)y;
+ 133   4         } break;
+ 134   3         case 2: {
+ 135   4          int16_t y;
+*** ERROR C202 IN LINE 135 OF SRC\LUNDUMP.C: 'int16_t': undefined identifier
+*** ERROR C141 IN LINE 135 OF SRC\LUNDUMP.C: syntax error near 'y'
+ 136   4          LoadVar(S,y);
+*** ERROR C202 IN LINE 136 OF SRC\LUNDUMP.C: 'y': undefined identifier
+ 137   4          x = (lua_Number)y;
+*** ERROR C202 IN LINE 137 OF SRC\LUNDUMP.C: 'y': undefined identifier
+ 138   4         } break;
+ 139   3         case 4: {
+ 140   4          int32_t y;
+*** ERROR C202 IN LINE 140 OF SRC\LUNDUMP.C: 'int32_t': undefined identifier
+*** ERROR C141 IN LINE 140 OF SRC\LUNDUMP.C: syntax error near 'y'
+ 141   4          LoadVar(S,y);
+*** ERROR C202 IN LINE 141 OF SRC\LUNDUMP.C: 'y': undefined identifier
+ 142   4          x = (lua_Number)y;
+*** ERROR C202 IN LINE 142 OF SRC\LUNDUMP.C: 'y': undefined identifier
+ 143   4         } break;
+ 144   3         case 8: {
+ 145   4          int64_t y;
+*** ERROR C202 IN LINE 145 OF SRC\LUNDUMP.C: 'int64_t': undefined identifier
+*** ERROR C141 IN LINE 145 OF SRC\LUNDUMP.C: syntax error near 'y'
+ 146   4          LoadVar(S,y);
+*** ERROR C202 IN LINE 146 OF SRC\LUNDUMP.C: 'y': undefined identifier
+ 147   4          x = (lua_Number)y;
+*** ERROR C202 IN LINE 147 OF SRC\LUNDUMP.C: 'y': undefined identifier
+ 148   4         } break;
+ 149   3         default: lua_assert(0);
+ 150   3        }
+ 151   2       }
+ 152   1       else
+ 153   1       {
+ 154   2        LoadVar(S,x); /* should probably handle more cases for float here... */
+ 155   2       }
+ 156   1       return x;
+ 157   1      }
+ 158          
+ 159          static TString* LoadString(LoadState* S)
+ 160          {
+ 161   1       int32_t size;
+*** ERROR C202 IN LINE 161 OF SRC\LUNDUMP.C: 'int32_t': undefined identifier
+*** ERROR C141 IN LINE 161 OF SRC\LUNDUMP.C: syntax error near 'size'
+ 162   1       LoadVar(S,size);
+*** ERROR C202 IN LINE 162 OF SRC\LUNDUMP.C: 'size': undefined identifier
+ 163   1       if (size==0)
+C51 COMPILER V9.00   LUNDUMP                                                               11/27/2017 19:45:05 PAGE 4   
+
+*** ERROR C202 IN LINE 163 OF SRC\LUNDUMP.C: 'size': undefined identifier
+ 164   1        return NULL;
+ 165   1       else
+ 166   1       {
+ 167   2        char* s;
+ 168   2        if (!luaZ_direct_mode(S->Z)) {
+*** ERROR C141 IN LINE 168 OF SRC\LUNDUMP.C: syntax error near 'data', expected '<id>'
+*** ERROR C141 IN LINE 168 OF SRC\LUNDUMP.C: syntax error near ')'
+ 169   3         s = luaZ_openspace(S->L,S->b,size);
+*** ERROR C202 IN LINE 169 OF SRC\LUNDUMP.C: 'size': undefined identifier
+ 170   3         LoadBlock(S,s,size);
+*** ERROR C202 IN LINE 170 OF SRC\LUNDUMP.C: 'size': undefined identifier
+ 171   3         return luaS_newlstr(S->L,s,size-1); /* remove trailing zero */
+*** ERROR C202 IN LINE 171 OF SRC\LUNDUMP.C: 'size': undefined identifier
+ 172   3        } else {
+*** ERROR C141 IN LINE 172 OF SRC\LUNDUMP.C: syntax error near 'else'
+ 173   3         s = (char*)luaZ_get_crt_address(S->Z);
+*** ERROR C141 IN LINE 173 OF SRC\LUNDUMP.C: syntax error near 'data', expected '<id>'
+*** ERROR C141 IN LINE 173 OF SRC\LUNDUMP.C: syntax error near ')'
+ 174   3         LoadBlock(S,NULL,size);
+*** ERROR C202 IN LINE 174 OF SRC\LUNDUMP.C: 'size': undefined identifier
+ 175   3         return luaS_newrolstr(S->L,s,size-1);
+*** ERROR C202 IN LINE 175 OF SRC\LUNDUMP.C: 'size': undefined identifier
+ 176   3        }
+ 177   2       }
+ 178   1      }
+ 179          
+ 180          static void LoadCode(LoadState* S, Proto* f)
+ 181          {
+ 182   1       int n=LoadInt(S);
+ 183   1       Align4(S);
+ 184   1       if (!luaZ_direct_mode(S->Z)) {
+*** ERROR C141 IN LINE 184 OF SRC\LUNDUMP.C: syntax error near 'data', expected '<id>'
+*** ERROR C141 IN LINE 184 OF SRC\LUNDUMP.C: syntax error near ')'
+ 185   2        f->code=luaM_newvector(S->L,n,Instruction);
+*** ERROR C141 IN LINE 185 OF SRC\LUNDUMP.C: syntax error near 'code', expected '<id>'
+ 186   2        LoadVector(S,f->code,n,sizeof(Instruction));
+*** ERROR C141 IN LINE 186 OF SRC\LUNDUMP.C: syntax error near 'code', expected '<id>'
+ 187   2       } else {
+ 188   2        f->code=(Instruction*)luaZ_get_crt_address(S->Z);
+ 189   2        LoadVector(S,NULL,n,sizeof(Instruction));
+ 190   2       }
+ 191   1       f->sizecode=n;
+ 192   1      }
+ 193          
+ 194          static Proto* LoadFunction(LoadState* S, TString* p);
+ 195          
+ 196          static void LoadConstants(LoadState* S, Proto* f)
+ 197          {
+ 198   1       int i,n;
+ 199   1       n=LoadInt(S);
+ 200   1       f->k=luaM_newvector(S->L,n,TValue);
+ 201   1       f->sizek=n;
+ 202   1       for (i=0; i<n; i++) setnilvalue(&f->k[i]);
+ 203   1       for (i=0; i<n; i++)
+ 204   1       {
+ 205   2        TValue* o=&f->k[i];
+ 206   2        int t=LoadChar(S);
+ 207   2        switch (t)
+ 208   2        {
+ 209   3         case LUA_TNIL:
+ 210   3              setnilvalue(o);
+C51 COMPILER V9.00   LUNDUMP                                                               11/27/2017 19:45:05 PAGE 5   
+
+ 211   3              break;
+ 212   3         case LUA_TBOOLEAN:
+ 213   3              setbvalue(o,LoadChar(S)!=0);
+ 214   3              break;
+ 215   3         case LUA_TNUMBER:
+ 216   3              setnvalue(o,LoadNumber(S));
+ 217   3              break;
+ 218   3         case LUA_TSTRING:
+ 219   3              setsvalue2n(S->L,o,LoadString(S));
+ 220   3              break;
+ 221   3         default:
+ 222   3              error(S,"bad constant");
+ 223   3              break;
+ 224   3        }
+ 225   2       }
+ 226   1       n=LoadInt(S);
+ 227   1       f->p=luaM_newvector(S->L,n,Proto*);
+ 228   1       f->sizep=n;
+ 229   1       for (i=0; i<n; i++) f->p[i]=NULL;
+ 230   1       for (i=0; i<n; i++) f->p[i]=LoadFunction(S,f->source);
+ 231   1      }
+ 232          
+ 233          static void LoadDebug(LoadState* S, Proto* f)
+ 234          {
+ 235   1       int i,n;
+ 236   1       n=LoadInt(S);
+ 237   1       Align4(S);
+ 238   1       if (!luaZ_direct_mode(S->Z)) {
+ 239   2         f->lineinfo=luaM_newvector(S->L,n,int);
+ 240   2         LoadVector(S,f->lineinfo,n,sizeof(int));
+ 241   2       } else {
+ 242   2         f->lineinfo=(int*)luaZ_get_crt_address(S->Z);
+ 243   2         LoadVector(S,NULL,n,sizeof(int));
+ 244   2       }
+ 245   1       f->sizelineinfo=n;
+ 246   1       n=LoadInt(S);
+ 247   1       f->locvars=luaM_newvector(S->L,n,LocVar);
+ 248   1       f->sizelocvars=n;
+ 249   1       for (i=0; i<n; i++) f->locvars[i].varname=NULL;
+ 250   1       for (i=0; i<n; i++)
+ 251   1       {
+ 252   2        f->locvars[i].varname=LoadString(S);
+ 253   2        f->locvars[i].startpc=LoadInt(S);
+ 254   2        f->locvars[i].endpc=LoadInt(S);
+ 255   2       }
+ 256   1       n=LoadInt(S);
+ 257   1       f->upvalues=luaM_newvector(S->L,n,TString*);
+ 258   1       f->sizeupvalues=n;
+ 259   1       for (i=0; i<n; i++) f->upvalues[i]=NULL;
+ 260   1       for (i=0; i<n; i++) f->upvalues[i]=LoadString(S);
+ 261   1      }
+ 262          
+ 263          static Proto* LoadFunction(LoadState* S, TString* p)
+ 264          {
+ 265   1       Proto* f;
+ 266   1       if (++S->L->nCcalls > LUAI_MAXCCALLS) error(S,"code too deep");
+ 267   1       f=luaF_newproto(S->L);
+ 268   1       if (luaZ_direct_mode(S->Z)) proto_readonly(f);
+ 269   1       setptvalue2s(S->L,S->L->top,f); incr_top(S->L);
+ 270   1       f->source=LoadString(S); if (f->source==NULL) f->source=p;
+ 271   1       f->linedefined=LoadInt(S);
+ 272   1       f->lastlinedefined=LoadInt(S);
+C51 COMPILER V9.00   LUNDUMP                                                               11/27/2017 19:45:05 PAGE 6   
+
+ 273   1       f->nups=LoadByte(S);
+ 274   1       f->numparams=LoadByte(S);
+ 275   1       f->is_vararg=LoadByte(S);
+ 276   1       f->maxstacksize=LoadByte(S);
+ 277   1       LoadCode(S,f);
+ 278   1       LoadConstants(S,f);
+ 279   1       LoadDebug(S,f);
+ 280   1       IF (!luaG_checkcode(f), "bad code_");
+ 281   1       S->L->top--;
+ 282   1       S->L->nCcalls--;
+ 283   1       return f;
+ 284   1      }
+ 285          
+ 286          static void LoadHeader(LoadState* S)
+ 287          {
+ 288   1       char h[LUAC_HEADERSIZE];
+ 289   1       char s[LUAC_HEADERSIZE];
+ 290   1       int intck = (((lua_Number)0.5)==0); /* 0=float, 1=int */
+ 291   1       luaU_header(h);
+ 292   1       LoadBlock(S,s,LUAC_HEADERSIZE);
+ 293   1       S->swap=(s[6]!=h[6]); s[6]=h[6]; /* Check if byte-swapping is needed  */
+ 294   1       S->numsize=h[10]=s[10]; /* length of lua_Number */
+ 295   1       S->toflt=(s[11]>intck); /* check if conversion from int lua_Number to flt is needed */
+ 296   1       if(S->toflt) s[11]=h[11];
+ 297   1       IF (memcmp(h,s,LUAC_HEADERSIZE)!=0, "bad header");
+ 298   1      }
+ 299          
+ 300          /*
+ 301          ** load precompiled chunk
+ 302          */
+ 303          Proto* luaU_undump (lua_State* L, ZIO* Z, Mbuffer* buff, const char* name)
+ 304          {
+ 305   1       LoadState S;
+ 306   1       if (*name=='@' || *name=='=')
+ 307   1        S.name=name+1;
+ 308   1       else if (*name==LUA_SIGNATURE[0])
+ 309   1        S.name="binary string";
+ 310   1       else
+ 311   1        S.name=name;
+ 312   1       S.L=L;
+ 313   1       S.Z=Z;
+ 314   1       S.b=buff;
+ 315   1       LoadHeader(&S);
+ 316   1       S.total=0;
+ 317   1       return LoadFunction(&S,luaS_newliteral(L,"=?"));
+ 318   1      }
+ 319          
+ 320          /*
+ 321          * make header
+ 322          */
+ 323          void luaU_header (char* h)
+ 324          {
+ 325   1       int x=1;
+ 326   1       memcpy(h,LUA_SIGNATURE,sizeof(LUA_SIGNATURE)-1);
+ 327   1       h+=sizeof(LUA_SIGNATURE)-1;
+ 328   1       *h++=(char)LUAC_VERSION;
+ 329   1       *h++=(char)LUAC_FORMAT;
+ 330   1       *h++=(char)*(char*)&x;                         /* endianness */
+ 331   1       *h++=(char)sizeof(int);
+ 332   1       *h++=(char)sizeof(int32_t);
+ 333   1       *h++=(char)sizeof(Instruction);
+ 334   1       *h++=(char)sizeof(lua_Number);
+C51 COMPILER V9.00   LUNDUMP                                                               11/27/2017 19:45:05 PAGE 7   
+
+ 335   1       *h++=(char)(((lua_Number)0.5)==0);             /* is lua_Number integral? */
+ 336   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  30 ERROR(S)

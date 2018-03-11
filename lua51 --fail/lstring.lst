@@ -1,0 +1,182 @@
+C51 COMPILER V9.00   LSTRING                                                               11/27/2017 19:45:04 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LSTRING
+OBJECT MODULE PLACED IN .\obj\lstring.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lstring.c OMF2 BROWSE DEBUG PRINT(.\lstring.lst) OBJECT(.\ob
+                    -j\lstring.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lstring.c,v 2.8.1.1 2007/12/27 13:02:25 roberto Exp $
+   3          ** String table (keeps all strings handled by Lua)
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <string.h>
+   9          
+  10          #define lstring_c
+  11          #define LUA_CORE
+  12          
+  13          #include "lua.h"
+  14          
+  15          #include "lmem.h"
+  16          #include "lobject.h"
+  17          #include "lstate.h"
+  18          #include "lstring.h"
+  19          
+  20          #define LUAS_READONLY_STRING      1
+  21          #define LUAS_REGULAR_STRING       0
+  22          
+  23          void luaS_resize (lua_State *L, int newsize) {
+  24   1        stringtable *tb;
+  25   1        int i;
+  26   1        tb = &G(L)->strt;
+  27   1        if (luaC_sweepstrgc(L) || newsize == tb->size || is_resizing_strings_gc(L))
+  28   1          return;  /* cannot resize during GC traverse or doesn't need to be resized */
+  29   1        set_resizing_strings_gc(L);
+  30   1        if (newsize > tb->size) {
+  31   2          luaM_reallocvector(L, tb->hash, tb->size, newsize, GCObject *);
+  32   2          for (i=tb->size; i<newsize; i++) tb->hash[i] = NULL;
+  33   2        }
+  34   1        /* rehash */
+  35   1        for (i=0; i<tb->size; i++) {
+  36   2          GCObject *p = tb->hash[i];
+  37   2          tb->hash[i] = NULL;
+  38   2          while (p) {  /* for each node in the list */
+  39   3            GCObject *next = p->gch.next;  /* save next */
+  40   3            unsigned int h = gco2ts(p)->hash;
+  41   3            int h1 = lmod(h, newsize);  /* new position */
+  42   3            lua_assert(cast_int(h%newsize) == lmod(h, newsize));
+*** WARNING C275 IN LINE 42 OF SRC\LSTRING.C: expression with possibly no effect
+  43   3            p->gch.next = tb->hash[h1];  /* chain it */
+  44   3            tb->hash[h1] = p;
+  45   3            p = next;
+  46   3          }
+  47   2        }
+  48   1        if (newsize < tb->size)
+  49   1          luaM_reallocvector(L, tb->hash, tb->size, newsize, GCObject *);
+  50   1        tb->size = newsize;
+  51   1        unset_resizing_strings_gc(L);
+  52   1      }
+  53          
+C51 COMPILER V9.00   LSTRING                                                               11/27/2017 19:45:04 PAGE 2   
+
+  54          static TString *newlstr (lua_State *L, const char *str, size_t l,
+  55                                                 unsigned int h, int readonly) {
+  56   1        TString *ts;
+  57   1        stringtable *tb;
+  58   1        if (l+1 > (MAX_SIZET - sizeof(TString))/sizeof(char))
+  59   1          luaM_toobig(L);
+  60   1        tb = &G(L)->strt;
+  61   1        if ((tb->nuse + 1) > cast(lu_int32, tb->size) && tb->size <= MAX_INT/2)
+  62   1          luaS_resize(L, tb->size*2);  /* too crowded */
+  63   1        ts = cast(TString *, luaM_malloc(L, readonly ? sizeof(char**)+sizeof(TString) : (l+1)*sizeof(char)+sizeo
+             -f(TString)));
+  64   1        ts->tsv.len = l;
+  65   1        ts->tsv.hash = h;
+  66   1        ts->tsv.marked = luaC_white(G(L));
+  67   1        ts->tsv.tt = LUA_TSTRING;
+  68   1        if (!readonly) {
+  69   2          memcpy(ts+1, str, l*sizeof(char));
+  70   2          ((char *)(ts+1))[l] = '\0';  /* ending 0 */
+  71   2        } else {
+  72   2          *(char **)(ts+1) = (char *)str;
+  73   2          luaS_readonly(ts);
+  74   2        }
+  75   1        h = lmod(h, tb->size);
+  76   1        ts->tsv.next = tb->hash[h];  /* chain new entry */
+  77   1        tb->hash[h] = obj2gco(ts);
+  78   1        tb->nuse++;
+  79   1        return ts;
+  80   1      }
+  81          
+  82          
+  83          static TString *luaS_newlstr_helper (lua_State *L, const char *str, size_t l, int readonly) {
+  84   1        GCObject *o;
+  85   1        unsigned int h = cast(unsigned int, l);  /* seed */
+  86   1        size_t step = (l>>5)+1;  /* if string is too long, don't hash all its chars */
+  87   1        size_t l1;
+  88   1        for (l1=l; l1>=step; l1-=step)  /* compute hash */
+  89   1          h = h ^ ((h<<5)+(h>>2)+cast(unsigned char, str[l1-1]));
+  90   1        for (o = G(L)->strt.hash[lmod(h, G(L)->strt.size)];
+  91   1             o != NULL;
+  92   1             o = o->gch.next) {
+  93   2          TString *ts = rawgco2ts(o);
+  94   2          if (ts->tsv.len == l && (memcmp(str, getstr(ts), l) == 0)) {
+  95   3            /* string may be dead */
+  96   3            if (isdead(G(L), o)) changewhite(o);
+  97   3            return ts;
+  98   3          }
+  99   2        }
+ 100   1        return newlstr(L, str, l, h, readonly);  /* not found */
+ 101   1      }
+ 102          
+ 103          extern char stext;
+ 104          extern char etext;
+ 105          
+ 106          static int lua_is_ptr_in_ro_area(const char *p) {
+ 107   1      #ifdef LUA_CROSS_COMPILER
+ 108   1        return 0;
+ 109   1      #else
+                return p >= &stext && p <= &etext;
+              #endif
+ 112   1      }
+*** WARNING C280 IN LINE 106 OF SRC\LSTRING.C: 'p': unreferenced local variable
+ 113          
+C51 COMPILER V9.00   LSTRING                                                               11/27/2017 19:45:04 PAGE 3   
+
+ 114          TString *luaS_newlstr (lua_State *L, const char *str, size_t l) {
+ 115   1        // If the pointer is in a read-only memory and the string is at least 4 chars in length,
+ 116   1        // create it as a read-only string instead
+ 117   1        if(lua_is_ptr_in_ro_area(str) && l+1 > sizeof(char**) && l == strlen(str))
+ 118   1          return luaS_newlstr_helper(L, str, l, LUAS_READONLY_STRING);
+ 119   1        else
+ 120   1          return luaS_newlstr_helper(L, str, l, LUAS_REGULAR_STRING);
+ 121   1      }
+ 122          
+ 123          
+ 124          LUAI_FUNC TString *luaS_newrolstr (lua_State *L, const char *str, size_t l) {
+ 125   1        if(l+1 > sizeof(char**) && l == strlen(str))
+ 126   1          return luaS_newlstr_helper(L, str, l, LUAS_READONLY_STRING);
+ 127   1        else // no point in creating a RO string, as it would actually be larger
+ 128   1          return luaS_newlstr_helper(L, str, l, LUAS_REGULAR_STRING);
+ 129   1      }
+ 130          
+ 131          
+ 132          Udata *luaS_newudata (lua_State *L, size_t s, Table *e) {
+ 133   1        Udata *u;
+ 134   1        if (s > MAX_SIZET - sizeof(Udata))
+ 135   1          luaM_toobig(L);
+ 136   1        u = cast(Udata *, luaM_malloc(L, s + sizeof(Udata)));
+ 137   1        u->uv.marked = luaC_white(G(L));  /* is not finalized */
+ 138   1        u->uv.tt = LUA_TUSERDATA;
+ 139   1        u->uv.len = s;
+ 140   1        u->uv.metatable = NULL;
+ 141   1        u->uv.env = e;
+ 142   1        /* chain it on udata list (after main thread) */
+ 143   1        u->uv.next = G(L)->mainthread->next;
+ 144   1        G(L)->mainthread->next = obj2gco(u);
+ 145   1        return u;
+ 146   1      }
+ 147          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2083    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      90
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  0 ERROR(S)

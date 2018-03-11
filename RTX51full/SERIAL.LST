@@ -1,0 +1,513 @@
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE SERIAL
+OBJECT MODULE PLACED IN SERIAL.OBJ
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE SERIAL.C LARGE RTX51 OPTIMIZE(9,SPEED) REGFILE(.\rtx51full.ORC) 
+                    -BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          /****************************************************************************/
+   2          /*                                                                          */
+   3          /*       SERIAL.C:  Interrupt Controlled Serial Interface for RTX-51        */
+   4          /*                                                                          */
+   5          /****************************************************************************/
+   6          
+   7          #pragma CODE DEBUG OBJECTEXTEND
+   8          #include <SERIAL.h>
+   9          
+  10                            
+  11          #define  OLEN  8                      /* size of serial transmission buffer */
+  12          unsigned char  ostart;                /* transmission buffer start index    */
+  13          unsigned char  oend;                  /* transmission buffer end index      */
+  14          idata    char  outbuf[OLEN];          /* storage for transmission buffer    */
+  15          unsigned char  otask = 0xff;          /* task number of output task         */
+  16          
+  17          #define  ILEN  8                      /* size of serial receiving buffer    */
+  18          unsigned char  istart;                /* receiving buffer start index       */
+  19          unsigned char  iend;                  /* receiving buffer end index         */
+  20          idata    char  inbuf[ILEN];           /* storage for receiving buffer       */
+  21          unsigned char  itask = 0xff;          /* task number of output task         */
+  22          
+  23          #define   CTRL_Q  0x11                /* Control+Q character code           */
+  24          #define   CTRL_S  0x13                /* Control+S character code           */
+  25          
+  26          bit   sendfull;                       /* flag: marks transmit buffer full   */
+  27          bit   sendactive;                     /* flag: marks transmitter active     */
+  28          bit   sendstop;                       /* flag: marks XOFF character         */
+  29          
+  30          /****************************************************************************/
+  31          /*       putbuf:  write a character to SBUF or transmission buffer          */
+  32          /****************************************************************************/
+  33          void putbuf (char c)  {
+  34   1        if (!sendfull)  {                   /* transmit only if buffer not full   */
+  35   2          if (!sendactive && !sendstop)  {  /* if transmitter not active:         */
+  36   3            sendactive = 1;                 /* transfer the first character direct*/
+  37   3            SBUF = c;                       /* to SBUF to start transmission      */
+  38   3          }
+  39   2          else  {                           /* otherwize:                         */
+  40   3            outbuf[oend++ & (OLEN-1)] = c;  /* transfer char to transmission buffr*/
+  41   3            if (((oend ^ ostart) & (OLEN-1)) == 0)  sendfull = 1;
+  42   3          }                                 /* set flag if buffer is full         */
+  43   2        }
+  44   1      }
+  45          
+  46          
+  47          /****************************************************************************/
+  48          /*       putchar:  interrupt controlled putchar function                    */
+  49          /****************************************************************************/
+  50          char putchar (char c)  {
+  51   1        if (c == '\n')  {                   /* expand new line character:         */
+  52   2          while (sendfull)  {               /* wait for transmission buffer empty */
+  53   3            otask = os_running_task_id ();  /* set output task number             */
+  54   3            os_wait (K_SIG, 0, 0);          /* RTX-51 call: wait for signal       */
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 2   
+
+  55   3            otask = 0xff;                   /* clear output task number           */
+  56   3          }
+  57   2          putbuf (0x0D);                    /* send CR before LF for <new line>   */
+  58   2        }
+  59   1        while (sendfull)  {                 /* wait for transmission buffer empty */
+  60   2          otask = os_running_task_id ();    /* set output task number             */
+  61   2          os_wait (K_SIG, 0, 0);            /* RTX-51 call: wait for signal       */
+  62   2          otask = 0xff;                     /* clear output task number           */
+  63   2        }
+  64   1        putbuf (c);                         /* send character                     */
+  65   1        return (c);                         /* return character: ANSI requirement */
+  66   1      }
+  67          
+  68          
+  69          /****************************************************************************/
+  70          /*       _getkey:  interrupt controlled _getkey                             */
+  71          /****************************************************************************/
+  72          char _getkey (void)  {
+  73   1        while  (iend == istart)  {
+  74   2          itask = os_running_task_id ();    /* set input task number              */
+  75   2          os_wait (K_SIG, 0, 0);            /* RTX-51 call: wait for signal       */
+  76   2          itask = 0xff;                     /* clear input task number            */
+  77   2        }
+  78   1        return (inbuf[istart++ & (ILEN-1)]);
+  79   1      }
+  80          
+  81          
+  82          /****************************************************************************/
+  83          /*       serial:  serial receiver / transmitter interrupt                   */
+  84          /****************************************************************************/
+  85          void serial () interrupt 4 using 1  {     /* use registerbank 1 for interrupt    */
+  86   1        unsigned char c;
+  87   1        bit   start_trans = 0;
+  88   1      
+  89   1        if (RI)  {                         /* if receiver interrupt               */
+  90   2          c = SBUF;                        /* read character                      */
+  91   2          RI = 0;                          /* clear interrupt request flag        */
+  92   2          switch (c)  {                    /* process character                   */
+  93   3            case CTRL_S:
+  94   3              sendstop = 1;                /* if Control+S stop transmission      */
+  95   3              break;
+  96   3      
+  97   3            case CTRL_Q:
+  98   3              start_trans = sendstop;      /* if Control+Q start transmission     */
+  99   3              sendstop = 0;
+ 100   3              break;
+ 101   3      
+ 102   3            default:                       /* read all other characters into inbuf*/
+ 103   3              if (istart + ILEN != iend)  {
+ 104   4                inbuf[iend++ & (ILEN-1)] = c;
+ 105   4              }
+ 106   3                                           /* if task waiting: signal ready       */
+ 107   3              if (itask != 0xFF) isr_send_signal (itask);
+ 108   3              break;
+ 109   3          }
+ 110   2        }
+ 111   1      
+ 112   1        if (TI || start_trans)  {          /* if transmitter interrupt            */
+ 113   2          TI = 0;                          /* clear interrupt request flag        */
+ 114   2          if (ostart != oend)  {           /* if characters in buffer and         */
+ 115   3            if (!sendstop)  {              /* if not Control+S received           */
+ 116   4              SBUF = outbuf[ostart++ & (OLEN-1)];      /* transmit character      */
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 3   
+
+ 117   4              sendfull = 0;                /* clear 'sendfull' flag               */
+ 118   4                                           /* if task waiting: signal ready       */
+ 119   4              if (otask != 0xFF)  isr_send_signal (otask);
+ 120   4            }
+ 121   3          }
+ 122   2          else sendactive = 0;             /* if all transmitted clear 'sendactive*/
+ 123   2        }
+ 124   1      
+ 125   1      }
+ 126          
+ 127          
+ 128          /****************************************************************************/
+ 129          /*       serial_init: initialize serial interface                           */
+ 130          /****************************************************************************/
+ 131          //void serial_init ()  {
+ 132          //  SCON  = 0x50;                      /* mode 1: 8-bit UART, enable receiver */
+ 133          //  TMOD |= 0x20;                      /* timer 1 mode 2: 8-Bit reload        */
+ 134          //  TH1   = 0xf3;                      /* reload value 2400 baud              */
+ 135          //  TR1   = 1;                         /* timer 1 run                         */
+ 136          //  os_enable_isr (4);                 /* enable serial port interrupt        */
+ 137          //}
+ 138          
+ 139          void SendString(char *s)
+ 140          {
+ 141   1          while (*s)                  
+ 142   1          {
+ 143   2              putchar(*s++);        
+ 144   2          }
+ 145   1      }
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 4   
+
+ASSEMBLY LISTING OF GENERATED OBJECT CODE
+
+
+             ; FUNCTION _putbuf (BEGIN)
+                                           ; SOURCE LINE # 33
+;---- Variable 'c' assigned to Register 'R7' ----
+                                           ; SOURCE LINE # 34
+0000 20002A      R     JB      sendfull,?C0005
+                                           ; SOURCE LINE # 35
+0003 200008      R     JB      sendactive,?C0002
+0006 200005      R     JB      sendstop,?C0002
+                                           ; SOURCE LINE # 36
+0009 D200        R     SETB    sendactive
+                                           ; SOURCE LINE # 37
+000B 8F99              MOV     SBUF,R7
+                                           ; SOURCE LINE # 38
+000D 22                RET     
+000E         ?C0002:
+                                           ; SOURCE LINE # 39
+                                           ; SOURCE LINE # 40
+000E 900000      R     MOV     DPTR,#oend
+0011 E0                MOVX    A,@DPTR
+0012 FE                MOV     R6,A
+0013 04                INC     A
+0014 F0                MOVX    @DPTR,A
+0015 EE                MOV     A,R6
+0016 5407              ANL     A,#07H
+0018 2400        R     ADD     A,#LOW outbuf
+001A F8                MOV     R0,A
+001B A607              MOV     @R0,AR7
+                                           ; SOURCE LINE # 41
+001D 900000      R     MOV     DPTR,#ostart
+0020 E0                MOVX    A,@DPTR
+0021 FF                MOV     R7,A
+0022 900000      R     MOV     DPTR,#oend
+0025 E0                MOVX    A,@DPTR
+0026 6F                XRL     A,R7
+0027 5407              ANL     A,#07H
+0029 7002              JNZ     ?C0005
+002B D200        R     SETB    sendfull
+                                           ; SOURCE LINE # 42
+                                           ; SOURCE LINE # 43
+                                           ; SOURCE LINE # 44
+002D         ?C0005:
+002D 22                RET     
+             ; FUNCTION _putbuf (END)
+
+             ; FUNCTION _putchar (BEGIN)
+                                           ; SOURCE LINE # 50
+0000 900000      R     MOV     DPTR,#c
+0003 EF                MOV     A,R7
+0004 F0                MOVX    @DPTR,A
+                                           ; SOURCE LINE # 51
+0005 BF0A0D            CJNE    R7,#0AH,?C0009
+0008         ?C0007:
+                                           ; SOURCE LINE # 52
+0008 300005      R     JNB     sendfull,?C0008
+                                           ; SOURCE LINE # 53
+                                           ; SOURCE LINE # 54
+                                           ; SOURCE LINE # 55
+000B 120000      R     LCALL   L?0033
+                                           ; SOURCE LINE # 56
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 5   
+
+000E 80F8              SJMP    ?C0007
+0010         ?C0008:
+                                           ; SOURCE LINE # 57
+0010 7F0D              MOV     R7,#0DH
+0012 120000      R     LCALL   _putbuf
+                                           ; SOURCE LINE # 58
+0015         ?C0009:
+                                           ; SOURCE LINE # 59
+0015 300005      R     JNB     sendfull,?C0010
+                                           ; SOURCE LINE # 60
+                                           ; SOURCE LINE # 61
+                                           ; SOURCE LINE # 62
+0018 120000      R     LCALL   L?0033
+                                           ; SOURCE LINE # 63
+001B 80F8              SJMP    ?C0009
+001D         ?C0010:
+                                           ; SOURCE LINE # 64
+001D 900000      R     MOV     DPTR,#c
+0020 E0                MOVX    A,@DPTR
+0021 FF                MOV     R7,A
+0022 120000      R     LCALL   _putbuf
+                                           ; SOURCE LINE # 65
+0025 900000      R     MOV     DPTR,#c
+0028 E0                MOVX    A,@DPTR
+0029 FF                MOV     R7,A
+                                           ; SOURCE LINE # 66
+002A         ?C0011:
+002A 22                RET     
+002B         L?0033:
+002B 120000      E     LCALL   os_running_task_id
+002E 900000      R     MOV     DPTR,#otask
+0031 EF                MOV     A,R7
+0032 F0                MOVX    @DPTR,A
+0033 E4                CLR     A
+0034 FB                MOV     R3,A
+0035 FA                MOV     R2,A
+0036 FD                MOV     R5,A
+0037 7F40              MOV     R7,#040H
+0039 120000      E     LCALL   _os_wait
+003C 900000      R     MOV     DPTR,#otask
+003F 74FF              MOV     A,#0FFH
+0041 F0                MOVX    @DPTR,A
+0042 22                RET     
+             ; FUNCTION _putchar (END)
+
+             ; FUNCTION _getkey (BEGIN)
+                                           ; SOURCE LINE # 72
+0000         ?C0012:
+                                           ; SOURCE LINE # 73
+0000 900000      R     MOV     DPTR,#istart
+0003 E0                MOVX    A,@DPTR
+0004 FF                MOV     R7,A
+0005 900000      R     MOV     DPTR,#iend
+0008 E0                MOVX    A,@DPTR
+0009 B50719            CJNE    A,AR7,?C0013
+                                           ; SOURCE LINE # 74
+000C 120000      E     LCALL   os_running_task_id
+000F 900000      R     MOV     DPTR,#itask
+0012 EF                MOV     A,R7
+0013 F0                MOVX    @DPTR,A
+                                           ; SOURCE LINE # 75
+0014 E4                CLR     A
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 6   
+
+0015 FB                MOV     R3,A
+0016 FA                MOV     R2,A
+0017 FD                MOV     R5,A
+0018 7F40              MOV     R7,#040H
+001A 120000      E     LCALL   _os_wait
+                                           ; SOURCE LINE # 76
+001D 900000      R     MOV     DPTR,#itask
+0020 74FF              MOV     A,#0FFH
+0022 F0                MOVX    @DPTR,A
+                                           ; SOURCE LINE # 77
+0023 80DB              SJMP    ?C0012
+0025         ?C0013:
+                                           ; SOURCE LINE # 78
+0025 900000      R     MOV     DPTR,#istart
+0028 E0                MOVX    A,@DPTR
+0029 FF                MOV     R7,A
+002A 04                INC     A
+002B F0                MOVX    @DPTR,A
+002C EF                MOV     A,R7
+002D 5407              ANL     A,#07H
+002F 2400        R     ADD     A,#LOW inbuf
+0031 F8                MOV     R0,A
+0032 E6                MOV     A,@R0
+0033 FF                MOV     R7,A
+                                           ; SOURCE LINE # 79
+0034         ?C0014:
+0034 22                RET     
+             ; FUNCTION _getkey (END)
+
+             ; FUNCTION serial (BEGIN)
+0000 C0E0              PUSH    ACC
+0002 C0F0              PUSH    B
+0004 C083              PUSH    DPH
+0006 C082              PUSH    DPL
+0008 C0D0              PUSH    PSW
+000A 75D008            MOV     PSW,#08H
+                                           ; SOURCE LINE # 85
+                                           ; SOURCE LINE # 87
+000D C200        R     CLR     start_trans
+                                           ; SOURCE LINE # 89
+000F 309844            JNB     RI,?C0015
+                                           ; SOURCE LINE # 90
+;---- Variable 'c' assigned to Register 'R7' ----
+0012 AF99              MOV     R7,SBUF
+                                           ; SOURCE LINE # 91
+0014 C298              CLR     RI
+                                           ; SOURCE LINE # 92
+0016 EF                MOV     A,R7
+0017 24EF              ADD     A,#0EFH
+0019 6008              JZ      ?C0018
+001B 24FE              ADD     A,#0FEH
+001D 700C              JNZ     ?C0019
+                                           ; SOURCE LINE # 93
+001F         ?C0017:
+                                           ; SOURCE LINE # 94
+001F D200        R     SETB    sendstop
+                                           ; SOURCE LINE # 95
+0021 8033              SJMP    ?C0015
+                                           ; SOURCE LINE # 97
+0023         ?C0018:
+                                           ; SOURCE LINE # 98
+0023 A200        R     MOV     C,sendstop
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 7   
+
+0025 9200        R     MOV     start_trans,C
+                                           ; SOURCE LINE # 99
+0027 C200        R     CLR     sendstop
+                                           ; SOURCE LINE # 100
+0029 802B              SJMP    ?C0015
+                                           ; SOURCE LINE # 102
+002B         ?C0019:
+                                           ; SOURCE LINE # 103
+002B 900000      R     MOV     DPTR,#istart
+002E E0                MOVX    A,@DPTR
+002F 2408              ADD     A,#08H
+0031 FD                MOV     R5,A
+0032 E4                CLR     A
+0033 33                RLC     A
+0034 FC                MOV     R4,A
+0035 900000      R     MOV     DPTR,#iend
+0038 E0                MOVX    A,@DPTR
+0039 6D                XRL     A,R5
+003A 7001              JNZ     ?C0032
+003C EC                MOV     A,R4
+003D         ?C0032:
+003D 600C              JZ      ?C0020
+                                           ; SOURCE LINE # 104
+003F E0                MOVX    A,@DPTR
+0040 FE                MOV     R6,A
+0041 04                INC     A
+0042 F0                MOVX    @DPTR,A
+0043 EE                MOV     A,R6
+0044 5407              ANL     A,#07H
+0046 2400        R     ADD     A,#LOW inbuf
+0048 F8                MOV     R0,A
+0049 A60F              MOV     @R0,AR7
+                                           ; SOURCE LINE # 105
+004B         ?C0020:
+                                           ; SOURCE LINE # 107
+004B 900000      R     MOV     DPTR,#itask
+004E E0                MOVX    A,@DPTR
+004F FF                MOV     R7,A
+0050 F4                CPL     A
+0051 6003              JZ      ?C0015
+0053 120000      E     LCALL   _isr_send_signal
+                                           ; SOURCE LINE # 108
+                                           ; SOURCE LINE # 109
+                                           ; SOURCE LINE # 110
+0056         ?C0015:
+                                           ; SOURCE LINE # 112
+0056 209903            JB      TI,?C0023
+0059 30002F      R     JNB     start_trans,?C0028
+005C         ?C0023:
+                                           ; SOURCE LINE # 113
+005C C299              CLR     TI
+                                           ; SOURCE LINE # 114
+005E 900000      R     MOV     DPTR,#oend
+0061 E0                MOVX    A,@DPTR
+0062 FF                MOV     R7,A
+0063 900000      R     MOV     DPTR,#ostart
+0066 E0                MOVX    A,@DPTR
+0067 6F                XRL     A,R7
+0068 601F              JZ      ?C0024
+                                           ; SOURCE LINE # 115
+006A 20001E      R     JB      sendstop,?C0028
+                                           ; SOURCE LINE # 116
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 8   
+
+006D E0                MOVX    A,@DPTR
+006E FF                MOV     R7,A
+006F 04                INC     A
+0070 F0                MOVX    @DPTR,A
+0071 EF                MOV     A,R7
+0072 5407              ANL     A,#07H
+0074 2400        R     ADD     A,#LOW outbuf
+0076 F8                MOV     R0,A
+0077 E6                MOV     A,@R0
+0078 F599              MOV     SBUF,A
+                                           ; SOURCE LINE # 117
+007A C200        R     CLR     sendfull
+                                           ; SOURCE LINE # 119
+007C 900000      R     MOV     DPTR,#otask
+007F E0                MOVX    A,@DPTR
+0080 FF                MOV     R7,A
+0081 F4                CPL     A
+0082 6007              JZ      ?C0028
+0084 120000      E     LCALL   _isr_send_signal
+                                           ; SOURCE LINE # 120
+                                           ; SOURCE LINE # 121
+0087 8002              SJMP    ?C0028
+0089         ?C0024:
+                                           ; SOURCE LINE # 122
+0089 C200        R     CLR     sendactive
+                                           ; SOURCE LINE # 123
+                                           ; SOURCE LINE # 125
+008B         ?C0028:
+008B D0D0              POP     PSW
+008D D082              POP     DPL
+008F D083              POP     DPH
+0091 D0F0              POP     B
+0093 D0E0              POP     ACC
+0095 32                RETI    
+             ; FUNCTION serial (END)
+
+             ; FUNCTION _SendString (BEGIN)
+                                           ; SOURCE LINE # 139
+0000 900000      R     MOV     DPTR,#s
+0003 EB                MOV     A,R3
+0004 F0                MOVX    @DPTR,A
+0005 A3                INC     DPTR
+0006 EA                MOV     A,R2
+0007 F0                MOVX    @DPTR,A
+0008 A3                INC     DPTR
+0009 E9                MOV     A,R1
+000A F0                MOVX    @DPTR,A
+                                           ; SOURCE LINE # 140
+000B         ?C0029:
+                                           ; SOURCE LINE # 141
+000B 900000      R     MOV     DPTR,#s
+000E E0                MOVX    A,@DPTR
+000F FB                MOV     R3,A
+0010 A3                INC     DPTR
+0011 E0                MOVX    A,@DPTR
+0012 FA                MOV     R2,A
+0013 A3                INC     DPTR
+0014 E0                MOVX    A,@DPTR
+0015 F9                MOV     R1,A
+0016 120000      E     LCALL   ?C?CLDPTR
+0019 6017              JZ      ?C0031
+                                           ; SOURCE LINE # 142
+C51 COMPILER V9.00   SERIAL                                                                07/22/2017 11:40:58 PAGE 9   
+
+                                           ; SOURCE LINE # 143
+001B 900000      R     MOV     DPTR,#s
+001E A3                INC     DPTR
+001F E4                CLR     A
+0020 75F001            MOV     B,#01H
+0023 120000      E     LCALL   ?C?ILDIX
+0026 A9F0              MOV     R1,B
+0028 FA                MOV     R2,A
+0029 120000      E     LCALL   ?C?CLDPTR
+002C FF                MOV     R7,A
+002D 120000      R     LCALL   _putchar
+                                           ; SOURCE LINE # 144
+0030 80D9              SJMP    ?C0029
+                                           ; SOURCE LINE # 145
+0032         ?C0031:
+0032 22                RET     
+             ; FUNCTION _SendString (END)
+
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    367    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      6       4
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =     16    ----
+   BIT SIZE         =      3       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,237 @@
+C51 COMPILER V9.00   LOBJECT                                                               11/27/2017 19:45:03 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LOBJECT
+OBJECT MODULE PLACED IN .\obj\lobject.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lobject.c OMF2 BROWSE DEBUG PRINT(.\lobject.lst) OBJECT(.\ob
+                    -j\lobject.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lobject.c,v 2.22.1.1 2007/12/27 13:02:25 roberto Exp $
+   3          ** Some generic functions over Lua objects
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          #include <ctype.h>
+   8          #include <stdarg.h>
+   9          #include <stdio.h>
+  10          #include <stdlib.h>
+  11          #include <string.h>
+  12          
+  13          #define lobject_c
+  14          #define LUA_CORE
+  15          
+  16          #include "lua.h"
+  17          
+  18          #include "ldo.h"
+  19          #include "lmem.h"
+  20          #include "lobject.h"
+  21          #include "lstate.h"
+  22          #include "lstring.h"
+  23          #include "lvm.h"
+  24          
+  25          
+  26          
+  27          const TValue luaO_nilobject_ = {LUA_TVALUE_NIL};
+  28          
+  29          
+  30          /*
+  31          ** converts an integer to a "floating point byte", represented as
+  32          ** (eeeeexxx), where the real value is (1xxx) * 2^(eeeee - 1) if
+  33          ** eeeee != 0 and (xxx) otherwise.
+  34          */
+  35          int luaO_int2fb (unsigned int x) {
+  36   1        int e = 0;  /* expoent */
+  37   1        while (x >= 16) {
+  38   2          x = (x+1) >> 1;
+  39   2          e++;
+  40   2        }
+  41   1        if (x < 8) return x;
+  42   1        else return ((e+1) << 3) | (cast_int(x) - 8);
+  43   1      }
+  44          
+  45          
+  46          /* converts back */
+  47          int luaO_fb2int (int x) {
+  48   1        int e = (x >> 3) & 31;
+  49   1        if (e == 0) return x;
+  50   1        else return ((x & 7)+8) << (e - 1);
+  51   1      }
+  52          
+  53          
+  54          int luaO_log2 (unsigned int x) {
+C51 COMPILER V9.00   LOBJECT                                                               11/27/2017 19:45:03 PAGE 2   
+
+  55   1        static const lu_byte log_2[256] = {
+  56   1          0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+  57   1          6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+  58   1          7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+  59   1          7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+  60   1          8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
+  61   1          8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
+  62   1          8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
+  63   1          8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8
+  64   1        };
+  65   1        int l = -1;
+  66   1        while (x >= 256) { l += 8; x >>= 8; }
+  67   1        return l + log_2[x];
+  68   1      
+  69   1      }
+*** ERROR C249 IN LINE 69 OF SRC\LOBJECT.C: 'DATA': SEGMENT TOO LARGE
+  70          
+  71          
+  72          int luaO_rawequalObj (const TValue *t1, const TValue *t2) {
+  73   1        if (ttype(t1) != ttype(t2)) return 0;
+  74   1        else switch (ttype(t1)) {
+  75   2          case LUA_TNIL:
+  76   2            return 1;
+  77   2          case LUA_TNUMBER:
+  78   2            return luai_numeq(nvalue(t1), nvalue(t2));
+  79   2          case LUA_TBOOLEAN:
+  80   2            return bvalue(t1) == bvalue(t2);  /* boolean true must be 1 !! */
+  81   2          case LUA_TLIGHTUSERDATA:
+  82   2          case LUA_TROTABLE:
+  83   2          case LUA_TLIGHTFUNCTION:
+  84   2            return pvalue(t1) == pvalue(t2);
+  85   2          default:
+  86   2            lua_assert(iscollectable(t1));
+  87   2            return gcvalue(t1) == gcvalue(t2);
+  88   2        }
+  89   1      }
+  90          
+  91          
+  92          int luaO_str2d (const char *s, lua_Number *result) {
+  93   1        char *endptr;
+  94   1        *result = lua_str2number(s, &endptr);
+  95   1        if (endptr == s) return 0;  /* conversion failed */
+  96   1        if (*endptr == 'x' || *endptr == 'X')  /* maybe an hexadecimal constant? */
+  97   1          *result = cast_num(strtoul(s, &endptr, 16));
+  98   1        if (*endptr == '\0') return 1;  /* most common case */
+  99   1        while (isspace(cast(unsigned char, *endptr))) endptr++;
+ 100   1        if (*endptr != '\0') return 0;  /* invalid trailing characters? */
+ 101   1        return 1;
+ 102   1      }
+ 103          
+ 104          
+ 105          
+ 106          static void pushstr (lua_State *L, const char *str) {
+ 107   1        setsvalue2s(L, L->top, luaS_new(L, str));
+ 108   1        incr_top(L);
+ 109   1      }
+ 110          
+ 111          
+ 112          /* this function handles only `%d', `%c', %f, %p, and `%s' formats */
+ 113          const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
+ 114   1        int n = 1;
+ 115   1        pushstr(L, "");
+C51 COMPILER V9.00   LOBJECT                                                               11/27/2017 19:45:03 PAGE 3   
+
+ 116   1        for (;;) {
+ 117   2          const char *e = strchr(fmt, '%');
+ 118   2          if (e == NULL) break;
+ 119   2          setsvalue2s(L, L->top, luaS_newlstr(L, fmt, e-fmt));
+ 120   2          incr_top(L);
+ 121   2          switch (*(e+1)) {
+ 122   3            case 's': {
+ 123   4              const char *s = va_arg(argp, char *);
+ 124   4              if (s == NULL) s = "(null)";
+ 125   4              pushstr(L, s);
+ 126   4              break;
+ 127   4            }
+ 128   3            case 'c': {
+ 129   4              char buff[2];
+ 130   4              buff[0] = cast(char, va_arg(argp, int));
+ 131   4              buff[1] = '\0';
+ 132   4              pushstr(L, buff);
+ 133   4              break;
+ 134   4            }
+ 135   3            case 'd': {
+ 136   4              setnvalue(L->top, cast_num(va_arg(argp, int)));
+*** ERROR C215 IN LINE 136 OF SRC\LOBJECT.C: illegal type conversion
+ 137   4              incr_top(L);
+ 138   4              break;
+ 139   4            }
+ 140   3            case 'f': {
+ 141   4              setnvalue(L->top, cast_num(va_arg(argp, l_uacNumber)));
+*** ERROR C215 IN LINE 141 OF SRC\LOBJECT.C: illegal type conversion
+ 142   4              incr_top(L);
+ 143   4              break;
+ 144   4            }
+ 145   3            case 'p': {
+ 146   4              char buff[4*sizeof(void *) + 8]; /* should be enough space for a `%p' */
+ 147   4              sprintf(buff, "%p", va_arg(argp, void *));
+ 148   4              pushstr(L, buff);
+ 149   4              break;
+ 150   4            }
+ 151   3            case '%': {
+ 152   4              pushstr(L, "%");
+ 153   4              break;
+ 154   4            }
+ 155   3            default: {
+ 156   4              char buff[3];
+ 157   4              buff[0] = '%';
+ 158   4              buff[1] = *(e+1);
+ 159   4              buff[2] = '\0';
+ 160   4              pushstr(L, buff);
+ 161   4              break;
+ 162   4            }
+ 163   3          }
+ 164   2          n += 2;
+ 165   2          fmt = e+2;
+ 166   2        }
+ 167   1        pushstr(L, fmt);
+ 168   1        luaV_concat(L, n+1, cast_int(L->top - L->base) - 1);
+ 169   1        L->top -= n;
+ 170   1        return svalue(L->top - 1);
+ 171   1      }
+ 172          
+ 173          
+ 174          const char *luaO_pushfstring (lua_State *L, const char *fmt, ...) {
+ 175   1        const char *msg;
+C51 COMPILER V9.00   LOBJECT                                                               11/27/2017 19:45:03 PAGE 4   
+
+ 176   1        va_list argp;
+ 177   1        va_start(argp, fmt);
+ 178   1        msg = luaO_pushvfstring(L, fmt, argp);
+ 179   1        va_end(argp);
+ 180   1        return msg;
+ 181   1      }
+ 182          
+ 183          
+ 184          void luaO_chunkid (char *out, const char *source, size_t bufflen) {
+ 185   1        if (*source == '=') {
+ 186   2          strncpy(out, source+1, bufflen);  /* remove first char */
+ 187   2          out[bufflen-1] = '\0';  /* ensures null termination */
+ 188   2        }
+ 189   1        else {  /* out = "source", or "...source" */
+ 190   2          if (*source == '@') {
+ 191   3            size_t l;
+ 192   3            source++;  /* skip the `@' */
+ 193   3            bufflen -= sizeof(" '...' ");
+ 194   3            l = strlen(source);
+ 195   3            strcpy(out, "");
+ 196   3            if (l > bufflen) {
+ 197   4              source += (l-bufflen);  /* get last part of file name */
+ 198   4              strcat(out, "...");
+ 199   4            }
+ 200   3            strcat(out, source);
+ 201   3          }
+ 202   2          else {  /* out = [string "string"] */
+ 203   3            size_t len = strcspn(source, "\n\r");  /* stop at first newline */
+ 204   3            bufflen -= sizeof(" [string \"...\"] ");
+ 205   3            if (len > bufflen) len = bufflen;
+ 206   3            strcpy(out, "[string \"");
+ 207   3            if (source[len] != '\0') {  /* must truncate? */
+ 208   4              strncat(out, source, len);
+ 209   4              strcat(out, "...");
+ 210   4            }
+ 211   3            else
+ 212   3              strcat(out, source);
+ 213   3            strcat(out, "\"]");
+ 214   3          }
+ 215   2        }
+ 216   1      }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  3 ERROR(S)

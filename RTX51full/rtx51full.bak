@@ -1,0 +1,40 @@
+#include <config.h>            
+#include <rtx51.h>               /* RTX-51 Definitions */
+
+#pragma REGISTERBANK (2)
+void example_2 (void) _task_ 134 _priority_ 3 {}
+
+
+#define PRODUCER_NBR 0 /* Task number for the producer task */
+#define CONSUMER_NBR 1 /* Task number for the consumer task */
+
+void producer_task (void) _task_ PRODUCER_NBR
+{
+	unsigned int send_mes;
+	os_create_task (CONSUMER_NBR); /* Create the consumer task */
+	send_mes = 1;
+	for (;;) { /* end-less loop */
+	/* Send actual value of "send_mes" to the mailbox 0 */
+	/* If the mailbox is full, wait until there is room */
+	/* for the message */
+		os_send_message (0, send_mes, 0xff);
+		send_mes++;
+	}
+}
+void consumer_task (void) _task_ CONSUMER_NBR _priority_ 1
+{
+	unsigned int rec_mes;
+	for (;;) {
+	/* Read from the mailbox 0 to the variable "rec_mes" */
+	/* Wait for a message if the mailbox is empty */
+		os_wait (K_MBX+0, 0xff, &rec_mes);
+		/*
+		... Perform some calculations with "rec_mes"
+		*/
+	}
+}
+void main (void)
+{
+/* Initialize the system and start the producer task */
+	os_start_system (PRODUCER_NBR);
+}

@@ -1,0 +1,823 @@
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LGC
+OBJECT MODULE PLACED IN .\obj\lgc.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lgc.c OMF2 BROWSE DEBUG PRINT(.\lgc.lst) OBJECT(.\obj\lgc.ob
+                    -j)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lgc.c,v 2.38.1.1 2007/12/27 13:02:25 roberto Exp $
+   3          ** Garbage Collector
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          #include <string.h>
+   8          
+   9          #define lgc_c
+  10          #define LUA_CORE
+  11          
+  12          #include "lua.h"
+  13          
+  14          #include "ldebug.h"
+  15          #include "ldo.h"
+  16          #include "lfunc.h"
+  17          #include "lgc.h"
+  18          #include "lmem.h"
+  19          #include "lobject.h"
+  20          #include "lstate.h"
+  21          #include "lstring.h"
+  22          #include "ltable.h"
+  23          #include "ltm.h"
+  24          #include "lrotable.h"
+  25          
+  26          #define GCSTEPSIZE      1024u
+  27          #define GCSWEEPMAX      40
+  28          #define GCSWEEPCOST     10
+  29          #define GCFINALIZECOST  100
+  30          
+  31          
+  32          #define maskmarks       cast_byte(~(bitmask(BLACKBIT)|WHITEBITS))
+  33          
+  34          #define makewhite(g,x)  \
+  35             ((x)->gch.marked = cast_byte(((x)->gch.marked & maskmarks) | luaC_white(g)))
+  36          
+  37          #define white2gray(x)   reset2bits((x)->gch.marked, WHITE0BIT, WHITE1BIT)
+  38          #define black2gray(x)   resetbit((x)->gch.marked, BLACKBIT)
+  39          
+  40          #define stringmark(s)   reset2bits((s)->tsv.marked, WHITE0BIT, WHITE1BIT)
+  41          
+  42          
+  43          #define isfinalized(u)          testbit((u)->marked, FINALIZEDBIT)
+  44          #define markfinalized(u)        l_setbit((u)->marked, FINALIZEDBIT)
+  45          
+  46          
+  47          #define KEYWEAK         bitmask(KEYWEAKBIT)
+  48          #define VALUEWEAK       bitmask(VALUEWEAKBIT)
+  49          
+  50          
+  51          
+  52          #define markvalue(g,o) { checkconsistency(o); \
+  53            if (iscollectable(o) && iswhite(gcvalue(o))) reallymarkobject(g,gcvalue(o)); }
+  54          
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 2   
+
+  55          #define markobject(g,t) { if (iswhite(obj2gco(t))) \
+  56                          reallymarkobject(g, obj2gco(t)); }
+  57          
+  58          
+  59          #define setthreshold(g)  (g->GCthreshold = (g->estimate/100) * g->gcpause)
+  60          
+  61          
+  62          static void removeentry (Node *n) {
+  63   1        lua_assert(ttisnil(gval(n)));
+*** WARNING C275 IN LINE 63 OF SRC\LGC.C: expression with possibly no effect
+  64   1        if (iscollectable(gkey(n)))
+  65   1          setttype(gkey(n), LUA_TDEADKEY);  /* dead key; remove it */
+  66   1      }
+  67          
+  68          
+  69          static void reallymarkobject (global_State *g, GCObject *o) {
+  70   1        lua_assert(iswhite(o) && !isdead(g, o));
+*** WARNING C275 IN LINE 70 OF SRC\LGC.C: expression with possibly no effect
+  71   1        white2gray(o);
+  72   1        switch (o->gch.tt) {
+  73   2          case LUA_TSTRING: {
+  74   3            return;
+  75   3          }
+  76   2          case LUA_TUSERDATA: {
+  77   3            Table *mt = gco2u(o)->metatable;
+  78   3            gray2black(o);  /* udata are never gray */
+  79   3            if (mt && !luaR_isrotable(mt)) markobject(g, mt);
+*** WARNING C265 IN LINE 79 OF SRC\LGC.C: '_reallymarkobject': recursive call to non-reentrant function
+  80   3            markobject(g, gco2u(o)->env);
+*** WARNING C265 IN LINE 80 OF SRC\LGC.C: '_reallymarkobject': recursive call to non-reentrant function
+  81   3            return;
+  82   3          }
+  83   2          case LUA_TUPVAL: {
+  84   3            UpVal *uv = gco2uv(o);
+  85   3            markvalue(g, uv->v);
+*** WARNING C275 IN LINE 85 OF SRC\LGC.C: expression with possibly no effect
+*** WARNING C265 IN LINE 85 OF SRC\LGC.C: '_reallymarkobject': recursive call to non-reentrant function
+  86   3            if (uv->v == &uv->u.value)  /* closed? */
+  87   3              gray2black(o);  /* open upvalues are never black */
+  88   3            return;
+  89   3          }
+  90   2          case LUA_TFUNCTION: {
+  91   3            gco2cl(o)->c.gclist = g->gray;
+  92   3            g->gray = o;
+  93   3            break;
+  94   3          }
+  95   2          case LUA_TTABLE: {
+  96   3            gco2h(o)->gclist = g->gray;
+  97   3            g->gray = o;
+  98   3            break;
+  99   3          }
+ 100   2          case LUA_TTHREAD: {
+ 101   3            gco2th(o)->gclist = g->gray;
+ 102   3            g->gray = o;
+ 103   3            break;
+ 104   3          }
+ 105   2          case LUA_TPROTO: {
+ 106   3            gco2p(o)->gclist = g->gray;
+ 107   3            g->gray = o;
+ 108   3            break;
+ 109   3          }
+ 110   2          default: lua_assert(0);
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 3   
+
+*** WARNING C275 IN LINE 110 OF SRC\LGC.C: expression with possibly no effect
+ 111   2        }
+ 112   1      }
+ 113          
+ 114          
+ 115          static void marktmu (global_State *g) {
+ 116   1        GCObject *u = g->tmudata;
+ 117   1        if (u) {
+ 118   2          do {
+ 119   3            u = u->gch.next;
+ 120   3            makewhite(g, u);  /* may be marked, if left from previous GC */
+ 121   3            reallymarkobject(g, u);
+ 122   3          } while (u != g->tmudata);
+ 123   2        }
+ 124   1      }
+ 125          
+ 126          
+ 127          /* move `dead' udata that need finalization to list `tmudata' */
+ 128          size_t luaC_separateudata (lua_State *L, int all) {
+ 129   1        global_State *g = G(L);
+ 130   1        size_t deadmem = 0;
+ 131   1        GCObject **p = &g->mainthread->next;
+ 132   1        GCObject *curr;
+ 133   1        while ((curr = *p) != NULL) {
+ 134   2          if (!(iswhite(curr) || all) || isfinalized(gco2u(curr)))
+ 135   2            p = &curr->gch.next;  /* don't bother with them */
+ 136   2          else if (fasttm(L, gco2u(curr)->metatable, TM_GC) == NULL) {
+ 137   3            markfinalized(gco2u(curr));  /* don't need finalization */
+ 138   3            p = &curr->gch.next;
+ 139   3          }
+ 140   2          else {  /* must call its gc method */
+ 141   3            deadmem += sizeudata(gco2u(curr));
+ 142   3            markfinalized(gco2u(curr));
+ 143   3            *p = curr->gch.next;
+ 144   3            /* link `curr' at the end of `tmudata' list */
+ 145   3            if (g->tmudata == NULL)  /* list is empty? */
+ 146   3              g->tmudata = curr->gch.next = curr;  /* creates a circular list */
+ 147   3            else {
+ 148   4              curr->gch.next = g->tmudata->gch.next;
+ 149   4              g->tmudata->gch.next = curr;
+ 150   4              g->tmudata = curr;
+ 151   4            }
+ 152   3          }
+ 153   2        }
+ 154   1        return deadmem;
+ 155   1      }
+ 156          
+ 157          
+ 158          static int traversetable (global_State *g, Table *h) {
+ 159   1        int i;
+ 160   1        int weakkey = 0;
+ 161   1        int weakvalue = 0;
+ 162   1        const TValue *mode;
+ 163   1        if (h->metatable && !luaR_isrotable(h->metatable))
+ 164   1          markobject(g, h->metatable);
+ 165   1        mode = gfasttm(g, h->metatable, TM_MODE);
+ 166   1        if (mode && ttisstring(mode)) {  /* is there a weak mode? */
+ 167   2          weakkey = (strchr(svalue(mode), 'k') != NULL);
+ 168   2          weakvalue = (strchr(svalue(mode), 'v') != NULL);
+ 169   2          if (weakkey || weakvalue) {  /* is really weak? */
+ 170   3            h->marked &= ~(KEYWEAK | VALUEWEAK);  /* clear bits */
+ 171   3            h->marked |= cast_byte((weakkey << KEYWEAKBIT) |
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 4   
+
+ 172   3                                   (weakvalue << VALUEWEAKBIT));
+ 173   3            h->gclist = g->weak;  /* must be cleared after GC, ... */
+ 174   3            g->weak = obj2gco(h);  /* ... so put in the appropriate list */
+ 175   3          }
+ 176   2        }
+ 177   1        if (weakkey && weakvalue) return 1;
+ 178   1        if (!weakvalue) {
+ 179   2          i = h->sizearray;
+ 180   2          while (i--)
+ 181   2            markvalue(g, &h->array[i]);
+*** WARNING C275 IN LINE 181 OF SRC\LGC.C: expression with possibly no effect
+ 182   2        }
+ 183   1        i = sizenode(h);
+ 184   1        while (i--) {
+ 185   2          Node *n = gnode(h, i);
+ 186   2          lua_assert(ttype(gkey(n)) != LUA_TDEADKEY || ttisnil(gval(n)));
+*** WARNING C275 IN LINE 186 OF SRC\LGC.C: expression with possibly no effect
+ 187   2          if (ttisnil(gval(n)))
+ 188   2            removeentry(n);  /* remove empty entries */
+ 189   2          else {
+ 190   3            lua_assert(!ttisnil(gkey(n)));
+*** WARNING C275 IN LINE 190 OF SRC\LGC.C: expression with possibly no effect
+ 191   3            if (!weakkey) markvalue(g, gkey(n));
+*** WARNING C275 IN LINE 191 OF SRC\LGC.C: expression with possibly no effect
+ 192   3            if (!weakvalue) markvalue(g, gval(n));
+*** WARNING C275 IN LINE 192 OF SRC\LGC.C: expression with possibly no effect
+ 193   3          }
+ 194   2        }
+ 195   1        return weakkey || weakvalue;
+ 196   1      }
+ 197          
+ 198          
+ 199          /*
+ 200          ** All marks are conditional because a GC may happen while the
+ 201          ** prototype is still being created
+ 202          */
+ 203          static void traverseproto (global_State *g, Proto *f) {
+ 204   1        int i;
+ 205   1        if (f->source) stringmark(f->source);
+ 206   1        for (i=0; i<f->sizek; i++)  /* mark literals */
+ 207   1          markvalue(g, &f->k[i]);
+*** WARNING C275 IN LINE 207 OF SRC\LGC.C: expression with possibly no effect
+ 208   1        for (i=0; i<f->sizeupvalues; i++) {  /* mark upvalue names */
+ 209   2          if (f->upvalues[i])
+ 210   2            stringmark(f->upvalues[i]);
+ 211   2        }
+ 212   1        for (i=0; i<f->sizep; i++) {  /* mark nested protos */
+ 213   2          if (f->p[i])
+ 214   2            markobject(g, f->p[i]);
+ 215   2        }
+ 216   1        for (i=0; i<f->sizelocvars; i++) {  /* mark local-variable names */
+ 217   2          if (f->locvars[i].varname)
+ 218   2            stringmark(f->locvars[i].varname);
+ 219   2        }
+ 220   1      }
+ 221          
+ 222          
+ 223          
+ 224          static void traverseclosure (global_State *g, Closure *cl) {
+ 225   1        markobject(g, cl->c.env);
+ 226   1        if (cl->c.isC) {
+ 227   2          int i;
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 5   
+
+ 228   2          for (i=0; i<cl->c.nupvalues; i++)  /* mark its upvalues */
+ 229   2            markvalue(g, &cl->c.upvalue[i]);
+*** WARNING C275 IN LINE 229 OF SRC\LGC.C: expression with possibly no effect
+ 230   2        }
+ 231   1        else {
+ 232   2          int i;
+ 233   2          lua_assert(cl->l.nupvalues == cl->l.p->nups);
+*** WARNING C275 IN LINE 233 OF SRC\LGC.C: expression with possibly no effect
+ 234   2          markobject(g, cl->l.p);
+ 235   2          for (i=0; i<cl->l.nupvalues; i++) { /* mark its upvalues */
+ 236   3            if(cl->l.upvals[i])
+ 237   3              markobject(g, cl->l.upvals[i]);
+ 238   3          }
+ 239   2        }
+ 240   1      }
+ 241          
+ 242          
+ 243          static void checkstacksizes (lua_State *L, StkId max) {
+ 244   1        int ci_used = cast_int(L->ci - L->base_ci);  /* number of `ci' in use */
+ 245   1        int s_used = cast_int(max - L->stack);  /* part of stack in use */
+ 246   1        if (L->size_ci > LUAI_MAXCALLS)  /* handling overflow? */
+ 247   1          return;  /* do not touch the stacks */
+ 248   1        if (4*ci_used < L->size_ci && 2*BASIC_CI_SIZE < L->size_ci)
+ 249   1          luaD_reallocCI(L, L->size_ci/2);  /* still big enough... */
+ 250   1        condhardstacktests(luaD_reallocCI(L, ci_used + 1));
+*** WARNING C275 IN LINE 250 OF SRC\LGC.C: expression with possibly no effect
+ 251   1        if (4*s_used < L->stacksize &&
+ 252   1            2*(BASIC_STACK_SIZE+EXTRA_STACK) < L->stacksize)
+ 253   1          luaD_reallocstack(L, L->stacksize/2);  /* still big enough... */
+ 254   1        condhardstacktests(luaD_reallocstack(L, s_used));
+*** WARNING C275 IN LINE 254 OF SRC\LGC.C: expression with possibly no effect
+ 255   1      }
+ 256          
+ 257          
+ 258          static void traversestack (global_State *g, lua_State *l) {
+ 259   1        StkId o, lim;
+ 260   1        CallInfo *ci;
+ 261   1        markvalue(g, gt(l));
+*** WARNING C275 IN LINE 261 OF SRC\LGC.C: expression with possibly no effect
+ 262   1        lim = l->top;
+ 263   1        if(l->stack == NULL) return; /* no stack to traverse */
+ 264   1        for (ci = l->base_ci; ci <= l->ci; ci++) {
+ 265   2          lua_assert(ci->top <= l->stack_last);
+*** WARNING C275 IN LINE 265 OF SRC\LGC.C: expression with possibly no effect
+ 266   2          if (lim < ci->top) lim = ci->top;
+ 267   2        }
+ 268   1        for (o = l->stack; o < l->top; o++)
+ 269   1          markvalue(g, o);
+*** WARNING C275 IN LINE 269 OF SRC\LGC.C: expression with possibly no effect
+ 270   1        for (; o <= lim; o++)
+ 271   1          setnilvalue(o);
+ 272   1        if (!isfixedstack(l)) /* if stack size is fixed, can't resize it. */
+ 273   1          checkstacksizes(l, lim);
+ 274   1      }
+ 275          
+ 276          
+ 277          /*
+ 278          ** traverse one gray object, turning it to black.
+ 279          ** Returns `quantity' traversed.
+ 280          */
+ 281          static l_mem propagatemark (global_State *g) {
+ 282   1        GCObject *o = g->gray;
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 6   
+
+ 283   1        lua_assert(isgray(o));
+*** WARNING C275 IN LINE 283 OF SRC\LGC.C: expression with possibly no effect
+ 284   1        gray2black(o);
+ 285   1        switch (o->gch.tt) {
+ 286   2          case LUA_TTABLE: {
+ 287   3            Table *h = gco2h(o);
+ 288   3            g->gray = h->gclist;
+ 289   3            if (traversetable(g, h))  /* table is weak? */
+ 290   3              black2gray(o);  /* keep it gray */
+ 291   3            return sizeof(Table) + sizeof(TValue) * h->sizearray +
+ 292   3                                   sizeof(Node) * sizenode(h);
+ 293   3          }
+ 294   2          case LUA_TFUNCTION: {
+ 295   3            Closure *cl = gco2cl(o);
+ 296   3            g->gray = cl->c.gclist;
+ 297   3            traverseclosure(g, cl);
+ 298   3            return (cl->c.isC) ? sizeCclosure(cl->c.nupvalues) :
+ 299   3                                 sizeLclosure(cl->l.nupvalues);
+ 300   3          }
+ 301   2          case LUA_TTHREAD: {
+ 302   3            lua_State *th = gco2th(o);
+ 303   3            g->gray = th->gclist;
+ 304   3            th->gclist = g->grayagain;
+ 305   3            g->grayagain = o;
+ 306   3            black2gray(o);
+ 307   3            traversestack(g, th);
+ 308   3            return sizeof(lua_State) + sizeof(TValue) * th->stacksize +
+ 309   3                                       sizeof(CallInfo) * th->size_ci;
+ 310   3          }
+ 311   2          case LUA_TPROTO: {
+ 312   3            Proto *p = gco2p(o);
+ 313   3            g->gray = p->gclist;
+ 314   3            traverseproto(g, p);
+ 315   3            return sizeof(Proto) + sizeof(Proto *) * p->sizep +
+ 316   3                                   sizeof(TValue) * p->sizek + 
+ 317   3                                   sizeof(LocVar) * p->sizelocvars +
+ 318   3                                   sizeof(TString *) * p->sizeupvalues +
+ 319   3                                   (proto_is_readonly(p) ? 0 : sizeof(Instruction) * p->sizecode +
+ 320   3                                                               sizeof(int) * p->sizelineinfo);
+ 321   3          }
+ 322   2          default: lua_assert(0); return 0;
+*** WARNING C275 IN LINE 322 OF SRC\LGC.C: expression with possibly no effect
+ 323   2        }
+ 324   1      }
+ 325          
+ 326          
+ 327          static size_t propagateall (global_State *g) {
+ 328   1        size_t m = 0;
+ 329   1        while (g->gray) m += propagatemark(g);
+ 330   1        return m;
+ 331   1      }
+ 332          
+ 333          
+ 334          /*
+ 335          ** The next function tells whether a key or value can be cleared from
+ 336          ** a weak table. Non-collectable objects are never removed from weak
+ 337          ** tables. Strings behave as `values', so are never removed too. for
+ 338          ** other objects: if really collected, cannot keep them; for userdata
+ 339          ** being finalized, keep them in keys, but not in values
+ 340          */
+ 341          static int iscleared (const TValue *o, int iskey) {
+ 342   1        if (!iscollectable(o)) return 0;
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 7   
+
+ 343   1        if (ttisstring(o)) {
+ 344   2          stringmark(rawtsvalue(o));  /* strings are `values', so are never weak */
+ 345   2          return 0;
+ 346   2        }
+ 347   1        return iswhite(gcvalue(o)) ||
+ 348   1          (ttisuserdata(o) && (!iskey && isfinalized(uvalue(o))));
+ 349   1      }
+ 350          
+ 351          
+ 352          /*
+ 353          ** clear collected entries from weaktables
+ 354          */
+ 355          static void cleartable (GCObject *l) {
+ 356   1        while (l) {
+ 357   2          Table *h = gco2h(l);
+ 358   2          int i = h->sizearray;
+ 359   2          lua_assert(testbit(h->marked, VALUEWEAKBIT) ||
+ 360   2                     testbit(h->marked, KEYWEAKBIT));
+*** WARNING C275 IN LINE 360 OF SRC\LGC.C: expression with possibly no effect
+ 361   2          if (testbit(h->marked, VALUEWEAKBIT)) {
+ 362   3            while (i--) {
+ 363   4              TValue *o = &h->array[i];
+ 364   4              if (iscleared(o, 0))  /* value was collected? */
+ 365   4                setnilvalue(o);  /* remove value */
+ 366   4            }
+ 367   3          }
+ 368   2          i = sizenode(h);
+ 369   2          while (i--) {
+ 370   3            Node *n = gnode(h, i);
+ 371   3            if (!ttisnil(gval(n)) &&  /* non-empty entry? */
+ 372   3                (iscleared(key2tval(n), 1) || iscleared(gval(n), 0))) {
+ 373   4              setnilvalue(gval(n));  /* remove value ... */
+ 374   4              removeentry(n);  /* remove entry from table */
+ 375   4            }
+ 376   3          }
+ 377   2          l = h->gclist;
+ 378   2        }
+ 379   1      }
+ 380          
+ 381          
+ 382          static void freeobj (lua_State *L, GCObject *o) {
+ 383   1        switch (o->gch.tt) {
+ 384   2          case LUA_TPROTO: luaF_freeproto(L, gco2p(o)); break;
+ 385   2          case LUA_TFUNCTION: luaF_freeclosure(L, gco2cl(o)); break;
+ 386   2          case LUA_TUPVAL: luaF_freeupval(L, gco2uv(o)); break;
+ 387   2          case LUA_TTABLE: luaH_free(L, gco2h(o)); break;
+ 388   2          case LUA_TTHREAD: {
+ 389   3            lua_assert(gco2th(o) != L && gco2th(o) != G(L)->mainthread);
+*** WARNING C275 IN LINE 389 OF SRC\LGC.C: expression with possibly no effect
+ 390   3            luaE_freethread(L, gco2th(o));
+ 391   3            break;
+ 392   3          }
+ 393   2          case LUA_TSTRING: {
+ 394   3            G(L)->strt.nuse--;
+ 395   3            luaM_freemem(L, o, sizestring(gco2ts(o)));
+ 396   3            break;
+ 397   3          }
+ 398   2          case LUA_TUSERDATA: {
+ 399   3            luaM_freemem(L, o, sizeudata(gco2u(o)));
+ 400   3            break;
+ 401   3          }
+ 402   2          default: lua_assert(0);
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 8   
+
+*** WARNING C275 IN LINE 402 OF SRC\LGC.C: expression with possibly no effect
+ 403   2        }
+ 404   1      }
+ 405          
+ 406          
+ 407          
+ 408          #define sweepwholelist(L,p)     sweeplist(L,p,MAX_LUMEM)
+ 409          
+ 410          
+ 411          static GCObject **sweeplist (lua_State *L, GCObject **p, lu_mem count) {
+ 412   1        GCObject *curr;
+ 413   1        global_State *g = G(L);
+ 414   1        int deadmask = otherwhite(g);
+ 415   1        while ((curr = *p) != NULL && count-- > 0) {
+ 416   2          if (curr->gch.tt == LUA_TTHREAD)  /* sweep open upvalues of each thread */
+ 417   2            sweepwholelist(L, &gco2th(curr)->openupval);
+*** WARNING C265 IN LINE 417 OF SRC\LGC.C: '_sweeplist': recursive call to non-reentrant function
+ 418   2          if ((curr->gch.marked ^ WHITEBITS) & deadmask) {  /* not dead? */
+ 419   3            lua_assert(!isdead(g, curr) || testbit(curr->gch.marked, FIXEDBIT));
+*** WARNING C275 IN LINE 419 OF SRC\LGC.C: expression with possibly no effect
+ 420   3            makewhite(g, curr);  /* make it white (for next cycle) */
+ 421   3            p = &curr->gch.next;
+ 422   3          }
+ 423   2          else {  /* must erase `curr' */
+ 424   3            lua_assert(isdead(g, curr) || deadmask == bitmask(SFIXEDBIT));
+*** WARNING C275 IN LINE 424 OF SRC\LGC.C: expression with possibly no effect
+ 425   3            *p = curr->gch.next;
+ 426   3            freeobj(L, curr);
+ 427   3          }
+ 428   2        }
+ 429   1        return p;
+ 430   1      }
+ 431          
+ 432          
+ 433          static void checkSizes (lua_State *L) {
+ 434   1        global_State *g = G(L);
+ 435   1        /* check size of string hash */
+ 436   1        if (g->strt.nuse < cast(lu_int32, g->strt.size/4) &&
+ 437   1            g->strt.size > MINSTRTABSIZE*2)
+ 438   1          luaS_resize(L, g->strt.size/2);  /* table is too big */
+ 439   1        /* it is not safe to re-size the buffer if it is in use. */
+ 440   1        if (luaZ_bufflen(&g->buff) > 0) return;
+ 441   1        /* check size of buffer */
+ 442   1        if (luaZ_sizebuffer(&g->buff) > LUA_MINBUFFER*2) {  /* buffer too big? */
+ 443   2          size_t newsize = luaZ_sizebuffer(&g->buff) / 2;
+ 444   2          luaZ_resizebuffer(L, &g->buff, newsize);
+ 445   2        }
+ 446   1      }
+ 447          
+ 448          
+ 449          static void GCTM (lua_State *L) {
+ 450   1        global_State *g = G(L);
+ 451   1        GCObject *o = g->tmudata->gch.next;  /* get first element */
+ 452   1        Udata *udata = rawgco2u(o);
+ 453   1        const TValue *tm;
+ 454   1        /* remove udata from `tmudata' */
+ 455   1        if (o == g->tmudata)  /* last element? */
+ 456   1          g->tmudata = NULL;
+ 457   1        else
+ 458   1          g->tmudata->gch.next = udata->uv.next;
+ 459   1        udata->uv.next = g->mainthread->next;  /* return it to `root' list */
+ 460   1        g->mainthread->next = o;
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 9   
+
+ 461   1        makewhite(g, o);
+ 462   1        tm = fasttm(L, udata->uv.metatable, TM_GC);
+ 463   1        if (tm != NULL) {
+ 464   2          lu_byte oldah = L->allowhook;
+ 465   2          lu_mem oldt = g->GCthreshold;
+ 466   2          L->allowhook = 0;  /* stop debug hooks during GC tag method */
+ 467   2          g->GCthreshold = 2*g->totalbytes;  /* avoid GC steps */
+ 468   2          setobj2s(L, L->top, tm);
+*** WARNING C275 IN LINE 468 OF SRC\LGC.C: expression with possibly no effect
+ 469   2          setuvalue(L, L->top+1, udata);
+*** WARNING C275 IN LINE 469 OF SRC\LGC.C: expression with possibly no effect
+ 470   2          L->top += 2;
+ 471   2          luaD_call(L, L->top - 2, 0);
+ 472   2          L->allowhook = oldah;  /* restore hooks */
+ 473   2          g->GCthreshold = oldt;  /* restore threshold */
+ 474   2        }
+ 475   1      }
+ 476          
+ 477          
+ 478          /*
+ 479          ** Call all GC tag methods
+ 480          */
+ 481          void luaC_callGCTM (lua_State *L) {
+ 482   1        while (G(L)->tmudata)
+ 483   1          GCTM(L);
+ 484   1      }
+ 485          
+ 486          
+ 487          void luaC_freeall (lua_State *L) {
+ 488   1        global_State *g = G(L);
+ 489   1        int i;
+ 490   1        g->currentwhite = WHITEBITS | bitmask(SFIXEDBIT);  /* mask to collect all elements */
+ 491   1        sweepwholelist(L, &g->rootgc);
+ 492   1        for (i = 0; i < g->strt.size; i++)  /* free all string lists */
+ 493   1          sweepwholelist(L, &g->strt.hash[i]);
+ 494   1      }
+ 495          
+ 496          
+ 497          static void markmt (global_State *g) {
+ 498   1        int i;
+ 499   1        for (i=0; i<NUM_TAGS; i++)
+ 500   1          if (g->mt[i] && !luaR_isrotable(g->mt[i])) markobject(g, g->mt[i]);
+ 501   1      }
+ 502          
+ 503          
+ 504          /* mark root set */
+ 505          static void markroot (lua_State *L) {
+ 506   1        global_State *g = G(L);
+ 507   1        g->gray = NULL;
+ 508   1        g->grayagain = NULL;
+ 509   1        g->weak = NULL;
+ 510   1        markobject(g, g->mainthread);
+ 511   1        /* make global table be traversed before main stack */
+ 512   1        markvalue(g, gt(g->mainthread));
+*** WARNING C275 IN LINE 512 OF SRC\LGC.C: expression with possibly no effect
+ 513   1        markvalue(g, registry(L));
+*** WARNING C275 IN LINE 513 OF SRC\LGC.C: expression with possibly no effect
+ 514   1        markmt(g);
+ 515   1        g->gcstate = GCSpropagate;
+ 516   1      }
+ 517          
+ 518          
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 10  
+
+ 519          static void remarkupvals (global_State *g) {
+ 520   1        UpVal *uv;
+ 521   1        for (uv = g->uvhead.u.l.next; uv != &g->uvhead; uv = uv->u.l.next) {
+ 522   2          lua_assert(uv->u.l.next->u.l.prev == uv && uv->u.l.prev->u.l.next == uv);
+*** WARNING C275 IN LINE 522 OF SRC\LGC.C: expression with possibly no effect
+ 523   2          if (isgray(obj2gco(uv)))
+ 524   2            markvalue(g, uv->v);
+*** WARNING C275 IN LINE 524 OF SRC\LGC.C: expression with possibly no effect
+ 525   2        }
+ 526   1      }
+ 527          
+ 528          
+ 529          static void atomic (lua_State *L) {
+ 530   1        global_State *g = G(L);
+ 531   1        size_t udsize;  /* total size of userdata to be finalized */
+ 532   1        /* remark occasional upvalues of (maybe) dead threads */
+ 533   1        remarkupvals(g);
+ 534   1        /* traverse objects cautch by write barrier and by 'remarkupvals' */
+ 535   1        propagateall(g);
+ 536   1        /* remark weak tables */
+ 537   1        g->gray = g->weak;
+ 538   1        g->weak = NULL;
+ 539   1        lua_assert(!iswhite(obj2gco(g->mainthread)));
+*** WARNING C275 IN LINE 539 OF SRC\LGC.C: expression with possibly no effect
+ 540   1        markobject(g, L);  /* mark running thread */
+ 541   1        markmt(g);  /* mark basic metatables (again) */
+ 542   1        propagateall(g);
+ 543   1        /* remark gray again */
+ 544   1        g->gray = g->grayagain;
+ 545   1        g->grayagain = NULL;
+ 546   1        propagateall(g);
+ 547   1        udsize = luaC_separateudata(L, 0);  /* separate userdata to be finalized */
+ 548   1        marktmu(g);  /* mark `preserved' userdata */
+ 549   1        udsize += propagateall(g);  /* remark, to propagate `preserveness' */
+ 550   1        cleartable(g->weak);  /* remove collected objects from weak tables */
+ 551   1        /* flip current white */
+ 552   1        g->currentwhite = cast_byte(otherwhite(g));
+ 553   1        g->sweepstrgc = 0;
+ 554   1        g->sweepgc = &g->rootgc;
+ 555   1        g->gcstate = GCSsweepstring;
+ 556   1        g->estimate = g->totalbytes - udsize;  /* first estimate */
+ 557   1      }
+ 558          
+ 559          static void sweepstrstep (global_State *g, lua_State *L) {
+ 560   1        lu_mem old = g->totalbytes;
+ 561   1        sweepwholelist(L, &g->strt.hash[g->sweepstrgc++]);
+ 562   1        if (g->sweepstrgc >= g->strt.size)  /* nothing more to sweep? */
+ 563   1          g->gcstate = GCSsweep;  /* end sweep-string phase */
+ 564   1        lua_assert(old >= g->totalbytes);
+*** WARNING C275 IN LINE 564 OF SRC\LGC.C: expression with possibly no effect
+ 565   1        g->estimate -= old - g->totalbytes;
+ 566   1      }
+ 567          
+ 568          
+ 569          static l_mem singlestep (lua_State *L) {
+ 570   1        global_State *g = G(L);
+ 571   1        /*lua_checkmemory(L);*/
+ 572   1        switch (g->gcstate) {
+ 573   2          case GCSpause: {
+ 574   3            markroot(L);  /* start a new collection */
+ 575   3            return 0;
+ 576   3          }
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 11  
+
+ 577   2          case GCSpropagate: {
+ 578   3            if (g->gray)
+ 579   3              return propagatemark(g);
+ 580   3            else {  /* no more `gray' objects */
+ 581   4              atomic(L);  /* finish mark phase */
+ 582   4              return 0;
+ 583   4            }
+ 584   3          }
+ 585   2          case GCSsweepstring: {
+ 586   3            sweepstrstep(g, L);
+ 587   3            return GCSWEEPCOST;
+ 588   3          }
+ 589   2          case GCSsweep: {
+ 590   3            lu_mem old = g->totalbytes;
+ 591   3            g->sweepgc = sweeplist(L, g->sweepgc, GCSWEEPMAX);
+ 592   3            if (*g->sweepgc == NULL) {  /* nothing more to sweep? */
+ 593   4              checkSizes(L);
+ 594   4              g->gcstate = GCSfinalize;  /* end sweep phase */
+ 595   4            }
+ 596   3            lua_assert(old >= g->totalbytes);
+*** WARNING C275 IN LINE 596 OF SRC\LGC.C: expression with possibly no effect
+ 597   3            g->estimate -= old - g->totalbytes;
+ 598   3            return GCSWEEPMAX*GCSWEEPCOST;
+ 599   3          }
+ 600   2          case GCSfinalize: {
+ 601   3            if (g->tmudata) {
+ 602   4              GCTM(L);
+ 603   4              if (g->estimate > GCFINALIZECOST)
+ 604   4                g->estimate -= GCFINALIZECOST;
+ 605   4              return GCFINALIZECOST;
+ 606   4            }
+ 607   3            else {
+ 608   4              g->gcstate = GCSpause;  /* end collection */
+ 609   4              g->gcdept = 0;
+ 610   4              return 0;
+ 611   4            }
+ 612   3          }
+ 613   2          default: lua_assert(0); return 0;
+*** WARNING C275 IN LINE 613 OF SRC\LGC.C: expression with possibly no effect
+ 614   2        }
+ 615   1      }
+ 616          
+ 617          
+ 618          void luaC_step (lua_State *L) {
+ 619   1        global_State *g = G(L);
+ 620   1        if(is_block_gc(L)) return;
+ 621   1        set_block_gc(L);
+ 622   1        l_mem lim = (GCSTEPSIZE/100) * g->gcstepmul;
+*** ERROR C141 IN LINE 622 OF SRC\LGC.C: syntax error near 'l_mem'
+*** ERROR C202 IN LINE 622 OF SRC\LGC.C: 'lim': undefined identifier
+ 623   1        if (lim == 0)
+*** ERROR C202 IN LINE 623 OF SRC\LGC.C: 'lim': undefined identifier
+ 624   1          lim = (MAX_LUMEM-1)/2;  /* no limit */
+*** ERROR C202 IN LINE 624 OF SRC\LGC.C: 'lim': undefined identifier
+ 625   1        g->gcdept += g->totalbytes - g->GCthreshold;
+ 626   1        if (g->estimate > g->totalbytes)
+ 627   1          g->estimate = g->totalbytes;
+ 628   1        do {
+ 629   2          lim -= singlestep(L);
+*** ERROR C202 IN LINE 629 OF SRC\LGC.C: 'lim': undefined identifier
+ 630   2          if (g->gcstate == GCSpause)
+ 631   2            break;
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 12  
+
+ 632   2        } while (lim > 0);
+*** ERROR C202 IN LINE 632 OF SRC\LGC.C: 'lim': undefined identifier
+ 633   1        if (g->gcstate != GCSpause) {
+ 634   2          if (g->gcdept < GCSTEPSIZE)
+ 635   2            g->GCthreshold = g->totalbytes + GCSTEPSIZE;  /* - lim/g->gcstepmul;*/
+ 636   2          else {
+ 637   3            g->gcdept -= GCSTEPSIZE;
+ 638   3            g->GCthreshold = g->totalbytes;
+ 639   3          }
+ 640   2        }
+ 641   1        else {
+ 642   2          lua_assert(g->totalbytes >= g->estimate);
+ 643   2          setthreshold(g);
+ 644   2        }
+ 645   1        unset_block_gc(L);
+ 646   1      }
+ 647          
+ 648          int luaC_sweepstrgc (lua_State *L) {
+ 649   1        global_State *g = G(L);
+ 650   1        if (g->gcstate == GCSsweepstring) {
+ 651   2          sweepstrstep(g, L);
+ 652   2          return (g->gcstate == GCSsweepstring) ? 1 : 0;
+ 653   2        }
+ 654   1        return 0;
+ 655   1      }
+ 656          
+ 657          void luaC_fullgc (lua_State *L) {
+ 658   1        global_State *g = G(L);
+ 659   1        if(is_block_gc(L)) return;
+ 660   1        set_block_gc(L);
+ 661   1        if (g->gcstate <= GCSpropagate) {
+ 662   2          /* reset sweep marks to sweep all elements (returning them to white) */
+ 663   2          g->sweepstrgc = 0;
+ 664   2          g->sweepgc = &g->rootgc;
+ 665   2          /* reset other collector lists */
+ 666   2          g->gray = NULL;
+ 667   2          g->grayagain = NULL;
+ 668   2          g->weak = NULL;
+ 669   2          g->gcstate = GCSsweepstring;
+ 670   2        }
+ 671   1        lua_assert(g->gcstate != GCSpause && g->gcstate != GCSpropagate);
+ 672   1        /* finish any pending sweep phase */
+ 673   1        while (g->gcstate != GCSfinalize) {
+ 674   2          lua_assert(g->gcstate == GCSsweepstring || g->gcstate == GCSsweep);
+ 675   2          singlestep(L);
+ 676   2        }
+ 677   1        markroot(L);
+ 678   1        while (g->gcstate != GCSpause) {
+ 679   2          singlestep(L);
+ 680   2        }
+ 681   1        setthreshold(g);
+ 682   1        unset_block_gc(L);
+ 683   1      }
+ 684          
+ 685          
+ 686          void luaC_barrierf (lua_State *L, GCObject *o, GCObject *v) {
+ 687   1        global_State *g = G(L);
+ 688   1        lua_assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o));
+ 689   1        lua_assert(g->gcstate != GCSfinalize && g->gcstate != GCSpause);
+ 690   1        lua_assert(ttype(&o->gch) != LUA_TTABLE);
+ 691   1        /* must keep invariant? */
+ 692   1        if (g->gcstate == GCSpropagate)
+C51 COMPILER V9.00   LGC                                                                   11/27/2017 19:45:02 PAGE 13  
+
+ 693   1          reallymarkobject(g, v);  /* restore invariant */
+ 694   1        else  /* don't mind */
+ 695   1          makewhite(g, o);  /* mark as white just to avoid other barriers */
+ 696   1      }
+ 697          
+ 698          
+ 699          void luaC_barrierback (lua_State *L, Table *t) {
+ 700   1        global_State *g = G(L);
+ 701   1        GCObject *o = obj2gco(t);
+ 702   1        lua_assert(isblack(o) && !isdead(g, o));
+ 703   1        lua_assert(g->gcstate != GCSfinalize && g->gcstate != GCSpause);
+ 704   1        black2gray(o);  /* make table gray (again) */
+ 705   1        t->gclist = g->grayagain;
+ 706   1        g->grayagain = o;
+ 707   1      }
+ 708          
+ 709          
+ 710          void luaC_marknew (lua_State *L, GCObject *o) {
+ 711   1        global_State *g = G(L);
+ 712   1        o->gch.marked = luaC_white(g);
+ 713   1        if (g->gcstate == GCSpropagate)
+ 714   1          reallymarkobject(g, o);  /* mark new objects as gray during propagate state. */
+ 715   1      }
+ 716          
+ 717          
+ 718          void luaC_link (lua_State *L, GCObject *o, lu_byte tt) {
+ 719   1        global_State *g = G(L);
+ 720   1        o->gch.next = g->rootgc;
+ 721   1        g->rootgc = o;
+ 722   1        o->gch.marked = luaC_white(g);
+ 723   1        o->gch.tt = tt;
+ 724   1      }
+ 725          
+ 726          
+ 727          void luaC_linkupval (lua_State *L, UpVal *uv) {
+ 728   1        global_State *g = G(L);
+ 729   1        GCObject *o = obj2gco(uv);
+ 730   1        o->gch.next = g->rootgc;  /* link upvalue into `rootgc' list */
+ 731   1        g->rootgc = o;
+ 732   1        if (isgray(o)) { 
+ 733   2          if (g->gcstate == GCSpropagate) {
+ 734   3            gray2black(o);  /* closed upvalues need barrier */
+ 735   3            luaC_barrier(L, uv, uv->v);
+ 736   3          }
+ 737   2          else {  /* sweep phase: sweep it (turning it into white) */
+ 738   3            makewhite(g, o);
+ 739   3            lua_assert(g->gcstate != GCSfinalize && g->gcstate != GCSpause);
+ 740   3          }
+ 741   2        }
+ 742   1      }
+ 743          
+
+C51 COMPILATION COMPLETE.  38 WARNING(S),  6 ERROR(S)

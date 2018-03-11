@@ -1,0 +1,1414 @@
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LAPI
+OBJECT MODULE PLACED IN .\obj\lapi.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lapi.c OMF2 BROWSE DEBUG PRINT(.\lapi.lst) OBJECT(.\obj\lapi
+                    -.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lapi.c,v 2.55.1.5 2008/07/04 18:41:18 roberto Exp $
+   3          ** Lua API
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <assert.h>
+   9          #include <math.h>
+  10          #include <stdarg.h>
+  11          #include <string.h>
+  12          
+  13          #define lapi_c
+  14          #define LUA_CORE
+  15          
+  16          #include "lua.h"
+  17          
+  18          #include "lapi.h"
+  19          #include "ldebug.h"
+  20          #include "ldo.h"
+  21          #include "lfunc.h"
+  22          #include "lgc.h"
+  23          #include "lmem.h"
+  24          #include "lobject.h"
+  25          #include "lstate.h"
+  26          #include "lstring.h"
+  27          #include "ltable.h"
+  28          #include "ltm.h"
+  29          #include "lundump.h"
+  30          #include "lvm.h"
+  31          #include "lrotable.h"
+  32          
+  33          
+  34          const char lua_ident[] =
+  35            "$Lua: " LUA_RELEASE " " LUA_COPYRIGHT " $\n"
+  36            "$Authors: " LUA_AUTHORS " $\n"
+  37            "$URL: www.lua.org $\n";
+  38          
+  39          
+  40          
+  41          #define api_checknelems(L, n)   api_check(L, (n) <= (L->top - L->base))
+  42          
+  43          #define api_checkvalidindex(L, i)       api_check(L, (i) != luaO_nilobject)
+  44          
+  45          #define api_incr_top(L)   {api_check(L, L->top < L->ci->top); L->top++;}
+  46          
+  47          
+  48          
+  49          static TValue *index2adr (lua_State *L, int idx) {
+  50   1        if (idx > 0) {
+  51   2          TValue *o = L->base + (idx - 1);
+  52   2          api_check(L, idx <= L->ci->top - L->base);
+*** WARNING C275 IN LINE 52 OF SRC\LAPI.C: expression with possibly no effect
+  53   2          if (o >= L->top) return cast(TValue *, luaO_nilobject);
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 2   
+
+  54   2          else return o;
+  55   2        }
+  56   1        else if (idx > LUA_REGISTRYINDEX) {
+  57   2          api_check(L, idx != 0 && -idx <= L->top - L->base);
+*** WARNING C275 IN LINE 57 OF SRC\LAPI.C: expression with possibly no effect
+  58   2          return L->top + idx;
+  59   2        }
+  60   1        else switch (idx) {  /* pseudo-indices */
+  61   2          case LUA_REGISTRYINDEX: return registry(L);
+  62   2          case LUA_ENVIRONINDEX: {
+  63   3            Closure *func = curr_func(L);
+  64   3            sethvalue(L, &L->env, func ? func->c.env : hvalue(gt(L)));
+*** WARNING C275 IN LINE 64 OF SRC\LAPI.C: expression with possibly no effect
+  65   3            return &L->env;
+  66   3          }
+  67   2          case LUA_GLOBALSINDEX: return gt(L);
+  68   2          default: {
+  69   3            Closure *func = curr_func(L);
+  70   3            if (!func) return cast(TValue *, luaO_nilobject);
+  71   3            idx = LUA_GLOBALSINDEX - idx;
+  72   3            return (idx <= func->c.nupvalues)
+  73   3                      ? &func->c.upvalue[idx-1]
+  74   3                      : cast(TValue *, luaO_nilobject);
+  75   3          }
+  76   2        }
+  77   1      }
+  78          
+  79          
+  80          static Table *getcurrenv (lua_State *L) {
+  81   1        if (L->ci == L->base_ci)  /* no enclosing function? */
+  82   1          return hvalue(gt(L));  /* use global table as environment */
+  83   1        else {
+  84   2          Closure *func = curr_func(L);
+  85   2          return func ? func->c.env : hvalue(gt(L));
+  86   2        }
+  87   1      }
+  88          
+  89          
+  90          void luaA_pushobject (lua_State *L, const TValue *o) {
+  91   1        setobj2s(L, L->top, o);
+*** WARNING C275 IN LINE 91 OF SRC\LAPI.C: expression with possibly no effect
+  92   1        api_incr_top(L);
+*** WARNING C275 IN LINE 92 OF SRC\LAPI.C: expression with possibly no effect
+  93   1      }
+  94          
+  95          
+  96          LUA_API int lua_checkstack (lua_State *L, int size) {
+  97   1        int res = 1;
+  98   1        lua_lock(L);
+*** WARNING C275 IN LINE 98 OF SRC\LAPI.C: expression with possibly no effect
+  99   1        if (size > LUAI_MAXCSTACK || (L->top - L->base + size) > LUAI_MAXCSTACK)
+ 100   1          res = 0;  /* stack overflow */
+ 101   1        else if (size > 0) {
+ 102   2          luaD_checkstack(L, size);
+*** WARNING C275 IN LINE 102 OF SRC\LAPI.C: expression with possibly no effect
+ 103   2          if (L->ci->top < L->top + size)
+ 104   2            L->ci->top = L->top + size;
+ 105   2        }
+ 106   1        lua_unlock(L);
+*** WARNING C275 IN LINE 106 OF SRC\LAPI.C: expression with possibly no effect
+ 107   1        return res;
+ 108   1      }
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 3   
+
+ 109          
+ 110          
+ 111          LUA_API void lua_xmove (lua_State *from, lua_State *to, int n) {
+ 112   1        int i;
+ 113   1        if (from == to) return;
+ 114   1        lua_lock(to);
+*** WARNING C275 IN LINE 114 OF SRC\LAPI.C: expression with possibly no effect
+ 115   1        api_checknelems(from, n);
+*** WARNING C275 IN LINE 115 OF SRC\LAPI.C: expression with possibly no effect
+ 116   1        api_check(from, G(from) == G(to));
+*** WARNING C275 IN LINE 116 OF SRC\LAPI.C: expression with possibly no effect
+ 117   1        api_check(from, to->ci->top - to->top >= n);
+*** WARNING C275 IN LINE 117 OF SRC\LAPI.C: expression with possibly no effect
+ 118   1        from->top -= n;
+ 119   1        for (i = 0; i < n; i++) {
+ 120   2          setobj2s(to, to->top++, from->top + i);
+*** WARNING C275 IN LINE 120 OF SRC\LAPI.C: expression with possibly no effect
+ 121   2        }
+ 122   1        lua_unlock(to);
+*** WARNING C275 IN LINE 122 OF SRC\LAPI.C: expression with possibly no effect
+ 123   1      }
+ 124          
+ 125          
+ 126          LUA_API void lua_setlevel (lua_State *from, lua_State *to) {
+ 127   1        to->nCcalls = from->nCcalls;
+ 128   1      }
+ 129          
+ 130          
+ 131          LUA_API lua_CFunction lua_atpanic (lua_State *L, lua_CFunction panicf) {
+ 132   1        lua_CFunction old;
+ 133   1        lua_lock(L);
+*** WARNING C275 IN LINE 133 OF SRC\LAPI.C: expression with possibly no effect
+ 134   1        old = G(L)->panic;
+ 135   1        G(L)->panic = panicf;
+ 136   1        lua_unlock(L);
+*** WARNING C275 IN LINE 136 OF SRC\LAPI.C: expression with possibly no effect
+ 137   1        return old;
+ 138   1      }
+ 139          
+ 140          
+ 141          LUA_API lua_State *lua_newthread (lua_State *L) {
+ 142   1        lua_State *L1;
+ 143   1        lua_lock(L);
+*** WARNING C275 IN LINE 143 OF SRC\LAPI.C: expression with possibly no effect
+ 144   1        luaC_checkGC(L);
+*** WARNING C275 IN LINE 144 OF SRC\LAPI.C: expression with possibly no effect
+ 145   1        L1 = luaE_newthread(L);
+ 146   1        setthvalue(L, L->top, L1);
+*** WARNING C275 IN LINE 146 OF SRC\LAPI.C: expression with possibly no effect
+ 147   1        api_incr_top(L);
+*** WARNING C275 IN LINE 147 OF SRC\LAPI.C: expression with possibly no effect
+ 148   1        lua_unlock(L);
+*** WARNING C275 IN LINE 148 OF SRC\LAPI.C: expression with possibly no effect
+ 149   1        luai_userstatethread(L, L1);
+*** WARNING C275 IN LINE 149 OF SRC\LAPI.C: expression with possibly no effect
+ 150   1        return L1;
+ 151   1      }
+ 152          
+ 153          
+ 154          
+ 155          /*
+ 156          ** basic stack manipulation
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 4   
+
+ 157          */
+ 158          
+ 159          
+ 160          LUA_API int lua_gettop (lua_State *L) {
+ 161   1        return cast_int(L->top - L->base);
+ 162   1      }
+ 163          
+ 164          
+ 165          LUA_API void lua_settop (lua_State *L, int idx) {
+ 166   1        lua_lock(L);
+*** WARNING C275 IN LINE 166 OF SRC\LAPI.C: expression with possibly no effect
+ 167   1        if (idx >= 0) {
+ 168   2          api_check(L, idx <= L->stack_last - L->base);
+*** WARNING C275 IN LINE 168 OF SRC\LAPI.C: expression with possibly no effect
+ 169   2          while (L->top < L->base + idx)
+ 170   2            setnilvalue(L->top++);
+ 171   2          L->top = L->base + idx;
+ 172   2        }
+ 173   1        else {
+ 174   2          api_check(L, -(idx+1) <= (L->top - L->base));
+*** WARNING C275 IN LINE 174 OF SRC\LAPI.C: expression with possibly no effect
+ 175   2          L->top += idx+1;  /* `subtract' index (index is negative) */
+ 176   2        }
+ 177   1        lua_unlock(L);
+*** WARNING C275 IN LINE 177 OF SRC\LAPI.C: expression with possibly no effect
+ 178   1      }
+ 179          
+ 180          
+ 181          LUA_API void lua_remove (lua_State *L, int idx) {
+ 182   1        StkId p;
+ 183   1        lua_lock(L);
+*** WARNING C275 IN LINE 183 OF SRC\LAPI.C: expression with possibly no effect
+ 184   1        p = index2adr(L, idx);
+ 185   1        api_checkvalidindex(L, p);
+*** WARNING C275 IN LINE 185 OF SRC\LAPI.C: expression with possibly no effect
+ 186   1        while (++p < L->top) setobjs2s(L, p-1, p);
+*** WARNING C275 IN LINE 186 OF SRC\LAPI.C: expression with possibly no effect
+ 187   1        L->top--;
+ 188   1        lua_unlock(L);
+*** WARNING C275 IN LINE 188 OF SRC\LAPI.C: expression with possibly no effect
+ 189   1      }
+ 190          
+ 191          
+ 192          LUA_API void lua_insert (lua_State *L, int idx) {
+ 193   1        StkId p;
+ 194   1        StkId q;
+ 195   1        lua_lock(L);
+*** WARNING C275 IN LINE 195 OF SRC\LAPI.C: expression with possibly no effect
+ 196   1        p = index2adr(L, idx);
+ 197   1        api_checkvalidindex(L, p);
+*** WARNING C275 IN LINE 197 OF SRC\LAPI.C: expression with possibly no effect
+ 198   1        for (q = L->top; q>p; q--) setobjs2s(L, q, q-1);
+*** WARNING C275 IN LINE 198 OF SRC\LAPI.C: expression with possibly no effect
+ 199   1        setobjs2s(L, p, L->top);
+*** WARNING C275 IN LINE 199 OF SRC\LAPI.C: expression with possibly no effect
+ 200   1        lua_unlock(L);
+*** WARNING C275 IN LINE 200 OF SRC\LAPI.C: expression with possibly no effect
+ 201   1      }
+ 202          
+ 203          
+ 204          LUA_API void lua_replace (lua_State *L, int idx) {
+ 205   1        StkId o;
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 5   
+
+ 206   1        lua_lock(L);
+*** WARNING C275 IN LINE 206 OF SRC\LAPI.C: expression with possibly no effect
+ 207   1        /* explicit test for incompatible code_ */
+ 208   1        if (idx == LUA_ENVIRONINDEX && L->ci == L->base_ci)
+ 209   1          luaG_runerror(L, "no calling environment");
+ 210   1        api_checknelems(L, 1);
+*** WARNING C275 IN LINE 210 OF SRC\LAPI.C: expression with possibly no effect
+ 211   1        o = index2adr(L, idx);
+ 212   1        api_checkvalidindex(L, o);
+*** WARNING C275 IN LINE 212 OF SRC\LAPI.C: expression with possibly no effect
+ 213   1        if (idx == LUA_ENVIRONINDEX) {
+ 214   2          Closure *func = curr_func(L);
+ 215   2          if (!func)
+ 216   2            luaG_runerror(L, "attempt to set environment on lightfunction");
+ 217   2          else {
+ 218   3            api_check(L, ttistable(L->top - 1)); 
+*** WARNING C275 IN LINE 218 OF SRC\LAPI.C: expression with possibly no effect
+ 219   3            func->c.env = hvalue(L->top - 1);
+ 220   3            luaC_barrier(L, func, L->top - 1);
+ 221   3          }
+ 222   2        }
+ 223   1        else {
+ 224   2          setobj(L, o, L->top - 1);
+*** WARNING C275 IN LINE 224 OF SRC\LAPI.C: expression with possibly no effect
+ 225   2          if (curr_func(L) && idx < LUA_GLOBALSINDEX)  /* function upvalue? */
+ 226   2            luaC_barrier(L, curr_func(L), L->top - 1);
+ 227   2        }
+ 228   1        L->top--;
+ 229   1        lua_unlock(L);
+*** WARNING C275 IN LINE 229 OF SRC\LAPI.C: expression with possibly no effect
+ 230   1      }
+ 231          
+ 232          
+ 233          LUA_API void lua_pushvalue (lua_State *L, int idx) {
+ 234   1        lua_lock(L);
+*** WARNING C275 IN LINE 234 OF SRC\LAPI.C: expression with possibly no effect
+ 235   1        setobj2s(L, L->top, index2adr(L, idx));
+*** WARNING C275 IN LINE 235 OF SRC\LAPI.C: expression with possibly no effect
+ 236   1        api_incr_top(L);
+*** WARNING C275 IN LINE 236 OF SRC\LAPI.C: expression with possibly no effect
+ 237   1        lua_unlock(L);
+*** WARNING C275 IN LINE 237 OF SRC\LAPI.C: expression with possibly no effect
+ 238   1      }
+ 239          
+ 240          
+ 241          
+ 242          /*
+ 243          ** access functions (stack -> C)
+ 244          */
+ 245          
+ 246          
+ 247          LUA_API int lua_type (lua_State *L, int idx) {
+ 248   1        StkId o = index2adr(L, idx);
+ 249   1        return (o == luaO_nilobject) ? LUA_TNONE : ttype(o);
+ 250   1      }
+ 251          
+ 252          
+ 253          LUA_API const char *lua_typename (lua_State *L, int t) {
+ 254   1        UNUSED(L);
+*** WARNING C275 IN LINE 254 OF SRC\LAPI.C: expression with possibly no effect
+ 255   1        return (t == LUA_TNONE) ? "no value" : luaT_typenames[t];
+ 256   1      }
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 6   
+
+ 257          
+ 258          
+ 259          LUA_API int lua_iscfunction (lua_State *L, int idx) {
+ 260   1        StkId o = index2adr(L, idx);
+ 261   1        return iscfunction(o);
+ 262   1      }
+ 263          
+ 264          
+ 265          LUA_API int lua_isnumber (lua_State *L, int idx) {
+ 266   1        TValue n;
+ 267   1        const TValue *o = index2adr(L, idx);
+ 268   1        return tonumber(o, &n);
+ 269   1      }
+ 270          
+ 271          
+ 272          LUA_API int lua_isstring (lua_State *L, int idx) {
+ 273   1        int t = lua_type(L, idx);
+ 274   1        return (t == LUA_TSTRING || t == LUA_TNUMBER);
+ 275   1      }
+ 276          
+ 277          
+ 278          LUA_API int lua_isuserdata (lua_State *L, int idx) {
+ 279   1        const TValue *o = index2adr(L, idx);
+ 280   1        return (ttisuserdata(o) || ttislightuserdata(o));
+ 281   1      }
+ 282          
+ 283          
+ 284          LUA_API int lua_rawequal (lua_State *L, int index1, int index2) {
+ 285   1        StkId o1 = index2adr(L, index1);
+ 286   1        StkId o2 = index2adr(L, index2);
+ 287   1        return (o1 == luaO_nilobject || o2 == luaO_nilobject) ? 0
+ 288   1               : luaO_rawequalObj(o1, o2);
+ 289   1      }
+ 290          
+ 291          
+ 292          LUA_API int lua_equal (lua_State *L, int index1, int index2) {
+ 293   1        StkId o1, o2;
+ 294   1        int i;
+ 295   1        lua_lock(L);  /* may call tag method */
+*** WARNING C275 IN LINE 295 OF SRC\LAPI.C: expression with possibly no effect
+ 296   1        o1 = index2adr(L, index1);
+ 297   1        o2 = index2adr(L, index2);
+ 298   1        i = (o1 == luaO_nilobject || o2 == luaO_nilobject) ? 0 : equalobj(L, o1, o2);
+ 299   1        lua_unlock(L);
+*** WARNING C275 IN LINE 299 OF SRC\LAPI.C: expression with possibly no effect
+ 300   1        return i;
+ 301   1      }
+ 302          
+ 303          
+ 304          LUA_API int lua_lessthan (lua_State *L, int index1, int index2) {
+ 305   1        StkId o1, o2;
+ 306   1        int i;
+ 307   1        lua_lock(L);  /* may call tag method */
+*** WARNING C275 IN LINE 307 OF SRC\LAPI.C: expression with possibly no effect
+ 308   1        o1 = index2adr(L, index1);
+ 309   1        o2 = index2adr(L, index2);
+ 310   1        i = (o1 == luaO_nilobject || o2 == luaO_nilobject) ? 0
+ 311   1             : luaV_lessthan(L, o1, o2);
+ 312   1        lua_unlock(L);
+*** WARNING C275 IN LINE 312 OF SRC\LAPI.C: expression with possibly no effect
+ 313   1        return i;
+ 314   1      }
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 7   
+
+ 315          
+ 316          
+ 317          
+ 318          LUA_API lua_Number lua_tonumber (lua_State *L, int idx) {
+ 319   1        TValue n;
+ 320   1        const TValue *o = index2adr(L, idx);
+ 321   1        if (tonumber(o, &n))
+ 322   1          return nvalue(o);
+ 323   1        else
+ 324   1          return 0;
+ 325   1      }
+ 326          
+ 327          
+ 328          LUA_API lua_Integer lua_tointeger (lua_State *L, int idx) {
+ 329   1        TValue n;
+ 330   1        const TValue *o = index2adr(L, idx);
+ 331   1        if (tonumber(o, &n)) {
+ 332   2          lua_Integer res;
+ 333   2          lua_Number num = nvalue(o);
+ 334   2          lua_number2integer(res, num);
+ 335   2          return res;
+ 336   2        }
+ 337   1        else
+ 338   1          return 0;
+ 339   1      }
+ 340          
+ 341          
+ 342          LUA_API int lua_toboolean (lua_State *L, int idx) {
+ 343   1        const TValue *o = index2adr(L, idx);
+ 344   1        return !l_isfalse(o);
+ 345   1      }
+ 346          
+ 347          
+ 348          LUA_API const char *lua_tolstring (lua_State *L, int idx, size_t *len) {
+ 349   1        StkId o = index2adr(L, idx);
+ 350   1        if (!ttisstring(o)) {
+ 351   2          lua_lock(L);  /* `luaV_tostring' may create a new string */
+*** WARNING C275 IN LINE 351 OF SRC\LAPI.C: expression with possibly no effect
+ 352   2          if (!luaV_tostring(L, o)) {  /* conversion failed? */
+ 353   3            if (len != NULL) *len = 0;
+ 354   3            lua_unlock(L);
+*** WARNING C275 IN LINE 354 OF SRC\LAPI.C: expression with possibly no effect
+ 355   3            return NULL;
+ 356   3          }
+ 357   2          luaC_checkGC(L);
+*** WARNING C275 IN LINE 357 OF SRC\LAPI.C: expression with possibly no effect
+ 358   2          o = index2adr(L, idx);  /* previous call may reallocate the stack */
+ 359   2          lua_unlock(L);
+*** WARNING C275 IN LINE 359 OF SRC\LAPI.C: expression with possibly no effect
+ 360   2        }
+ 361   1        if (len != NULL) *len = tsvalue(o)->len;
+ 362   1        return svalue(o);
+ 363   1      }
+ 364          
+ 365          
+ 366          LUA_API size_t lua_objlen (lua_State *L, int idx) {
+ 367   1        StkId o = index2adr(L, idx);
+ 368   1        switch (ttype(o)) {
+ 369   2          case LUA_TSTRING: return tsvalue(o)->len;
+ 370   2          case LUA_TUSERDATA: return uvalue(o)->len;
+ 371   2          case LUA_TTABLE: return luaH_getn(hvalue(o));
+ 372   2          case LUA_TROTABLE: return luaH_getn_ro(rvalue(o));
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 8   
+
+ 373   2          case LUA_TNUMBER: {
+ 374   3            size_t l;
+ 375   3            lua_lock(L);  /* `luaV_tostring' may create a new string */
+*** WARNING C275 IN LINE 375 OF SRC\LAPI.C: expression with possibly no effect
+ 376   3            l = (luaV_tostring(L, o) ? tsvalue(o)->len : 0);
+ 377   3            lua_unlock(L);
+*** WARNING C275 IN LINE 377 OF SRC\LAPI.C: expression with possibly no effect
+ 378   3            return l;
+ 379   3          }
+ 380   2          default: return 0;
+ 381   2        }
+ 382   1      }
+ 383          
+ 384          
+ 385          LUA_API lua_CFunction lua_tocfunction (lua_State *L, int idx) {
+ 386   1        StkId o = index2adr(L, idx);
+ 387   1        return (!iscfunction(o)) ? NULL : clvalue(o)->c.f;
+ 388   1      }
+ 389          
+ 390          
+ 391          LUA_API void *lua_touserdata (lua_State *L, int idx) {
+ 392   1        StkId o = index2adr(L, idx);
+ 393   1        switch (ttype(o)) {
+ 394   2          case LUA_TUSERDATA: return (rawuvalue(o) + 1);
+ 395   2          case LUA_TLIGHTUSERDATA: return pvalue(o);
+ 396   2          default: return NULL;
+ 397   2        }
+ 398   1      }
+ 399          
+ 400          
+ 401          LUA_API lua_State *lua_tothread (lua_State *L, int idx) {
+ 402   1        StkId o = index2adr(L, idx);
+ 403   1        return (!ttisthread(o)) ? NULL : thvalue(o);
+ 404   1      }
+ 405          
+ 406          
+ 407          LUA_API const void *lua_topointer (lua_State *L, int idx) {
+ 408   1        StkId o = index2adr(L, idx);
+ 409   1        switch (ttype(o)) {
+ 410   2          case LUA_TTABLE: return hvalue(o);
+ 411   2          case LUA_TFUNCTION: return clvalue(o);
+ 412   2          case LUA_TTHREAD: return thvalue(o);
+ 413   2          case LUA_TUSERDATA:
+ 414   2          case LUA_TLIGHTUSERDATA:
+ 415   2            return lua_touserdata(L, idx);
+ 416   2          case LUA_TROTABLE: 
+ 417   2          case LUA_TLIGHTFUNCTION:
+ 418   2            return pvalue(o);
+ 419   2          default: return NULL;
+ 420   2        }
+ 421   1      }
+ 422          
+ 423          
+ 424          
+ 425          /*
+ 426          ** push functions (C -> stack)
+ 427          */
+ 428          
+ 429          
+ 430          LUA_API void lua_pushnil (lua_State *L) {
+ 431   1        lua_lock(L);
+*** WARNING C275 IN LINE 431 OF SRC\LAPI.C: expression with possibly no effect
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 9   
+
+ 432   1        setnilvalue(L->top);
+ 433   1        api_incr_top(L);
+*** WARNING C275 IN LINE 433 OF SRC\LAPI.C: expression with possibly no effect
+ 434   1        lua_unlock(L);
+*** WARNING C275 IN LINE 434 OF SRC\LAPI.C: expression with possibly no effect
+ 435   1      }
+ 436          
+ 437          
+ 438          LUA_API void lua_pushnumber (lua_State *L, lua_Number n) {
+ 439   1        lua_lock(L);
+*** WARNING C275 IN LINE 439 OF SRC\LAPI.C: expression with possibly no effect
+ 440   1        setnvalue(L->top, n);
+ 441   1        api_incr_top(L);
+*** WARNING C275 IN LINE 441 OF SRC\LAPI.C: expression with possibly no effect
+ 442   1        lua_unlock(L);
+*** WARNING C275 IN LINE 442 OF SRC\LAPI.C: expression with possibly no effect
+ 443   1      }
+ 444          
+ 445          
+ 446          LUA_API void lua_pushinteger (lua_State *L, lua_Integer n) {
+ 447   1        lua_lock(L);
+*** WARNING C275 IN LINE 447 OF SRC\LAPI.C: expression with possibly no effect
+ 448   1        setnvalue(L->top, cast_num(n));
+ 449   1        api_incr_top(L);
+*** WARNING C275 IN LINE 449 OF SRC\LAPI.C: expression with possibly no effect
+ 450   1        lua_unlock(L);
+*** WARNING C275 IN LINE 450 OF SRC\LAPI.C: expression with possibly no effect
+ 451   1      }
+ 452          
+ 453          
+ 454          LUA_API void lua_pushlstring (lua_State *L, const char *s, size_t len) {
+ 455   1        lua_lock(L);
+*** WARNING C275 IN LINE 455 OF SRC\LAPI.C: expression with possibly no effect
+ 456   1        luaC_checkGC(L);
+*** WARNING C275 IN LINE 456 OF SRC\LAPI.C: expression with possibly no effect
+ 457   1        setsvalue2s(L, L->top, luaS_newlstr(L, s, len));
+*** WARNING C275 IN LINE 457 OF SRC\LAPI.C: expression with possibly no effect
+ 458   1        api_incr_top(L);
+*** WARNING C275 IN LINE 458 OF SRC\LAPI.C: expression with possibly no effect
+ 459   1        lua_unlock(L);
+*** WARNING C275 IN LINE 459 OF SRC\LAPI.C: expression with possibly no effect
+ 460   1      }
+ 461          
+ 462          
+ 463          LUA_API void lua_pushrolstring (lua_State *L, const char *s, size_t len) {
+ 464   1        lua_lock(L);
+*** WARNING C275 IN LINE 464 OF SRC\LAPI.C: expression with possibly no effect
+ 465   1        luaC_checkGC(L);
+*** WARNING C275 IN LINE 465 OF SRC\LAPI.C: expression with possibly no effect
+ 466   1        setsvalue2s(L, L->top, luaS_newrolstr(L, s, len));
+*** WARNING C275 IN LINE 466 OF SRC\LAPI.C: expression with possibly no effect
+ 467   1        api_incr_top(L);
+*** WARNING C275 IN LINE 467 OF SRC\LAPI.C: expression with possibly no effect
+ 468   1        lua_unlock(L);
+*** WARNING C275 IN LINE 468 OF SRC\LAPI.C: expression with possibly no effect
+ 469   1      }
+ 470          
+ 471          
+ 472          LUA_API void lua_pushstring (lua_State *L, const char *s) {
+ 473   1        if (s == NULL)
+ 474   1          lua_pushnil(L);
+ 475   1        else
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 10  
+
+ 476   1          lua_pushlstring(L, s, strlen(s));
+ 477   1      }
+ 478          
+ 479          
+ 480          LUA_API const char *lua_pushvfstring (lua_State *L, const char *fmt,
+ 481                                                va_list argp) {
+ 482   1        const char *ret;
+ 483   1        lua_lock(L);
+*** WARNING C275 IN LINE 483 OF SRC\LAPI.C: expression with possibly no effect
+ 484   1        luaC_checkGC(L);
+*** WARNING C275 IN LINE 484 OF SRC\LAPI.C: expression with possibly no effect
+ 485   1        ret = luaO_pushvfstring(L, fmt, argp);
+ 486   1        lua_unlock(L);
+*** WARNING C275 IN LINE 486 OF SRC\LAPI.C: expression with possibly no effect
+ 487   1        return ret;
+ 488   1      }
+ 489          
+ 490          
+ 491          LUA_API const char *lua_pushfstring (lua_State *L, const char *fmt, ...) {
+ 492   1        const char *ret;
+ 493   1        va_list argp;
+ 494   1        lua_lock(L);
+*** WARNING C275 IN LINE 494 OF SRC\LAPI.C: expression with possibly no effect
+ 495   1        luaC_checkGC(L);
+*** WARNING C275 IN LINE 495 OF SRC\LAPI.C: expression with possibly no effect
+ 496   1        va_start(argp, fmt);
+ 497   1        ret = luaO_pushvfstring(L, fmt, argp);
+ 498   1        va_end(argp);
+ 499   1        lua_unlock(L);
+*** WARNING C275 IN LINE 499 OF SRC\LAPI.C: expression with possibly no effect
+ 500   1        return ret;
+ 501   1      }
+ 502          
+ 503          
+ 504          LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
+ 505   1        Closure *cl;
+ 506   1        lua_lock(L);
+*** WARNING C275 IN LINE 506 OF SRC\LAPI.C: expression with possibly no effect
+ 507   1        luaC_checkGC(L);
+*** WARNING C275 IN LINE 507 OF SRC\LAPI.C: expression with possibly no effect
+ 508   1        api_checknelems(L, n);
+*** WARNING C275 IN LINE 508 OF SRC\LAPI.C: expression with possibly no effect
+ 509   1        cl = luaF_newCclosure(L, n, getcurrenv(L));
+ 510   1        cl->c.f = fn;
+ 511   1        L->top -= n;
+ 512   1        while (n--)
+ 513   1          setobj2n(L, &cl->c.upvalue[n], L->top+n);
+*** WARNING C275 IN LINE 513 OF SRC\LAPI.C: expression with possibly no effect
+ 514   1        setclvalue(L, L->top, cl);
+*** WARNING C275 IN LINE 514 OF SRC\LAPI.C: expression with possibly no effect
+ 515   1        lua_assert(iswhite(obj2gco(cl)));
+*** WARNING C275 IN LINE 515 OF SRC\LAPI.C: expression with possibly no effect
+ 516   1        api_incr_top(L);
+*** WARNING C275 IN LINE 516 OF SRC\LAPI.C: expression with possibly no effect
+ 517   1        lua_unlock(L);
+*** WARNING C275 IN LINE 517 OF SRC\LAPI.C: expression with possibly no effect
+ 518   1      }
+ 519          
+ 520          
+ 521          LUA_API void lua_pushboolean (lua_State *L, int b) {
+ 522   1        lua_lock(L);
+*** WARNING C275 IN LINE 522 OF SRC\LAPI.C: expression with possibly no effect
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 11  
+
+ 523   1        setbvalue(L->top, (b != 0));  /* ensure that true is 1 */
+ 524   1        api_incr_top(L);
+*** WARNING C275 IN LINE 524 OF SRC\LAPI.C: expression with possibly no effect
+ 525   1        lua_unlock(L);
+*** WARNING C275 IN LINE 525 OF SRC\LAPI.C: expression with possibly no effect
+ 526   1      }
+ 527          
+ 528          
+ 529          LUA_API void lua_pushlightuserdata (lua_State *L, void *p) {
+ 530   1        lua_lock(L);
+*** WARNING C275 IN LINE 530 OF SRC\LAPI.C: expression with possibly no effect
+ 531   1        setpvalue(L->top, p);
+ 532   1        api_incr_top(L);
+*** WARNING C275 IN LINE 532 OF SRC\LAPI.C: expression with possibly no effect
+ 533   1        lua_unlock(L);
+*** WARNING C275 IN LINE 533 OF SRC\LAPI.C: expression with possibly no effect
+ 534   1      }
+ 535          
+ 536          LUA_API void lua_pushrotable (lua_State *L, void *p) {
+ 537   1        lua_lock(L);
+*** WARNING C275 IN LINE 537 OF SRC\LAPI.C: expression with possibly no effect
+ 538   1        setrvalue(L->top, p);
+ 539   1        api_incr_top(L);
+*** WARNING C275 IN LINE 539 OF SRC\LAPI.C: expression with possibly no effect
+ 540   1        lua_unlock(L);
+*** WARNING C275 IN LINE 540 OF SRC\LAPI.C: expression with possibly no effect
+ 541   1      }
+ 542          
+ 543          LUA_API void lua_pushlightfunction(lua_State *L, void *p) {
+ 544   1        lua_lock(L);
+*** WARNING C275 IN LINE 544 OF SRC\LAPI.C: expression with possibly no effect
+ 545   1        setfvalue(L->top, p);
+ 546   1        api_incr_top(L);
+*** WARNING C275 IN LINE 546 OF SRC\LAPI.C: expression with possibly no effect
+ 547   1        lua_unlock(L);
+*** WARNING C275 IN LINE 547 OF SRC\LAPI.C: expression with possibly no effect
+ 548   1      }
+ 549          
+ 550          
+ 551          LUA_API int lua_pushthread (lua_State *L) {
+ 552   1        lua_lock(L);
+*** WARNING C275 IN LINE 552 OF SRC\LAPI.C: expression with possibly no effect
+ 553   1        setthvalue(L, L->top, L);
+*** WARNING C275 IN LINE 553 OF SRC\LAPI.C: expression with possibly no effect
+ 554   1        api_incr_top(L);
+*** WARNING C275 IN LINE 554 OF SRC\LAPI.C: expression with possibly no effect
+ 555   1        lua_unlock(L);
+*** WARNING C275 IN LINE 555 OF SRC\LAPI.C: expression with possibly no effect
+ 556   1        return (G(L)->mainthread == L);
+ 557   1      }
+ 558          
+ 559          
+ 560          
+ 561          /*
+ 562          ** get functions (Lua -> stack)
+ 563          */
+ 564          
+ 565          
+ 566          LUA_API void lua_gettable (lua_State *L, int idx) {
+ 567   1        StkId t;
+ 568   1        lua_lock(L);
+*** WARNING C275 IN LINE 568 OF SRC\LAPI.C: expression with possibly no effect
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 12  
+
+ 569   1        t = index2adr(L, idx);
+ 570   1        api_checkvalidindex(L, t);
+*** WARNING C275 IN LINE 570 OF SRC\LAPI.C: expression with possibly no effect
+ 571   1        luaV_gettable(L, t, L->top - 1, L->top - 1);
+ 572   1        lua_unlock(L);
+*** WARNING C275 IN LINE 572 OF SRC\LAPI.C: expression with possibly no effect
+ 573   1      }
+ 574          
+ 575          
+ 576          LUA_API void lua_getfield (lua_State *L, int idx, const char *k) {
+ 577   1        StkId t;
+ 578   1        TValue key;
+ 579   1        lua_lock(L);
+*** WARNING C275 IN LINE 579 OF SRC\LAPI.C: expression with possibly no effect
+ 580   1        t = index2adr(L, idx);
+ 581   1        api_checkvalidindex(L, t);
+*** WARNING C275 IN LINE 581 OF SRC\LAPI.C: expression with possibly no effect
+ 582   1        fixedstack(L);
+ 583   1        setsvalue(L, &key, luaS_new(L, k));
+*** WARNING C275 IN LINE 583 OF SRC\LAPI.C: expression with possibly no effect
+ 584   1        unfixedstack(L);
+ 585   1        luaV_gettable(L, t, &key, L->top);
+ 586   1        api_incr_top(L);
+*** WARNING C275 IN LINE 586 OF SRC\LAPI.C: expression with possibly no effect
+ 587   1        lua_unlock(L);
+*** WARNING C275 IN LINE 587 OF SRC\LAPI.C: expression with possibly no effect
+ 588   1      }
+ 589          
+ 590          
+ 591          LUA_API void lua_rawget (lua_State *L, int idx) {
+ 592   1        StkId t;
+ 593   1        const TValue *res;
+ 594   1        lua_lock(L);
+*** WARNING C275 IN LINE 594 OF SRC\LAPI.C: expression with possibly no effect
+ 595   1        t = index2adr(L, idx);
+ 596   1        api_check(L, ttistable(t) || ttisrotable(t));
+*** WARNING C275 IN LINE 596 OF SRC\LAPI.C: expression with possibly no effect
+ 597   1        res = ttistable(t) ? luaH_get(hvalue(t), L->top - 1) : luaH_get_ro(rvalue(t), L->top - 1);
+ 598   1        setobj2s(L, L->top - 1, res);    
+*** WARNING C275 IN LINE 598 OF SRC\LAPI.C: expression with possibly no effect
+ 599   1        lua_unlock(L);
+*** WARNING C275 IN LINE 599 OF SRC\LAPI.C: expression with possibly no effect
+ 600   1      }
+ 601          
+ 602          
+ 603          LUA_API void lua_rawgeti (lua_State *L, int idx, int n) {
+ 604   1        StkId o;
+ 605   1        lua_lock(L);
+*** WARNING C275 IN LINE 605 OF SRC\LAPI.C: expression with possibly no effect
+ 606   1        o = index2adr(L, idx);
+ 607   1        api_check(L, ttistable(o) || ttisrotable(o));
+*** WARNING C275 IN LINE 607 OF SRC\LAPI.C: expression with possibly no effect
+ 608   1        setobj2s(L, L->top, ttistable(o) ? luaH_getnum(hvalue(o), n) : luaH_getnum_ro(rvalue(o), n))
+*** WARNING C275 IN LINE 608 OF SRC\LAPI.C: expression with possibly no effect
+ 609   1        api_incr_top(L);
+*** WARNING C275 IN LINE 609 OF SRC\LAPI.C: expression with possibly no effect
+ 610   1        lua_unlock(L);
+*** WARNING C275 IN LINE 610 OF SRC\LAPI.C: expression with possibly no effect
+ 611   1      }
+ 612          
+ 613          
+ 614          LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 13  
+
+ 615   1        lua_lock(L);
+*** WARNING C275 IN LINE 615 OF SRC\LAPI.C: expression with possibly no effect
+ 616   1        luaC_checkGC(L);
+*** WARNING C275 IN LINE 616 OF SRC\LAPI.C: expression with possibly no effect
+ 617   1        sethvalue(L, L->top, luaH_new(L, narray, nrec));
+*** WARNING C275 IN LINE 617 OF SRC\LAPI.C: expression with possibly no effect
+ 618   1        api_incr_top(L);
+*** WARNING C275 IN LINE 618 OF SRC\LAPI.C: expression with possibly no effect
+ 619   1        lua_unlock(L);
+*** WARNING C275 IN LINE 619 OF SRC\LAPI.C: expression with possibly no effect
+ 620   1      }
+ 621          
+ 622          
+ 623          LUA_API int lua_getmetatable (lua_State *L, int objindex) {
+ 624   1        const TValue *obj;
+ 625   1        Table *mt = NULL;
+ 626   1        int res;
+ 627   1        lua_lock(L);
+*** WARNING C275 IN LINE 627 OF SRC\LAPI.C: expression with possibly no effect
+ 628   1        obj = index2adr(L, objindex);
+ 629   1        switch (ttype(obj)) {
+ 630   2          case LUA_TTABLE:
+ 631   2            mt = hvalue(obj)->metatable;
+ 632   2            break;
+ 633   2          case LUA_TUSERDATA:
+ 634   2            mt = uvalue(obj)->metatable;
+ 635   2            break;
+ 636   2          case LUA_TROTABLE:
+ 637   2            mt = (Table*)luaR_getmeta(rvalue(obj));
+ 638   2            break; 
+ 639   2          default:
+ 640   2            mt = G(L)->mt[ttype(obj)];
+ 641   2            break;
+ 642   2        }
+ 643   1        if (mt == NULL)
+ 644   1          res = 0;
+ 645   1        else {
+ 646   2          if(luaR_isrotable(mt))
+ 647   2            setrvalue(L->top, mt)
+ 648   2          else
+ 649   2            sethvalue(L, L->top, mt)
+*** WARNING C275 IN LINE 649 OF SRC\LAPI.C: expression with possibly no effect
+ 650   2          api_incr_top(L);
+*** WARNING C275 IN LINE 650 OF SRC\LAPI.C: expression with possibly no effect
+ 651   2          res = 1;
+ 652   2        }
+ 653   1        lua_unlock(L);
+*** WARNING C275 IN LINE 653 OF SRC\LAPI.C: expression with possibly no effect
+ 654   1        return res;
+ 655   1      }
+ 656          
+ 657          
+ 658          LUA_API void lua_getfenv (lua_State *L, int idx) {
+ 659   1        StkId o;
+ 660   1        lua_lock(L);
+*** WARNING C275 IN LINE 660 OF SRC\LAPI.C: expression with possibly no effect
+ 661   1        o = index2adr(L, idx);
+ 662   1        api_checkvalidindex(L, o);
+*** WARNING C275 IN LINE 662 OF SRC\LAPI.C: expression with possibly no effect
+ 663   1        switch (ttype(o)) {
+ 664   2          case LUA_TFUNCTION:
+ 665   2            sethvalue(L, L->top, clvalue(o)->c.env);
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 14  
+
+*** WARNING C275 IN LINE 665 OF SRC\LAPI.C: expression with possibly no effect
+ 666   2            break;
+ 667   2          case LUA_TUSERDATA:
+ 668   2            sethvalue(L, L->top, uvalue(o)->env);
+*** WARNING C275 IN LINE 668 OF SRC\LAPI.C: expression with possibly no effect
+ 669   2            break;
+ 670   2          case LUA_TTHREAD:
+ 671   2            setobj2s(L, L->top,  gt(thvalue(o)));
+*** WARNING C275 IN LINE 671 OF SRC\LAPI.C: expression with possibly no effect
+ 672   2            break;
+ 673   2          default:
+ 674   2            setnilvalue(L->top);
+ 675   2            break;
+ 676   2        }
+ 677   1        api_incr_top(L);
+*** WARNING C275 IN LINE 677 OF SRC\LAPI.C: expression with possibly no effect
+ 678   1        lua_unlock(L);
+*** WARNING C275 IN LINE 678 OF SRC\LAPI.C: expression with possibly no effect
+ 679   1      }
+ 680          
+ 681          
+ 682          /*
+ 683          ** set functions (stack -> Lua)
+ 684          */
+ 685          
+ 686          
+ 687          LUA_API void lua_settable (lua_State *L, int idx) {
+ 688   1        StkId t;
+ 689   1        lua_lock(L);
+*** WARNING C275 IN LINE 689 OF SRC\LAPI.C: expression with possibly no effect
+ 690   1        api_checknelems(L, 2);
+*** WARNING C275 IN LINE 690 OF SRC\LAPI.C: expression with possibly no effect
+ 691   1        t = index2adr(L, idx);
+ 692   1        api_checkvalidindex(L, t);
+*** WARNING C275 IN LINE 692 OF SRC\LAPI.C: expression with possibly no effect
+ 693   1        luaV_settable(L, t, L->top - 2, L->top - 1);
+ 694   1        L->top -= 2;  /* pop index and value */
+ 695   1        lua_unlock(L);
+*** WARNING C275 IN LINE 695 OF SRC\LAPI.C: expression with possibly no effect
+ 696   1      }
+ 697          
+ 698          
+ 699          LUA_API void lua_setfield (lua_State *L, int idx, const char *k) {
+ 700   1        StkId t;
+ 701   1        lua_lock(L);
+*** WARNING C275 IN LINE 701 OF SRC\LAPI.C: expression with possibly no effect
+ 702   1        api_checknelems(L, 1);
+*** WARNING C275 IN LINE 702 OF SRC\LAPI.C: expression with possibly no effect
+ 703   1        t = index2adr(L, idx);
+ 704   1        api_checkvalidindex(L, t);
+*** WARNING C275 IN LINE 704 OF SRC\LAPI.C: expression with possibly no effect
+ 705   1        setsvalue2s(L, L->top, luaS_new(L, k));
+*** WARNING C275 IN LINE 705 OF SRC\LAPI.C: expression with possibly no effect
+ 706   1        api_incr_top(L);
+*** WARNING C275 IN LINE 706 OF SRC\LAPI.C: expression with possibly no effect
+ 707   1        luaV_settable(L, t, L->top - 1, L->top - 2);
+ 708   1        L->top -= 2;  /* pop key and value */
+ 709   1        lua_unlock(L);
+*** WARNING C275 IN LINE 709 OF SRC\LAPI.C: expression with possibly no effect
+ 710   1      }
+ 711          
+ 712          
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 15  
+
+ 713          LUA_API void lua_rawset (lua_State *L, int idx) {
+ 714   1        StkId t;
+ 715   1        lua_lock(L);
+*** WARNING C275 IN LINE 715 OF SRC\LAPI.C: expression with possibly no effect
+ 716   1        api_checknelems(L, 2);
+*** WARNING C275 IN LINE 716 OF SRC\LAPI.C: expression with possibly no effect
+ 717   1        t = index2adr(L, idx);
+ 718   1        api_check(L, ttistable(t));
+*** WARNING C275 IN LINE 718 OF SRC\LAPI.C: expression with possibly no effect
+ 719   1        fixedstack(L);
+ 720   1        setobj2t(L, luaH_set(L, hvalue(t), L->top-2), L->top-1);
+*** WARNING C275 IN LINE 720 OF SRC\LAPI.C: expression with possibly no effect
+ 721   1        unfixedstack(L);
+ 722   1        luaC_barriert(L, hvalue(t), L->top-1);
+ 723   1        L->top -= 2;
+ 724   1        lua_unlock(L);
+*** WARNING C275 IN LINE 724 OF SRC\LAPI.C: expression with possibly no effect
+ 725   1      }
+ 726          
+ 727          
+ 728          LUA_API void lua_rawseti (lua_State *L, int idx, int n) {
+ 729   1        StkId o;
+ 730   1        lua_lock(L);
+*** WARNING C275 IN LINE 730 OF SRC\LAPI.C: expression with possibly no effect
+ 731   1        api_checknelems(L, 1);
+*** WARNING C275 IN LINE 731 OF SRC\LAPI.C: expression with possibly no effect
+ 732   1        o = index2adr(L, idx);
+ 733   1        api_check(L, ttistable(o));
+*** WARNING C275 IN LINE 733 OF SRC\LAPI.C: expression with possibly no effect
+ 734   1        fixedstack(L);
+ 735   1        setobj2t(L, luaH_setnum(L, hvalue(o), n), L->top-1);
+*** WARNING C275 IN LINE 735 OF SRC\LAPI.C: expression with possibly no effect
+ 736   1        unfixedstack(L);
+ 737   1        luaC_barriert(L, hvalue(o), L->top-1);
+ 738   1        L->top--;
+ 739   1        lua_unlock(L);
+*** WARNING C275 IN LINE 739 OF SRC\LAPI.C: expression with possibly no effect
+ 740   1      }
+ 741          
+ 742          
+ 743          LUA_API int lua_setmetatable (lua_State *L, int objindex) {
+ 744   1        TValue *obj;
+ 745   1        Table *mt;
+ 746   1        int isrometa = 0;
+ 747   1        lua_lock(L);
+*** WARNING C275 IN LINE 747 OF SRC\LAPI.C: expression with possibly no effect
+ 748   1        api_checknelems(L, 1);
+*** WARNING C275 IN LINE 748 OF SRC\LAPI.C: expression with possibly no effect
+ 749   1        obj = index2adr(L, objindex);
+ 750   1        api_checkvalidindex(L, obj);
+*** WARNING C275 IN LINE 750 OF SRC\LAPI.C: expression with possibly no effect
+ 751   1        if (ttisnil(L->top - 1))
+ 752   1          mt = NULL;
+ 753   1        else {
+ 754   2          api_check(L, ttistable(L->top - 1) || ttisrotable(L->top - 1));
+*** WARNING C275 IN LINE 754 OF SRC\LAPI.C: expression with possibly no effect
+ 755   2          if (ttistable(L->top - 1))
+ 756   2            mt = hvalue(L->top - 1);
+ 757   2          else {
+ 758   3            mt = (Table*)rvalue(L->top - 1);
+ 759   3            isrometa = 1;
+ 760   3          }
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 16  
+
+ 761   2        }
+ 762   1        switch (ttype(obj)) {
+ 763   2          case LUA_TTABLE: {
+ 764   3            hvalue(obj)->metatable = mt;
+ 765   3            if (mt && !isrometa)
+ 766   3              luaC_objbarriert(L, hvalue(obj), mt);
+ 767   3            break;
+ 768   3          }
+ 769   2          case LUA_TUSERDATA: {
+ 770   3            uvalue(obj)->metatable = mt;
+ 771   3            if (mt && !isrometa)
+ 772   3              luaC_objbarrier(L, rawuvalue(obj), mt);
+ 773   3            break;
+ 774   3          }
+ 775   2          default: {
+ 776   3            G(L)->mt[ttype(obj)] = mt;
+ 777   3            break;
+ 778   3          }
+ 779   2        }
+ 780   1        L->top--;
+ 781   1        lua_unlock(L);
+*** WARNING C275 IN LINE 781 OF SRC\LAPI.C: expression with possibly no effect
+ 782   1        return 1;
+ 783   1      }
+ 784          
+ 785          
+ 786          LUA_API int lua_setfenv (lua_State *L, int idx) {
+ 787   1        StkId o;
+ 788   1        int res = 1;
+ 789   1        lua_lock(L);
+*** WARNING C275 IN LINE 789 OF SRC\LAPI.C: expression with possibly no effect
+ 790   1        api_checknelems(L, 1);
+*** WARNING C275 IN LINE 790 OF SRC\LAPI.C: expression with possibly no effect
+ 791   1        o = index2adr(L, idx);
+ 792   1        api_checkvalidindex(L, o);
+*** WARNING C275 IN LINE 792 OF SRC\LAPI.C: expression with possibly no effect
+ 793   1        api_check(L, ttistable(L->top - 1));
+*** WARNING C275 IN LINE 793 OF SRC\LAPI.C: expression with possibly no effect
+ 794   1        switch (ttype(o)) {
+ 795   2          case LUA_TFUNCTION:
+ 796   2            clvalue(o)->c.env = hvalue(L->top - 1);
+ 797   2            break;
+ 798   2          case LUA_TUSERDATA:
+ 799   2            uvalue(o)->env = hvalue(L->top - 1);
+ 800   2            break;
+ 801   2          case LUA_TTHREAD:
+ 802   2            sethvalue(L, gt(thvalue(o)), hvalue(L->top - 1));
+*** WARNING C275 IN LINE 802 OF SRC\LAPI.C: expression with possibly no effect
+ 803   2            break;
+ 804   2          default:
+ 805   2            res = 0;
+ 806   2            break;
+ 807   2        }
+ 808   1        if (res) luaC_objbarrier(L, gcvalue(o), hvalue(L->top - 1));
+ 809   1        L->top--;
+ 810   1        lua_unlock(L);
+*** WARNING C275 IN LINE 810 OF SRC\LAPI.C: expression with possibly no effect
+ 811   1        return res;
+ 812   1      }
+ 813          
+ 814          
+ 815          /*
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 17  
+
+ 816          ** `load' and `call' functions (run Lua code_)
+ 817          */
+ 818          
+ 819          
+ 820          #define adjustresults(L,nres) \
+ 821              { if (nres == LUA_MULTRET && L->top >= L->ci->top) L->ci->top = L->top; }
+ 822          
+ 823          
+ 824          #define checkresults(L,na,nr) \
+ 825               api_check(L, (nr) == LUA_MULTRET || (L->ci->top - L->top >= (nr) - (na)))
+ 826                  
+ 827          
+ 828          LUA_API void lua_call (lua_State *L, int nargs, int nresults) {
+ 829   1        StkId func;
+ 830   1        lua_lock(L);
+*** WARNING C275 IN LINE 830 OF SRC\LAPI.C: expression with possibly no effect
+ 831   1        api_checknelems(L, nargs+1);
+*** WARNING C275 IN LINE 831 OF SRC\LAPI.C: expression with possibly no effect
+ 832   1        checkresults(L, nargs, nresults);
+*** WARNING C275 IN LINE 832 OF SRC\LAPI.C: expression with possibly no effect
+ 833   1        func = L->top - (nargs+1);
+ 834   1        luaD_call(L, func, nresults);
+ 835   1        adjustresults(L, nresults);
+ 836   1        lua_unlock(L);
+*** WARNING C275 IN LINE 836 OF SRC\LAPI.C: expression with possibly no effect
+ 837   1      }
+ 838          
+ 839          
+ 840          
+ 841          /*
+ 842          ** Execute a protected call.
+ 843          */
+ 844          struct CallS {  /* data_ to `f_call' */
+ 845            StkId func;
+ 846            int nresults;
+ 847          };
+ 848          
+ 849          
+ 850          static void f_call (lua_State *L, void *ud) {
+ 851   1        struct CallS *c = cast(struct CallS *, ud);
+ 852   1        luaD_call(L, c->func, c->nresults);
+ 853   1      }
+ 854          
+ 855          
+ 856          
+ 857          LUA_API int lua_pcall (lua_State *L, int nargs, int nresults, int errfunc) {
+ 858   1        struct CallS c;
+ 859   1        int status;
+ 860   1        ptrdiff_t func;
+ 861   1        lua_lock(L);
+*** WARNING C275 IN LINE 861 OF SRC\LAPI.C: expression with possibly no effect
+ 862   1        api_checknelems(L, nargs+1);
+*** WARNING C275 IN LINE 862 OF SRC\LAPI.C: expression with possibly no effect
+ 863   1        checkresults(L, nargs, nresults);
+*** WARNING C275 IN LINE 863 OF SRC\LAPI.C: expression with possibly no effect
+ 864   1        if (errfunc == 0)
+ 865   1          func = 0;
+ 866   1        else {
+ 867   2          StkId o = index2adr(L, errfunc);
+ 868   2          api_checkvalidindex(L, o);
+*** WARNING C275 IN LINE 868 OF SRC\LAPI.C: expression with possibly no effect
+ 869   2          func = savestack(L, o);
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 18  
+
+ 870   2        }
+ 871   1        c.func = L->top - (nargs+1);  /* function to be called */
+ 872   1        c.nresults = nresults;
+ 873   1        status = luaD_pcall(L, f_call, &c, savestack(L, c.func), func);
+ 874   1        adjustresults(L, nresults);
+ 875   1        lua_unlock(L);
+*** WARNING C275 IN LINE 875 OF SRC\LAPI.C: expression with possibly no effect
+ 876   1        return status;
+ 877   1      }
+ 878          
+ 879          
+ 880          /*
+ 881          ** Execute a protected C call.
+ 882          */
+ 883          struct CCallS {  /* data_ to `f_Ccall' */
+ 884            lua_CFunction func;
+ 885            void *ud;
+ 886          };
+ 887          
+ 888          
+ 889          static void f_Ccall (lua_State *L, void *ud) {
+ 890   1        struct CCallS *c = cast(struct CCallS *, ud);
+ 891   1        Closure *cl;
+ 892   1        cl = luaF_newCclosure(L, 0, getcurrenv(L));
+ 893   1        cl->c.f = c->func;
+ 894   1        setclvalue(L, L->top, cl);  /* push function */
+*** WARNING C275 IN LINE 894 OF SRC\LAPI.C: expression with possibly no effect
+ 895   1        api_incr_top(L);
+*** WARNING C275 IN LINE 895 OF SRC\LAPI.C: expression with possibly no effect
+ 896   1        setpvalue(L->top, c->ud);  /* push only argument */
+ 897   1        api_incr_top(L);
+*** WARNING C275 IN LINE 897 OF SRC\LAPI.C: expression with possibly no effect
+ 898   1        luaD_call(L, L->top - 2, 0);
+ 899   1      }
+ 900          
+ 901          
+ 902          LUA_API int lua_cpcall (lua_State *L, lua_CFunction func, void *ud) {
+ 903   1        struct CCallS c;
+ 904   1        int status;
+ 905   1        lua_lock(L);
+*** WARNING C275 IN LINE 905 OF SRC\LAPI.C: expression with possibly no effect
+ 906   1        c.func = func;
+ 907   1        c.ud = ud;
+ 908   1        status = luaD_pcall(L, f_Ccall, &c, savestack(L, L->top), 0);
+ 909   1        lua_unlock(L);
+*** WARNING C275 IN LINE 909 OF SRC\LAPI.C: expression with possibly no effect
+ 910   1        return status;
+ 911   1      }
+ 912          
+ 913          
+ 914          LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data_,
+ 915                                const char *chunkname) {
+ 916   1        ZIO z;
+ 917   1        int status;
+ 918   1        lua_lock(L);
+*** WARNING C275 IN LINE 918 OF SRC\LAPI.C: expression with possibly no effect
+ 919   1        if (!chunkname) chunkname = "?";
+ 920   1        luaZ_init(L, &z, reader, data_);
+ 921   1        status = luaD_protectedparser(L, &z, chunkname);
+ 922   1        lua_unlock(L);
+*** WARNING C275 IN LINE 922 OF SRC\LAPI.C: expression with possibly no effect
+ 923   1        return status;
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 19  
+
+ 924   1      }
+ 925          
+ 926          
+ 927          LUA_API int lua_dump (lua_State *L, lua_Writer writer, void *data_) {
+ 928   1        int status;
+ 929   1        TValue *o;
+ 930   1        lua_lock(L);
+*** WARNING C275 IN LINE 930 OF SRC\LAPI.C: expression with possibly no effect
+ 931   1        api_checknelems(L, 1);
+*** WARNING C275 IN LINE 931 OF SRC\LAPI.C: expression with possibly no effect
+ 932   1        o = L->top - 1;
+ 933   1        if (isLfunction(o))
+ 934   1          status = luaU_dump(L, clvalue(o)->l.p, writer, data_, 0);
+ 935   1        else
+ 936   1          status = 1;
+ 937   1        lua_unlock(L);
+*** WARNING C275 IN LINE 937 OF SRC\LAPI.C: expression with possibly no effect
+ 938   1        return status;
+ 939   1      }
+ 940          
+ 941          
+ 942          LUA_API int  lua_status (lua_State *L) {
+ 943   1        return L->status;
+ 944   1      }
+ 945          
+ 946          
+ 947          /*
+ 948          ** Garbage-collection function
+ 949          */
+ 950          
+ 951          LUA_API int lua_gc (lua_State *L, int what, int data_) {
+ 952   1        int res = 0;
+ 953   1        global_State *g;
+ 954   1        lua_lock(L);
+*** WARNING C275 IN LINE 954 OF SRC\LAPI.C: expression with possibly no effect
+ 955   1        g = G(L);
+ 956   1        switch (what) {
+ 957   2          case LUA_GCSTOP: {
+ 958   3            set_block_gc(L);
+ 959   3            break;
+ 960   3          }
+ 961   2          case LUA_GCRESTART: {
+ 962   3            unset_block_gc(L);
+ 963   3            break;
+ 964   3          }
+ 965   2          case LUA_GCCOLLECT: {
+ 966   3            luaC_fullgc(L);
+ 967   3            break;
+ 968   3          }
+ 969   2          case LUA_GCCOUNT: {
+ 970   3            /* GC values are expressed in Kbytes: #bytes/2^10 */
+ 971   3            res = cast_int(g->totalbytes >> 10);
+ 972   3            break;
+ 973   3          }
+ 974   2          case LUA_GCCOUNTB: {
+ 975   3            res = cast_int(g->totalbytes & 0x3ff);
+ 976   3            break;
+ 977   3          }
+ 978   2          case LUA_GCSTEP: {
+ 979   3            if(is_block_gc(L)) {
+ 980   4              res = 1; /* gc is block so we need to pretend that the collection cycle finished. */
+ 981   4              break;
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 20  
+
+ 982   4            }
+ 983   3            lu_mem a;
+*** ERROR C141 IN LINE 983 OF SRC\LAPI.C: syntax error near 'lu_mem'
+*** ERROR C202 IN LINE 983 OF SRC\LAPI.C: 'a': undefined identifier
+ 984   3                a = (cast(lu_mem, data_) << 10);
+*** ERROR C202 IN LINE 984 OF SRC\LAPI.C: 'a': undefined identifier
+ 985   3            if (a <= g->totalbytes)
+*** ERROR C202 IN LINE 985 OF SRC\LAPI.C: 'a': undefined identifier
+ 986   3              g->GCthreshold = g->totalbytes - a;
+*** ERROR C202 IN LINE 986 OF SRC\LAPI.C: 'a': undefined identifier
+ 987   3            else
+ 988   3              g->GCthreshold = 0;
+ 989   3            while (g->GCthreshold <= g->totalbytes) {
+ 990   4              luaC_step(L);
+ 991   4              if (g->gcstate == GCSpause) {  /* end of cycle? */
+ 992   5                res = 1;  /* signal it */
+ 993   5                break;
+ 994   5              }
+ 995   4            }
+ 996   3            break;
+ 997   3          }
+ 998   2          case LUA_GCSETPAUSE: {
+ 999   3            res = g->gcpause;
+1000   3            g->gcpause = data_;
+1001   3            break;
+1002   3          }
+1003   2          case LUA_GCSETSTEPMUL: {
+1004   3            res = g->gcstepmul;
+1005   3            g->gcstepmul = data_;
+1006   3            break;
+1007   3          }
+1008   2          case LUA_GCSETMEMLIMIT: {
+1009   3            /* GC values are expressed in Kbytes: #bytes/2^10 */
+1010   3            lu_mem new_memlimit = (cast(lu_mem, data_) << 10);
+1011   3            if(new_memlimit > 0 && new_memlimit < g->totalbytes) {
+1012   4              /* run a full GC to make totalbytes < the new limit. */
+1013   4              luaC_fullgc(L);
+1014   4              if(new_memlimit < g->totalbytes)
+1015   4                new_memlimit = (g->totalbytes + 1024) & ~(1024-1); /* round up to next multiple of 1024 */
+1016   4            }
+1017   3            g->memlimit = new_memlimit;
+1018   3            /* new memlimit might be > then requested memlimit. */
+1019   3            res = cast_int(new_memlimit >> 10);
+1020   3            break;
+1021   3          }
+1022   2          case LUA_GCGETMEMLIMIT: {
+1023   3            res = cast_int(g->memlimit >> 10);
+1024   3            break;
+1025   3          }
+1026   2          default: res = -1;  /* invalid option */
+1027   2        }
+1028   1        lua_unlock(L);
+1029   1        return res;
+1030   1      }
+1031          
+1032          
+1033          
+1034          /*
+1035          ** miscellaneous functions
+1036          */
+1037          
+1038          
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 21  
+
+1039          LUA_API int lua_error (lua_State *L) {
+1040   1        lua_lock(L);
+1041   1        api_checknelems(L, 1);
+1042   1        luaG_errormsg(L);
+1043   1        lua_unlock(L);
+1044   1        return 0;  /* to avoid warnings */
+1045   1      }
+1046          
+1047          
+1048          LUA_API int lua_next (lua_State *L, int idx) {
+1049   1        StkId t;
+1050   1        int more;
+1051   1        lua_lock(L);
+1052   1        t = index2adr(L, idx);
+1053   1        api_check(L, ttistable(t) || ttisrotable(t));
+1054   1        more = ttistable(t) ? luaH_next(L, hvalue(t), L->top - 1) : luaH_next_ro(L, rvalue(t), L->top - 1);
+1055   1        if (more) {
+1056   2          api_incr_top(L);
+1057   2        }
+1058   1        else  /* no more elements */
+1059   1          L->top -= 1;  /* remove key */
+1060   1        lua_unlock(L);
+1061   1        return more;
+1062   1      }
+1063          
+1064          
+1065          LUA_API void lua_concat (lua_State *L, int n) {
+1066   1        lua_lock(L);
+1067   1        api_checknelems(L, n);
+1068   1        if (n >= 2) {
+1069   2          luaC_checkGC(L);
+1070   2          luaV_concat(L, n, cast_int(L->top - L->base) - 1);
+1071   2          L->top -= (n-1);
+1072   2        }
+1073   1        else if (n == 0) {  /* push empty string */
+1074   2          setsvalue2s(L, L->top, luaS_newlstr(L, "", 0));
+1075   2          api_incr_top(L);
+1076   2        }
+1077   1        /* else n == 1; nothing to do */
+1078   1        lua_unlock(L);
+1079   1      }
+1080          
+1081          
+1082          LUA_API lua_Alloc lua_getallocf (lua_State *L, void **ud) {
+1083   1        lua_Alloc f;
+1084   1        lua_lock(L);
+1085   1        if (ud) *ud = G(L)->ud;
+1086   1        f = G(L)->frealloc;
+1087   1        lua_unlock(L);
+1088   1        return f;
+1089   1      }
+1090          
+1091          
+1092          LUA_API void lua_setallocf (lua_State *L, lua_Alloc f, void *ud) {
+1093   1        lua_lock(L);
+1094   1        G(L)->ud = ud;
+1095   1        G(L)->frealloc = f;
+1096   1        lua_unlock(L);
+1097   1      }
+1098          
+1099          
+1100          LUA_API void *lua_newuserdata (lua_State *L, size_t size) {
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 22  
+
+1101   1        Udata *u;
+1102   1        lua_lock(L);
+1103   1        luaC_checkGC(L);
+1104   1        u = luaS_newudata(L, size, getcurrenv(L));
+1105   1        setuvalue(L, L->top, u);
+1106   1        api_incr_top(L);
+1107   1        lua_unlock(L);
+1108   1        return u + 1;
+1109   1      }
+1110          
+1111          
+1112          
+1113          
+1114          static const char *aux_upvalue (StkId fi, int n, TValue **val) {
+1115   1        Closure *f;
+1116   1        if (!ttisfunction(fi)) return NULL;
+1117   1        f = clvalue(fi);
+1118   1        if (f->c.isC) {
+1119   2          if (!(1 <= n && n <= f->c.nupvalues)) return NULL;
+1120   2          *val = &f->c.upvalue[n-1];
+1121   2          return "";
+1122   2        }
+1123   1        else {
+1124   2          Proto *p = f->l.p;
+1125   2          if (!(1 <= n && n <= p->sizeupvalues)) return NULL;
+1126   2          *val = f->l.upvals[n-1]->v;
+*** ERROR C199 IN LINE 1126 OF SRC\LAPI.C: left side of '->' requires struct/union pointer
+1127   2          return getstr(p->upvalues[n-1]);
+*** ERROR C199 IN LINE 1127 OF SRC\LAPI.C: left side of '->' requires struct/union pointer
+1128   2        }
+1129   1      }
+1130          
+1131          
+1132          LUA_API const char *lua_getupvalue (lua_State *L, int funcindex, int n) {
+1133   1        const char *name;
+1134   1        TValue *val;
+1135   1        lua_lock(L);
+1136   1        name = aux_upvalue(index2adr(L, funcindex), n, &val);
+1137   1        if (name) {
+1138   2          setobj2s(L, L->top, val);
+1139   2          api_incr_top(L);
+1140   2        }
+1141   1        lua_unlock(L);
+1142   1        return name;
+1143   1      }
+1144          
+1145          
+1146          LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
+1147   1        const char *name;
+1148   1        TValue *val;
+1149   1        StkId fi;
+1150   1        lua_lock(L);
+1151   1        fi = index2adr(L, funcindex);
+1152   1        api_checknelems(L, 1);
+1153   1        name = aux_upvalue(fi, n, &val);
+1154   1        if (name) {
+1155   2          L->top--;
+1156   2          setobj(L, val, L->top);
+1157   2          luaC_barrier(L, clvalue(fi), L->top);
+1158   2        }
+1159   1        lua_unlock(L);
+1160   1        return name;
+C51 COMPILER V9.00   LAPI                                                                  11/27/2017 19:44:59 PAGE 23  
+
+1161   1      }
+1162          
+
+C51 COMPILATION COMPLETE.  189 WARNING(S),  7 ERROR(S)

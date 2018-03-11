@@ -1,0 +1,40 @@
+C51 COMPILER V9.00   LEGC                                                                  11/27/2017 19:45:01 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LEGC
+OBJECT MODULE PLACED IN .\obj\legc.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\legc.c OMF2 BROWSE DEBUG PRINT(.\legc.lst) OBJECT(.\obj\legc
+                    -.obj)
+
+line level    source
+
+   1          // Lua EGC (Emergeny Garbage Collector) interface
+   2          
+   3          #include "legc.h"
+   4          #include "lstate.h"
+   5          
+   6          void legc_set_mode(lua_State *L, int mode, unsigned limit) {
+   7   1         global_State *g = G(L); 
+   8   1         
+   9   1         g->egcmode = mode;
+  10   1         g->memlimit = limit;
+  11   1      }
+  12          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     28    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

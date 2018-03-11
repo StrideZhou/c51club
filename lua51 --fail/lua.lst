@@ -1,0 +1,433 @@
+C51 COMPILER V9.00   LUA                                                                   11/27/2017 19:45:05 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LUA
+OBJECT MODULE PLACED IN .\obj\lua.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lua.c OMF2 BROWSE DEBUG PRINT(.\lua.lst) OBJECT(.\obj\lua.ob
+                    -j)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lua.c,v 1.160.1.2 2007/12/28 15:32:23 roberto Exp $
+   3          ** Lua stand-alone interpreter
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <signal.h>
+*** WARNING C318 IN LINE 8 OF src\lua.c: can't open file 'signal.h'
+   9          #include <stdio.h>
+  10          #include <stdlib.h>
+  11          #include <string.h>
+  12          
+  13          #define lua_c
+  14          
+  15          #include "lua.h"
+  16          
+  17          #include "lauxlib.h"
+*** ERROR C202 IN LINE 138 OF SRC\LAUXLIB.H: 'BUFSIZ': undefined identifier
+*** ERROR C136 IN LINE 138 OF SRC\LAUXLIB.H: invalid dimension size: [0]
+  18          #include "lualib.h"
+  19          
+  20          
+  21          
+  22          static lua_State *globalL = NULL;
+  23          
+  24          static const char *progname = LUA_PROGNAME;
+  25          
+  26          
+  27          
+  28          static void lstop (lua_State *L, lua_Debug *ar) {
+  29   1        (void)ar;  /* unused arg. */
+  30   1        lua_sethook(L, NULL, 0, 0);
+  31   1        luaL_error(L, "interrupted!");
+  32   1      }
+  33          
+  34          
+  35          static void laction (int i) {
+  36   1        signal(i, SIG_DFL); /* if another SIGINT happens before lstop,
+  37   1                                    terminate process (default action) */
+  38   1        lua_sethook(globalL, lstop, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1);
+  39   1      }
+  40          
+  41          
+  42          static void print_usage (void) {
+  43   1        fprintf(stderr,
+  44   1        "usage: %s [options] [script [args]].\n"
+  45   1        "Available options are:\n"
+  46   1        "  -e stat  execute string " LUA_QL("stat") "\n"
+  47   1        "  -l name  require library " LUA_QL("name") "\n"
+  48   1        "  -m limit set memory limit. (units are in Kbytes)\n"
+  49   1        "  -i       enter interactive mode after executing " LUA_QL("script") "\n"
+  50   1        "  -v       show version information\n"
+  51   1        "  --       stop handling options\n"
+C51 COMPILER V9.00   LUA                                                                   11/27/2017 19:45:05 PAGE 2   
+
+  52   1        "  -        execute stdin and stop handling options\n"
+  53   1        ,
+  54   1        progname);
+  55   1        fflush(stderr);
+  56   1      }
+  57          
+  58          
+  59          static void l_message (const char *pname, const char *msg) {
+  60   1        if (pname) fprintf(stderr, "%s: ", pname);
+  61   1        fprintf(stderr, "%s\n", msg);
+  62   1        fflush(stderr);
+  63   1      }
+  64          
+  65          
+  66          static int report (lua_State *L, int status) {
+  67   1        if (status && !lua_isnil(L, -1)) {
+  68   2          const char *msg = lua_tostring(L, -1);
+  69   2          if (msg == NULL) msg = "(error object is not a string)";
+  70   2          l_message(progname, msg);
+  71   2          lua_pop(L, 1);
+  72   2        }
+  73   1        return status;
+  74   1      }
+  75          
+  76          
+  77          static int traceback (lua_State *L) {
+  78   1        if (!lua_isstring(L, 1))  /* 'message' not a string? */
+  79   1          return 1;  /* keep it intact */
+  80   1        lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+  81   1        if (!lua_istable(L, -1) && !lua_isrotable(L, -1)) {
+  82   2          lua_pop(L, 1);
+  83   2          return 1;
+  84   2        }
+  85   1        lua_getfield(L, -1, "traceback");
+  86   1        if (!lua_isfunction(L, -1) && !lua_islightfunction(L, -1)) {
+  87   2          lua_pop(L, 2);
+  88   2          return 1;
+  89   2        }
+  90   1        lua_pushvalue(L, 1);  /* pass error message */
+  91   1        lua_pushinteger(L, 2);  /* skip this function and traceback */
+  92   1        lua_call(L, 2, 1);  /* call debug.traceback */
+  93   1        return 1;
+  94   1      }
+  95          
+  96          
+  97          static int docall (lua_State *L, int narg, int clear) {
+  98   1        int status;
+  99   1        int base = lua_gettop(L) - narg;  /* function index */
+ 100   1        lua_pushcfunction(L, traceback);  /* push traceback function */
+ 101   1        lua_insert(L, base);  /* put it under chunk and args */
+ 102   1        signal(SIGINT, laction);
+ 103   1        status = lua_pcall(L, narg, (clear ? 0 : LUA_MULTRET), base);
+ 104   1        signal(SIGINT, SIG_DFL);
+ 105   1        lua_remove(L, base);  /* remove traceback function */
+ 106   1        /* force a complete garbage collection in case of errors */
+ 107   1        if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0);
+ 108   1        return status;
+ 109   1      }
+ 110          
+ 111          
+ 112          static void print_version (void) {
+ 113   1        l_message(NULL, LUA_RELEASE "  " LUA_COPYRIGHT);
+C51 COMPILER V9.00   LUA                                                                   11/27/2017 19:45:05 PAGE 3   
+
+ 114   1      }
+ 115          
+ 116          
+ 117          static int getargs (lua_State *L, char **argv, int n) {
+ 118   1        int narg;
+ 119   1        int i;
+ 120   1        int argc = 0;
+ 121   1        while (argv[argc]) argc++;  /* count total number of arguments */
+ 122   1        narg = argc - (n + 1);  /* number of arguments to the script */
+ 123   1        luaL_checkstack(L, narg + 3, "too many arguments to script");
+ 124   1        for (i=n+1; i < argc; i++)
+ 125   1          lua_pushstring(L, argv[i]);
+ 126   1        lua_createtable(L, narg, n + 1);
+ 127   1        for (i=0; i < argc; i++) {
+ 128   2          lua_pushstring(L, argv[i]);
+ 129   2          lua_rawseti(L, -2, i - n);
+ 130   2        }
+ 131   1        return narg;
+ 132   1      }
+ 133          
+ 134          
+ 135          static int dofile (lua_State *L, const char *name) {
+ 136   1        int status = luaL_loadfile(L, name) || docall(L, 0, 1);
+ 137   1        return report(L, status);
+ 138   1      }
+ 139          
+ 140          
+ 141          static int dostring (lua_State *L, const char *s, const char *name) {
+ 142   1        int status = luaL_loadbuffer(L, s, strlen(s), name) || docall(L, 0, 1);
+ 143   1        return report(L, status);
+ 144   1      }
+ 145          
+ 146          
+ 147          static int dolibrary (lua_State *L, const char *name) {
+ 148   1        lua_getglobal(L, "require");
+ 149   1        lua_pushstring(L, name);
+ 150   1        return report(L, docall(L, 1, 1));
+ 151   1      }
+ 152          
+ 153          
+ 154          static const char *get_prompt (lua_State *L, int firstline) {
+ 155   1        const char *p;
+ 156   1        lua_getfield(L, LUA_GLOBALSINDEX, firstline ? "_PROMPT" : "_PROMPT2");
+ 157   1        p = lua_tostring(L, -1);
+ 158   1        if (p == NULL) p = (firstline ? LUA_PROMPT : LUA_PROMPT2);
+ 159   1        lua_pop(L, 1);  /* remove global */
+ 160   1        return p;
+ 161   1      }
+ 162          
+ 163          
+ 164          static int incomplete (lua_State *L, int status) {
+ 165   1        if (status == LUA_ERRSYNTAX) {
+ 166   2          size_t lmsg;
+ 167   2          const char *msg = lua_tolstring(L, -1, &lmsg);
+ 168   2          const char *tp = msg + lmsg - (sizeof(LUA_QL("<eof>")) - 1);
+ 169   2          if (strstr(msg, LUA_QL("<eof>")) == tp) {
+ 170   3            lua_pop(L, 1);
+ 171   3            return 1;
+ 172   3          }
+ 173   2        }
+ 174   1        return 0;  /* else... */
+ 175   1      }
+C51 COMPILER V9.00   LUA                                                                   11/27/2017 19:45:05 PAGE 4   
+
+ 176          
+ 177          
+ 178          static int pushline (lua_State *L, int firstline) {
+ 179   1        char buffer[LUA_MAXINPUT];
+ 180   1        char *b = buffer;
+ 181   1        size_t l;
+ 182   1        const char *prmt = get_prompt(L, firstline);
+ 183   1        if (lua_readline(L, b, prmt) == 0)
+ 184   1          return 0;  /* no input */
+ 185   1        l = strlen(b);
+ 186   1        if (l > 0 && b[l-1] == '\n')  /* line ends with newline? */
+ 187   1          b[l-1] = '\0';  /* remove it */
+ 188   1        if (firstline && b[0] == '=')  /* first line starts with `=' ? */
+ 189   1          lua_pushfstring(L, "return %s", b+1);  /* change it to `return' */
+ 190   1        else
+ 191   1          lua_pushstring(L, b);
+ 192   1        lua_freeline(L, b);
+ 193   1        return 1;
+ 194   1      }
+ 195          
+ 196          
+ 197          static int loadline (lua_State *L) {
+ 198   1        int status;
+ 199   1        lua_settop(L, 0);
+ 200   1        if (!pushline(L, 1))
+ 201   1          return -1;  /* no input */
+ 202   1        for (;;) {  /* repeat until gets a complete line */
+ 203   2          status = luaL_loadbuffer(L, lua_tostring(L, 1), lua_strlen(L, 1), "=stdin");
+ 204   2          if (!incomplete(L, status)) break;  /* cannot try to add lines? */
+ 205   2          if (!pushline(L, 0))  /* no more input? */
+ 206   2            return -1;
+ 207   2          lua_pushliteral(L, "\n");  /* add a new line... */
+ 208   2          lua_insert(L, -2);  /* ...between the two lines */
+ 209   2          lua_concat(L, 3);  /* join them */
+ 210   2        }
+ 211   1        lua_saveline(L, 1);
+ 212   1        lua_remove(L, 1);  /* remove line */
+ 213   1        return status;
+ 214   1      }
+ 215          
+ 216          
+ 217          static void dotty (lua_State *L) {
+ 218   1        int status;
+ 219   1        const char *oldprogname = progname;
+ 220   1        progname = NULL;
+ 221   1        while ((status = loadline(L)) != -1) {
+ 222   2          if (status == 0) status = docall(L, 0, 0);
+ 223   2          report(L, status);
+ 224   2          if (status == 0 && lua_gettop(L) > 0) {  /* any result to print? */
+ 225   3            lua_getglobal(L, "print");
+ 226   3            lua_insert(L, 1);
+ 227   3            if (lua_pcall(L, lua_gettop(L)-1, 0, 0) != 0)
+ 228   3              l_message(progname, lua_pushfstring(L,
+ 229   3                                     "error calling " LUA_QL("print") " (%s)",
+ 230   3                                     lua_tostring(L, -1)));
+ 231   3          }
+ 232   2        }
+ 233   1        lua_settop(L, 0);  /* clear stack */
+ 234   1        fputs("\n", stdout);
+ 235   1        fflush(stdout);
+ 236   1        progname = oldprogname;
+ 237   1      }
+C51 COMPILER V9.00   LUA                                                                   11/27/2017 19:45:05 PAGE 5   
+
+ 238          
+ 239          
+ 240          static int handle_script (lua_State *L, char **argv, int n) {
+ 241   1        int status;
+ 242   1        const char *fname;
+ 243   1        int narg = getargs(L, argv, n);  /* collect arguments */
+ 244   1        lua_setglobal(L, "arg");
+ 245   1        fname = argv[n];
+ 246   1        if (strcmp(fname, "-") == 0 && strcmp(argv[n-1], "--") != 0) 
+ 247   1          fname = NULL;  /* stdin */
+ 248   1        status = luaL_loadfile(L, fname);
+ 249   1        lua_insert(L, -(narg+1));
+ 250   1        if (status == 0)
+ 251   1          status = docall(L, narg, 0);
+ 252   1        else
+ 253   1          lua_pop(L, narg);      
+ 254   1        return report(L, status);
+ 255   1      }
+ 256          
+ 257          
+ 258          /* check that argument has no extra characters at the end */
+ 259          #define notail(x)       {if ((x)[2] != '\0') return -1;}
+ 260          
+ 261          
+ 262          static int collectargs (char **argv, int *pi, int *pv, int *pe) {
+ 263   1        int i;
+ 264   1        for (i = 1; argv[i] != NULL; i++) {
+ 265   2          if (argv[i][0] != '-')  /* not an option? */
+ 266   2              return i;
+ 267   2          switch (argv[i][1]) {  /* option */
+ 268   3            case '-':
+ 269   3              notail(argv[i]);
+ 270   3              return (argv[i+1] != NULL ? i+1 : 0);
+ 271   3            case '\0':
+ 272   3              return i;
+ 273   3            case 'i':
+ 274   3              notail(argv[i]);
+ 275   3              *pi = 1;  /* go through */
+ 276   3            case 'v':
+ 277   3              notail(argv[i]);
+ 278   3              *pv = 1;
+ 279   3              break;
+ 280   3            case 'e':
+ 281   3              *pe = 1;  /* go through */
+ 282   3            case 'm':   /* go through */
+ 283   3            case 'l':
+ 284   3              if (argv[i][2] == '\0') {
+ 285   4                i++;
+ 286   4                if (argv[i] == NULL) return -1;
+ 287   4              }
+ 288   3              break;
+ 289   3            default: return -1;  /* invalid option */
+ 290   3          }
+ 291   2        }
+ 292   1        return 0;
+ 293   1      }
+ 294          
+ 295          
+ 296          static int runargs (lua_State *L, char **argv, int n) {
+ 297   1        int i;
+ 298   1        for (i = 1; i < n; i++) {
+ 299   2          if (argv[i] == NULL) continue;
+C51 COMPILER V9.00   LUA                                                                   11/27/2017 19:45:05 PAGE 6   
+
+ 300   2          lua_assert(argv[i][0] == '-');
+ 301   2          switch (argv[i][1]) {  /* option */
+ 302   3            case 'e': {
+ 303   4              const char *chunk = argv[i] + 2;
+ 304   4              if (*chunk == '\0') chunk = argv[++i];
+ 305   4              lua_assert(chunk != NULL);
+ 306   4              if (dostring(L, chunk, "=(command line)") != 0)
+ 307   4                return 1;
+ 308   4              break;
+ 309   4            }
+ 310   3            case 'm': {
+ 311   4              const char *limit = argv[i] + 2;
+ 312   4              int memlimit=0;
+ 313   4              if (*limit == '\0') limit = argv[++i];
+ 314   4              lua_assert(limit != NULL);
+ 315   4              memlimit = atoi(limit);
+ 316   4              lua_gc(L, LUA_GCSETMEMLIMIT, memlimit);
+ 317   4              break;
+ 318   4            }
+ 319   3            case 'l': {
+ 320   4              const char *filename = argv[i] + 2;
+ 321   4              if (*filename == '\0') filename = argv[++i];
+ 322   4              lua_assert(filename != NULL);
+ 323   4              if (dolibrary(L, filename))
+ 324   4                return 1;  /* stop if file fails */
+ 325   4              break;
+ 326   4            }
+ 327   3            default: break;
+ 328   3          }
+ 329   2        }
+ 330   1        return 0;
+ 331   1      }
+ 332          
+ 333          
+ 334          static int handle_luainit (lua_State *L) {
+ 335   1        const char *init = getenv(LUA_INIT);
+ 336   1        if (init == NULL) return 0;  /* status OK */
+ 337   1        else if (init[0] == '@')
+ 338   1          return dofile(L, init+1);
+ 339   1        else
+ 340   1          return dostring(L, init, "=" LUA_INIT);
+ 341   1      }
+ 342          
+ 343          
+ 344          struct Smain {
+ 345            int argc;
+ 346            char **argv;
+ 347            int status;
+ 348          };
+ 349          
+ 350          
+ 351          static int pmain (lua_State *L) {
+ 352   1        struct Smain *s = (struct Smain *)lua_touserdata(L, 1);
+ 353   1        char **argv = s->argv;
+ 354   1        int script;
+ 355   1        int has_i = 0, has_v = 0, has_e = 0;
+ 356   1        globalL = L;
+ 357   1        if (argv[0] && argv[0][0]) progname = argv[0];
+ 358   1        lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
+ 359   1        luaL_openlibs(L);  /* open libraries */
+ 360   1        lua_gc(L, LUA_GCRESTART, 0);
+ 361   1        s->status = handle_luainit(L);
+C51 COMPILER V9.00   LUA                                                                   11/27/2017 19:45:05 PAGE 7   
+
+ 362   1        if (s->status != 0) return 0;
+ 363   1        script = collectargs(argv, &has_i, &has_v, &has_e);
+ 364   1        if (script < 0) {  /* invalid args? */
+ 365   2          print_usage();
+ 366   2          s->status = 1;
+ 367   2          return 0;
+ 368   2        }
+ 369   1        if (has_v) print_version();
+ 370   1        s->status = runargs(L, argv, (script > 0) ? script : s->argc);
+ 371   1        if (s->status != 0) return 0;
+ 372   1        if (script)
+ 373   1          s->status = handle_script(L, argv, script);
+ 374   1        if (s->status != 0) return 0;
+ 375   1        if (has_i)
+ 376   1          dotty(L);
+ 377   1        else if (script == 0 && !has_e && !has_v) {
+ 378   2          if (lua_stdin_is_tty()) {
+ 379   3            print_version();
+ 380   3            dotty(L);
+ 381   3          }
+ 382   2          else dofile(L, NULL);  /* executes stdin as a file */
+ 383   2        }
+ 384   1        return 0;
+ 385   1      }
+ 386          
+ 387          #ifdef LUA_RPC
+              int main (int argc, char **argv) {
+              #else
+ 390          int lua_main (int argc, char **argv) {
+ 391   1      #endif
+ 392   1        int status;
+ 393   1        struct Smain s;
+ 394   1        lua_State *L = lua_open();  /* create state */
+ 395   1        if (L == NULL) {
+ 396   2          l_message(argv[0], "cannot create state: not enough memory");
+ 397   2          return EXIT_FAILURE;
+ 398   2        }
+ 399   1        s.argc = argc;
+ 400   1        s.argv = argv;
+ 401   1        status = lua_cpcall(L, &pmain, &s);
+ 402   1        report(L, status);
+ 403   1        lua_close(L);
+ 404   1        return (status || s.status) ? EXIT_FAILURE : EXIT_SUCCESS;
+ 405   1      }
+ 406          
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  2 ERROR(S)

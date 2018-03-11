@@ -1,0 +1,795 @@
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.01
+OBJECT MODULE PLACED IN RTXCONF.OBJ
+ASSEMBLER INVOKED BY: C:\my program\Keil\C51\BIN\A51.EXE RTXCONF.A51 SET(LARGE) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     $title  ('RTX-51 CONFIGURATION')
+                       2     $symbols 
+                       3     $noxref 
+                       4     $nocond 
+                       5     $nomod51 
+                       6     $norb 
+                       7     $pagelength (80) PAGEWIDTH(110)
+                       8     ;************************************************************************
+                       9     ;*                                                                      *
+                      10     ;*    R T X - 5 1  :  Configuration data for RTX-51 V 5.x               *
+                      11     ;*                                                                      *
+                      12     ;*----------------------------------------------------------------------*
+                      13     ;*                                                                      *
+                      14     ;*    Filename     :   RTXCONF.A51                                      *
+                      15     ;*    Language     :   Keil A-51                                        *
+                      16     ;*    Dev. system  :   IBM PC                                           *
+                      17     ;*    Targetsystem :   Any system based upon 8051 up                    *
+                      18     ;*                                                                      *
+                      19     ;*    Date:             9-MAY-1996                                      *
+                      20     ;*                                                                      *
+                      21     ;*    Purpose      :   - Defines the processor specific data            *
+                      22     ;*                       definitions for all supported processors.      *
+                      23     ;*                       New processor types may be easily added.       *
+                      24     ;*                     - Defines all user configurable system values.   *
+                      25     ;*                                                                      *
+                      26     ;*----------------------------------------------------------------------*
+                      27     ;* Rev. | Released    | Programmer  | Comments                          *
+                      28     ;*----------------------------------------------------------------------*
+                      29     ;* 0.1  |  4-APR-1991 | ThF         | First Version                     *
+                      30     ;* 5.00 |  3-NOV-1994 | EG          | Release V 5.00                    *
+                      31     ;* 5.01 |  7-SEP-1995 |             | Avoid L51 msg "empty segments",   *
+                      32     ;*      |             |             | few INT_EN_MASK_NUMBER's corrected*
+                      33     ;* 5.10 |  9-MAY-1996 |             | T2 support for CPU=2,5,13,14,16,17*
+                      34     ;*      |             |             | Add ?RTX_IDLE_FUNC                *
+                      35     ;* 5.10 | 26-MAY-1997 |             | Type 21(C515C) implemented        *
+                      36     ;************************************************************************
+                      37     ;*    (c) METTLER  &  FUCHS  AG,  LOEWENSTRASSE 21,  CH-8953 Dietikon   *
+                      38     ;*    Tel. (+41) (1) 740 41 00  /  Fax  (+41) (1) 740 15 67             *
+                      39     ;************************************************************************
+                      40     
+                      41     ;*----------------------------------------------------------------------*
+                      42     ;*
+                      43     ;*  USER CONFIGURABLE SYSTEM VALUES
+                      44     ;*
+                      45     ;*  All configurable values are contained in include file RTXSETUP.DCL
+                      46     ;*  (for details see the program documentation).
+                      47     ;*----------------------------------------------------------------------*
+                      48     
+                      49     ;$include (RTXSETUP.DCL)
+                +1    50     ;************************************************************************
+                +1    51     ;*                                                                      *
+                +1    52     ;*      R T X - 5 1     S E T U P                                       *
+                +1    53     ;*                                                                      *
+                +1    54     ;*----------------------------------------------------------------------*
+                +1    55     ;*                                                                      *
+                +1    56     ;*      Filename:       RTXSETUP.DCL                                    *
+                +1    57     ;*      Date:            9-MAY-1996                                     *
+                +1    58     ;*      Language:       Keil C (C51)                                    *
+                +1    59     ;*      Dev.system:     IBM PC (MS-WIN 95)                              *
+                +1    60     ;*      Targetsystem:   Any system based upon 8051 up                   *
+                +1    61     ;*                                                                      *
+                +1    62     ;*      Purpose:        Gives the user the possibility to configure RTX *
+                +1    63     ;*                      to meet his application specific requirements.  *
+                +1    64     ;*                                                                      *
+                +1    65     ;*                                  *** NOTE ***                        *
+                +1    66     ;*                                                                      *
+                +1    67     ;*                      - Read user manual carefully before changing    *
+                +1    68     ;*                        this file.                                    *
+                +1    69     ;*                      - This module may be used without any changes   *
+                +1    70     ;*                        for most applications !                       *
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     2
+
+                +1    71     ;*                      - This is an include file for RTXCONF.A51       *
+                +1    72     ;*                      - If any changes are done then RTXCONF.A51 has  *
+                +1    73     ;*                        to be rebuilt:                                *
+                +1    74     ;*                                              A51 RTXCONF.A51         *
+                +1    75     ;*                                                                      *
+                +1    76     ;*----------------------------------------------------------------------*
+                +1    77     ;* Rev. | Released | Programmer  | Comments                             *
+                +1    78     ;*----------------------------------------------------------------------*
+                +1    79     ;* 5.10 | 09.05.96 | EG          | Release V 5.10                       *
+                +1    80     ;************************************************************************
+                +1    81     ;*  (c)  METTLER  &  FUCHS  AG,  CH-8953 Dietikon,  Tel. 01-740 41 00   *
+                +1    82     ;************************************************************************
+                +1    83     
+                +1    84     ;*----------------------------------------------------------------------*
+                +1    85     ;*                                                                      *
+                +1    86     ;*                         O V E R V I E W                              *
+                +1    87     ;*                                                                      *
+                +1    88     ;*      Configuration Options:                                          *
+                +1    89     ;*                                                                      *
+                +1    90     ;*              1. CPU TYPE                                             *
+                +1    91     ;*              2. SYSTEM CLOCK                                         *
+                +1    92     ;*              3. INITIAL INTERRUPT-ENABLE REGISTER VALUES             *
+                +1    93     ;*              4. FAST TASK STACK- AND ENVIRONMENT SIZE                *
+                +1    94     ;*              5. STANDARD TASK CONTEXT STACK SIZE                     *
+                +1    95     ;*              6. REENTRANT STACK SIZE                                 *
+                +1    96     ;*              7. ROUND ROBIN FLAG                                     *
+                +1    97     ;*              8. BANK SWITCHING FLAG                                  *
+                +1    98     ;*              9. INTERRUPT TABLE BASE ADDRESS                         *
+                +1    99     ;*             10. MAILBOX-SUPPORT FLAG                                 *
+                +1   100     ;*             11. SEMAPHORE-SUPPORT FLAG                               *
+                +1   101     ;*             12: IDLE MODE                                            *
+                +1   102     ;*                                                                      *
+                +1   103     ;*      The configuration may be done directly by editing the include   *
+                +1   104     ;*      file RTXSETUP.DCL or (more easily) by using the interactive     *
+                +1   105     ;*      configuration program.                                          *
+                +1   106     ;*                                                                      *
+                +1   107     ;*----------------------------------------------------------------------*
+                +1   108     
+                +1   109     
+                +1   110     ;  1. CPU TYPE
+                +1   111     ;  ===========
+                +1   112     ;
+                +1   113     ;    CPU_TYPE stands for the desired microprocessor type and can be 
+                +1   114     ;    selected from the following table:
+                +1   115     ;
+                +1   116     ;  ====================================================================
+                +1   117     ;  | Manufacturer / Model                                   | 'xx'    |
+                +1   118     ;  ====================================================================
+                +1   119     ;  | Intel/Siemens/Philips/AMD/MHS/OKI                      |   1     |
+                +1   120     ;  |      8051, 8031, 8751, 80C51, 80C31, 87C51             |         |
+                +1   121     ;  --------------------------------------------------------------------
+                +1   122     ;  | Intel/Siemens/AMD 80C52, 80C32                         |   2     |
+                +1   123     ;  --------------------------------------------------------------------
+                +1   124     ;  | STC     15series                                       |  150    |
+                +1   125     ;  ====================================================================
+                +1   126     ;
+  0096          +1   127     ?RTX_CPU_TYPE   EQU             150
+                +1   128     
+                +1   129     
+                +1   130     
+                +1   131     ;  2. SYSTEM CLOCK
+                +1   132     ;  ===============
+                +1   133     ;
+                +1   134     ;  (Baiscally Timer 0, Timer 1 and Timer 2 are supported)
+                +1   135     ;  Set ?RTX_SYSTEM_TIMER to 0 for Timer 0
+                +1   136     ;  Set ?RTX_SYSTEM_TIMER to 1 for Timer 1
+                +1   137     ;  Set ?RTX_SYSTEM_TIMER to 2 for Timer 2 
+                +1   138     ;  NOTE: Timer 2 is not supported for all CPU types(include STC15).  If it 
+                +1   139     ;  is specified for a not supported CPU type, then an error message will be
+                +1   140     ;        generated when assembling RTXCONF.A51.
+                +1   141     ;  (Default-value: Timer 0)
+                +1   142     ;
+  0000          +1   143     ?RTX_SYSTEM_TIMER    EQU 0
+                +1   144     
+                +1   145     
+                +1   146     
+                +1   147     ;  3. INITIAL INTERRUPT-ENABLE REGISTER VALUES
+                +1   148     ;  ===========================================
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     3
+
+                +1   149     ;
+                +1   150     ;  Some 8051 family members have specific bits in their Interrupt-Enable
+                +1   151     ;  Registers, which have other functions than interrupt enable/disable.
+                +1   152     ;  Here you can set the initial values of these special bits.
+                +1   153     ;  (Normally RTX-51 will set all not used bits in the interrupt enable mask
+                +1   154     ;  to 0).
+                +1   155     ;  You MUST NOT set bits dedicated to interrupt enable/disable !
+                +1   156     ;  NOTE: ?RTX_IEN1_INIT is only used for processors with at least 2 interrupt 
+                +1   157     ;        masks.
+                +1   158     ;        ?RTX_IEN2_INIT is only used for processors with 3 interrupt masks.
+                +1   159     ;
+  0000          +1   160     ?RTX_IE_INIT      EQU   0
+  0000          +1   161     ?RTX_IEN1_INIT    EQU   0
+  0000          +1   162     ?RTX_IEN2_INIT    EQU   0
+                +1   163     
+                +1   164     
+                +1   165     ;  4. FAST TASK STACK- AND ENVIRONMENT SIZE
+                +1   166     ;  ========================================
+                +1   167     ;
+                +1   168     ;  This constant defines the stack- and environment size reserved per
+                +1   169     ;  defined fast task.  These areas are located in IDATA space.
+                +1   170     ;
+                +1   171     ;  Minimum values (per task):
+                +1   172     ;  - 3 Bytes for internal use
+                +1   173     ;  - 2 Bytes for the task code start address
+                +1   174     ;  Do not set to less than 9 bytes
+                +1   175     ;  Add 3 Bytes when code bank switching is used (?RTX_BANKSWITCHING = 1) !
+                +1   176     ;  (Default value: 12 Bytes)
+                +1   177     ;
+  0018          +1   178     ?RTX_INTSTKSIZE      EQU   24
+                +1   179     
+                +1   180     
+                +1   181     ;  5. STANDARD TASK CONTEXT STACK SIZE
+                +1   182     ;  ===================================
+                +1   183     ; 
+                +1   184     ;  This constant defines the maximum size of stack data stored in the 
+                +1   185     ;  context area of a standard task.  For each defined standard task such an
+                +1   186     ;  area is reserved in XDATA space.
+                +1   187     ;  
+                +1   188     ;  (Default value: 32 Bytes)
+                +1   189     ;
+  0020          +1   190     ?RTX_EXTSTKSIZE      EQU   32
+                +1   191     
+                +1   192     
+                +1   193     ;  6. REENTRANT STACK SIZE
+                +1   194     ;  =======================
+                +1   195     ;
+                +1   196     ;  This constnat defines the maximum size of the reentrant stack.  For each
+                +1   197     ;  defined task such an area is reserved in XDATA space.
+                +1   198     ;
+                +1   199     ;  The greatest possible reentrant-stack size is 256-18-?RTX_EXTSTKSIZE !!
+                +1   200     ;  (Default value: 50 Bytes)
+                +1   201     ;
+  0032          +1   202     ?RTX_EXTRENTSIZE     EQU   50
+                +1   203     
+                +1   204     
+                +1   205     ;  7. ROUND ROBIN FLAG
+                +1   206     ;  ===================
+                +1   207     ;
+                +1   208     ;  0 --> Do not use round robin scheduling
+                +1   209     ;  1 --> Use round robin scheduling
+                +1   210     ;  (Default value: 0)
+                +1   211     ;
+  0001          +1   212     ?RTX_TIMESHARING     EQU   1
+                +1   213     
+                +1   214     
+                +1   215     ;  8. BANK SWITCHING FLAG
+                +1   216     ;  ======================
+                +1   217     ;
+                +1   218     ;  For code bank switching details see BL51 documentation and READ.ME file
+                +1   219     ;  0 --> code bank switching is disabled
+                +1   220     ;  1 --> code bank switching is enabled
+                +1   221     ;  (Default value: 0)
+                +1   222     ;
+                +1   223     ;  !!! IMPORTANT NOTICE !!!
+                +1   224     ;  Set ?B_RTX contained in L51_BANK.A51 (V1.4b up) to one, when using
+                +1   225     ;  code bank switching together with RTX-51
+                +1   226     ;
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     4
+
+  0000          +1   227     ?RTX_BANKSWITCHING   EQU   0
+                +1   228     
+                +1   229     
+                +1   230     ;  9. INTERRUPT TABLE BASE ADDRESS
+                +1   231     ;  ===============================
+                +1   232     ;
+                +1   233     ;  Normally the interrupt table is located at address 0000H.  For special
+                +1   234     ;  hardware configurations, like flash eprom systems, there may be a need
+                +1   235     ;  to reroute interrupts to a table at a different address.  If an address
+                +1   236     ;  different than 0000H is used, then the user has to supply code to re-
+                +1   237     ;  route each used interrupt vector to an address with the offset declared
+                +1   238     ;  below.
+                +1   239     ;  For standard systems this address has to be 0000H.
+                +1   240     ;
+  0000          +1   241     ?RTX_INTBASE    EQU     0
+                +1   242     
+                +1   243     
+                +1   244     ;  10. MAILBOX-SUPPORT FLAG
+                +1   245     ;  ========================
+                +1   246     ;
+                +1   247     ;  This flag determines if memory is allocated for the mailbox FIFOs or not.
+                +1   248     ;  If set to 0, then no wait for a mailbox is possible.  Associated calls
+                +1   249     ;  will return a NOT_OK in this case.
+                +1   250     ;  Set ?RTX_MAILBOX_SUPPORT to 0 if mailbox services are not desired.
+                +1   251     ;  Set ?RTX_MAILBOX_SUPPORT to 1 if mailbox services are desired.
+                +1   252     ;  (Default is 1)
+                +1   253     ;
+  0001          +1   254     ?RTX_MAILBOX_SUPPORT    EQU     1
+                +1   255     
+                +1   256     
+                +1   257     ;  11. SEMAPHORE-SUPPORT FLAG
+                +1   258     ;  ==========================
+                +1   259     ;
+                +1   260     ;  This flag determines if memory is allocated for the semaphore FIFOs or not.
+                +1   261     ;  If set to 0, then no wait for a semaphore is possible.  Associated calls
+                +1   262     ;  will return a NOT_OK in this case.
+                +1   263     ;  Set ?RTX_SEMAPHORE_SUPPORT to 0 if semaphore services are not desired.
+                +1   264     ;  Set ?RTX_SEMAPHORE_SUPPORT to 1 if semaphore services are desired.
+                +1   265     ;  (Default is 1)
+                +1   266     ;  NOTE: if an increased XDATA usage compared with RTX-51 V 4.x has to be
+                +1   267     ;         avoided, then this flag should be set to 0 !
+                +1   268     ;
+  0001          +1   269     ?RTX_SEMAPHORE_SUPPORT    EQU     1
+                +1   270     
+                +1   271     
+                +1   272     ;  12. IDLE MODE
+                +1   273     ;  =============
+                +1   274     ;
+                +1   275     ;  If this option is enabled, then each time the RTX idle loop is 
+                +1   276     ;  entered the cpu is switched to idle mode. This feature is supported 
+                +1   277     ;  for selected cpu's only.  enabling it for other cpu's will have no effect.    
+                                                    
+                +1   278     ;
+                +1   279     ;  USE_IDLE        = 0: do not use the idle mode        
+                +1   280     ;                  = 1: set cpu to idle mode during system idle time
+                +1   281     
+  0001          +1   282     ?RTX_USE_IDLE             EQU     1
+                +1   283     
+                +1   284     
+                +1   285     ;*----------------------------------------------------------------------*
+                +1   286     ;*              END of INCLUDE FILE RTXSETUP.DCL                        *
+                +1   287     
+                     288     
+                     289     
+                     290     ;========================================================================
+                     291     ;  END OF USER-CONFIGURABLE SECTION
+                     292     ;========================================================================
+                     293     
+                     294     
+                     295     $eject 
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     5
+
+                     296     ;************************************************************************
+                     297     ;*                                                                      *
+                     298     ;*  THE FOLLOWING SECTIONS MUST NORMALLY NOT BE ALTERED BY THE USER     *
+                     299     ;*  ---------------------------------------------------------------     *
+                     300     ;*                                                                      *
+                     301     ;************************************************************************
+                     302     
+                     303     NAME  ?RTX?CONFIGURATION      ; Do NOT alter the modulename !
+                     304     
+                     305     ;*----------------------------------------------------------------------*
+                     306     ;*  IMPORTS
+                     307     ;*----------------------------------------------------------------------*
+                     308     
+                     309     EXTRN BIT    (?RTX_ENA_INT_REG1, ?RTX_ENA_INT_REG2)     ; from RTXDATA
+                     310     EXTRN CODE   (?RTX_SYSCLK_INTHNDLR)                     ; from RTXCLK
+                     311     EXTRN CODE   (?RTX_INT_HANDLER)                         ; from RTXINT
+                     312     EXTRN DATA   (?RTX_TMP1)                                ; from RTXDATA
+                     313     
+                             ENDIF
+                     319     
+                     320     ;*----------------------------------------------------------------------*
+                     321     ;*  EXPORTS
+                     322     ;*----------------------------------------------------------------------*
+                     323     
+                     324     ; System constants
+                     325     PUBLIC   ?RTX_EXTRENTSIZE, ?RTX_EXTSTKSIZE, ?RTX_INTSTKSIZE
+                     326     PUBLIC   ?RTX_TIMESHARING, ?RTX_BANKSWITCHING, ?RTX_INTREGSIZE
+                     327     PUBLIC   ?RTX_MAILBOX_SUPPORT, ?RTX_SEMAPHORE_SUPPORT
+                     328     
+                     329     ; Initial Interrupt mask values
+                     330     PUBLIC   ?RTX_IE_INIT, ?RTX_IEN1_INIT, ?RTX_IEN2_INIT
+                     331     
+                     332     ; Enable the interrupt enable registers for the selected processor
+                     333     PUBLIC   ?RTX_INIT_INT_REG_FLAGS
+                     334     
+                     335     ; Interrupt number to enable-mask table
+                     336     PUBLIC   ?RTX_INT_TO_BIT_TABLE_BASE
+                     337     
+                     338     ; Greatest interrupt number
+                     339     PUBLIC   ?RTX_MAX_INT_NBR
+                     340     
+                     341     ; Processor specific interrupt enable masks
+                     342     PUBLIC   ?RTX_IE, ?RTX_IEN1, ?RTX_IEN2
+                     343     
+                     344     ; Interrupt mask variables
+                     345     PUBLIC   ?RTX_NM_IE, ?RTX_D_IE, ?RTX_ND_IE
+                     346     PUBLIC   ?RTX_NM_IE1, ?RTX_D_IE1, ?RTX_ND_IE1
+                     347     PUBLIC   ?RTX_NM_IE2, ?RTX_D_IE2, ?RTX_ND_IE2
+                     348     
+                     349     ; System Timer constants
+                     350     PUBLIC   ?RTX_CLK_INT_NBR                       ; EQUATE
+                     351     PUBLIC   ?RTX_TLOW, ?RTX_THIGH, ?RTX_TMOD       ; DATA
+                     352     PUBLIC   ?RTX_TCON                              ; DATA
+                     353     PUBLIC   ?RTX_TFLAG, ?RTX_TCONTROL              ; BIT
+                     354     PUBLIC   ?RTX_TMOD_AND_MASK, ?RTX_TMOD_OR_MASK  ; EQUATES
+                     355     PUBLIC   ?RTX_TCON_AND_MASK, ?RTX_TCON_OR_MASK  ; EQUATES
+                     356     
+                     357     ; Bank-Switching Support
+                     358     PUBLIC   ?RTX_SWITCHBANK                        ; CODE
+                     359     PUBLIC   ?RTX_SAVE_INT_BANK                     ; DATA
+                     360     IF (?RTX_BANKSWITCHING = 0)
+                     361        PUBLIC   ?B_CURRENTBANK                      ; Dummy DATA-Definition
+                     362     ENDIF
+                     363     
+                     364     ; Idle function
+                     365     PUBLIC  ?RTX_IDLE_FUNC
+                     366     
+                     367     ; Mailbox and semaphore FIFO space
+                     368     PUBLIC  ?RTX_MBX_PAGE
+                     369     PUBLIC  ?RTX_MBX_PAGE_END
+                     370     PUBLIC  ?RTX_SEM_PAGE
+                     371     PUBLIC  ?RTX_SEM_PAGE_END
+                     372     
+                     373     
+                     374     ;*----------------------------------------------------------------------*
+                     375     ;*  MACROS
+                     376     ;*----------------------------------------------------------------------*
+                     377     
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     6
+
+                     378     ; This MACRO generates an RTX-51 interrupt entry point using the base 
+                     379     ; address ?RTX_INTBASE.
+                     380     
+                     381     INT_ENTRY       MACRO   NO
+                     382     EXTRN XDATA (?RTX_INT&NO&_TID)
+                     383     PUBLIC          INT&NO&_VECTOR
+                     384                     CSEG AT(?RTX_INTBASE+3+(&NO&*8))
+                     385     INT&NO&_VECTOR: MOV     ?RTX_TMP1, A             ; Save A
+                     386                     MOV     A, #LOW(?RTX_INT&NO&_TID); Set up ptr to int. TID
+                     387                     LJMP    ?RTX_INT_HANDLER         ; Jump to general ISR
+                     388                     ENDM
+                     389     
+                     390     
+                     391     ;*----------------------------------------------------------------------*
+                     392     ;*  PROCESSOR SPECIFIC DATA DEFINITIONS
+                     393     ;*----------------------------------------------------------------------*
+                     394     
+                             ELSEIF (?RTX_CPU_TYPE = 150)
+                     548        ;***********
+                     549        ;* Type 150*  //'15' represent the 15 series £¬'0' is for distinguish 
+                     550        ;***********
+                     551           ;------------------------------------------------------------------
+                     552           ; Define the number and addresses of the interrupt enable registers
+                     553           ; stc15 -> 3 interrupt enable register
+                     554           ; (Set the not used registers to the same address as ?RTX_IE)
+                     555     
+  0003               556           INT_EN_MASK_NUMBER   EQU 3
+  00A8               557           ?RTX_IE              DATA  0A8H  ;IE  
+  008F               558           ?RTX_IEN1            DATA  08FH  ;INT_CLKO
+  00AF               559           ?RTX_IEN2            DATA  0AFH  ;IE2 
+                     560     
+                     561           ;------------------------------------------------------------------
+                     562           ; Generate the interrupt entry points supported by the peripherals
+                     563           ; of the selected CPU type.
+                     564           IF (?RTX_SYSTEM_TIMER = 0)
+                     565              ; Do NOT include the Timer 0 Vector  (INT-1)
+                     566              INT_ENTRY      0
+                     573                      ; Do NOT include the Timer 0 Vector  (INT-1)
+                     574              INT_ENTRY      2
+                     581              INT_ENTRY      3
+                     588              INT_ENTRY      4
+                     595                      INT_ENTRY      5
+                     602            
+                     603      
+                     604              INT_ENTRY      8
+                     611              INT_ENTRY      9
+                     618              INT_ENTRY      10
+                     625              INT_ENTRY      11
+                     632              INT_ENTRY      12
+                     639     
+                     640              INT_ENTRY      16
+                     647                      INT_ENTRY      17
+                     654                      INT_ENTRY      18
+                     661                      INT_ENTRY      19
+                     668                      INT_ENTRY      20
+                     675     
+                                   ENDIF
+                     698     
+                     699           ;------------------------------------------------------------------
+                     700           ; The following table attaches the interrupt numbers (0..31) to the
+                     701           ; corresponding bits in the interrupt enable masks of the specific
+                     702           ; processor.
+                     703           ; All three interrupt enable register contents must be defined
+                     704           ; for every interrupt number (even when the specific processor contains
+                     705           ; only one interrupt mask).
+                     706           ; Syntax: DB IE-content, IE1-content, IE2-content
+                     707           ;
+                     708           ?RTX?RTX_INT_TO_BIT_TABLE?RTXCONF  SEGMENT  CODE
+----                 709                             RSEG  ?RTX?RTX_INT_TO_BIT_TABLE?RTXCONF
+                     710     
+0000                 711              ?RTX_INT_TO_BIT_TABLE_BASE:
+0000 010000          712                     DB 01H, 00H, 00H    ; INT_0   (P3.2/INT0)
+0003 020000          713                     DB 02H, 00H, 00H    ; INT_1   (Timer 0)
+0006 040000          714                     DB 04H, 00H, 00H    ; INT_2   (P3.3/INT1)
+0009 080000          715                     DB 08H, 00H, 00H    ; INT_3   (Timer 1)
+000C 100000          716                     DB 10H, 00H, 00H    ; INT_4   (Ser. channel 1)
+000F 200000          717                     DB 20H, 00H, 00H    ; INT_5   (A/D-Converter)
+0012 000000          718                                                                                      
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     7
+
+                                                    DB 00H, 00H, 00H    ; INT_6   not used(LVD)
+0015 000000          719                                                                                      
+                                                    DB 00H, 00H, 00H    ; INT_7   (CCP/PCA)           can¡®t support
+                     720     
+0018 000001          721                     DB 00H, 00H, 01H    ; INT_8   (Ser. channel 2)
+001B 000002          722                     DB 00H, 00H, 02H    ; INT_9   (SPI)
+001E 000100          723                     DB 00H, 01H, 00H    ; INT_10  (P3.6/__INT2)
+0021 000200          724                     DB 00H, 02H, 00H    ; INT_11  (P3.7/__INT3)
+0024 000004          725                     DB 00H, 00H, 04H    ; INT_12  (Timer 2)
+0027 000000          726                                                                                      
+                                                                            DB 00H, 00H, 00H    ; INT_13                  reserve
+002A 000000          727                                                                                      
+                                                    DB 00H, 00H, 00H    ; INT_14                  reserve
+002D 000000          728                                                                                      
+                                                    DB 00H, 00H, 00H    ; INT_15                  reserve
+                     729     
+0030 000400          730                     DB 00H, 04H, 00H    ; INT_16  (P3.0/__INT4)
+0033 000008          731                     DB 00H, 00H, 08H    ; INT_17  (Ser. channel 3)
+0036 000010          732                     DB 00H, 00H, 10H    ; INT_18  (Ser. channel 4)
+0039 000020          733                     DB 00H, 00H, 20H    ; INT_19  (Timer 3)
+003C 000040          734                     DB 00H, 00H, 40H    ; INT_20  (Timer 4)
+003F 000000          735                                                                                      
+                                                                            DB 00H, 00H, 00H    ; INT_21  (Com
+                             parator)        can¡®t support
+0042 000000          736                                                                                      
+                                                                            DB 00H, 00H, 00H    ; INT_22  (PWM
+                             )                       can¡®t support
+0045 000000          737                                                                                      
+                                                                            DB 00H, 00H, 00H    ; INT_23  (PWM FD)        can¡®t support
+0048 000000          738                                                                                      
+                                                                            DB 00H, 00H, 00H    ; dummy
+                     739     
+                     740           ;------------------------------------------------------------------
+                     741           ; Define the greatest supported interrupt number
+  0018               742           ?RTX_MAX_INT_NBR      EQU   24
+                     743     
+  0087               744     PCON    DATA    87H
+                     745     
+                     746     ENTER_IDLE       MACRO
+                     747     ;;
+                     748     ;;      Enter Idle Mode
+                     749     ;;      ---------------
+                     750     ;;      Not supported by all 8051 type processors (see manufacturer's
+                     751     ;;      data sheet !)
+                     752     ;;      To be used whenever entering idle state.
+                     753     ;;
+                     754                 ORL     PCON, #01H          ; Set idle mode (leave by interrupt)
+                     755                 NOP                          ; (peripherals stay active)
+                     756                             NOP
+                     757                             NOP
+                     758                             NOP
+                     759              ENDM
+                     760     ;;;;;;;;;;;;;;;;;;;ADDED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                     761     
+                     762     
+                     763     
+                     764     
+                     765     
+                     766     
+                     767     
+                             $endif 
+                     773     
+                     774     
+                     775     
+                     776     $eject 
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     8
+
+                     777     ;*----------------------------------------------------------------------*
+                     778     ;*  DEFINITIONS COMMON FOR ALL PROCESSORS
+                     779     ;*----------------------------------------------------------------------*
+                     780     
+                     781           ;------------------------------------------------------------------
+                     782           ; Define the internal interrupt mask variables. The variables are
+                     783           ; used for the Interrupt-Handling.
+                     784           ; Initialise the enable bits for the Interrupt-Enable-Masks
+                     785           ;
+                                   ELSEIF (INT_EN_MASK_NUMBER = 3)
+                     833              ?RTX?INT_MASK?RTXCONF  SEGMENT  DATA
+----                 834                                     RSEG  ?RTX?INT_MASK?RTXCONF
+                     835                 ; variables for first mask
+0000                 836                 ?RTX_NM_IE:     DS 1
+0001                 837                 ?RTX_D_IE:      DS 1
+0002                 838                 ?RTX_ND_IE:     DS 1
+                     839                 ; variables for second mask
+0003                 840                 ?RTX_NM_IE1:    DS 1
+0004                 841                 ?RTX_D_IE1:     DS 1
+0005                 842                 ?RTX_ND_IE1:    DS 1
+                     843                 ; variables for third mask
+0006                 844                 ?RTX_NM_IE2:    DS 1
+0007                 845                 ?RTX_D_IE2:     DS 1
+0008                 846                 ?RTX_ND_IE2:    DS 1
+                     847     
+                     848                 ; RTX-51 calls this routine in the initialisation phase
+                     849                 ?RTX?RTX_INIT_INT_REG_FLAGS?RTXCONF  SEGMENT  CODE
+----                 850                                         RSEG  ?RTX?RTX_INIT_INT_REG_FLAGS?RTXCONF
+0000                 851                    ?RTX_INIT_INT_REG_FLAGS:
+0000 D200     F      852                                         SETB  ?RTX_ENA_INT_REG1
+0002 D200     F      853                                         SETB  ?RTX_ENA_INT_REG2
+0004 22              854                                         RET
+                     855           ENDIF
+                     856     
+                     857     
+                     858           ;------------------------------------------------------------------
+                     859           ; Define the System-Timer specific values
+                     860           ; This values are normally for all 8051 family-members identical.
+                     861           ;
+                     862           IF (?RTX_SYSTEM_TIMER = 0)
+  008A               863              ?RTX_TLOW          DATA  8AH
+  008C               864              ?RTX_THIGH         DATA  8CH
+  0088               865              ?RTX_TCON          DATA  88H
+  0089               866              ?RTX_TMOD          DATA  89H
+  008D               867              ?RTX_TFLAG         BIT   8DH
+  008C               868              ?RTX_TCONTROL      BIT   8CH
+                     869              ; TCON init-masks
+                     870              ; The clock will be initialized with: ANL TCON, #RTX_TCON_AND_MASK
+                     871              ;                                     ORL TCON, #RTX_TCON_OR_MASK
+                     872              ; --> not used for this timer
+  00FF               873              ?RTX_TCON_AND_MASK EQU   0FFH
+  0000               874              ?RTX_TCON_OR_MASK  EQU   000H
+                     875              ; TMOD init-masks
+                     876              ; The clock will be initialized with: ANL TMOD, #RTX_TMOD_AND_MASK
+                     877              ;                                     ORL TMOD, #RTX_TMOD_OR_MASK
+  00F0               878              ?RTX_TMOD_AND_MASK EQU   0F0H
+  0001               879              ?RTX_TMOD_OR_MASK  EQU   01H
+                     880              ; System-Clock interrupt number
+  0001               881              ?RTX_CLK_INT_NBR   EQU   1
+                                   ENDIF
+                     936     
+                     937           ;------------------------------------------------------------------
+                     938           ; System-Timer Interrupt Vector Entry
+                     939           ;
+----                 940           CSEG AT(?RTX_INTBASE+3+(8*?RTX_CLK_INT_NBR))
+                                   ENDIF
+000B 020000   F      944              LJMP  ?RTX_SYSCLK_INTHNDLR
+                     945     
+                     946           ;------------------------------------------------------------------
+                     947           ; Definitions for Code-Bank-Switching support
+                     948           ;
+                     949           IF (?RTX_BANKSWITCHING = 0)
+                     950              ; Dummy definitions when no Bank-Switching is used
+                     951              ; (just to satisfy the Linker)
+                     952              ;
+  0000               953              ?B_CURRENTBANK       EQU  0H
+  0000               954              ?RTX_SWITCHBANK      EQU  0H
+  0000               955              ?RTX_SAVE_INT_BANK   EQU  0H
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE     9
+
+                                   ENDIF
+                    1000     
+                    1001           
+                    1002           ;------------------------------------------------------------------
+                    1003           ; Context-space in each Fast-Task stack in internal RAM
+                    1004           ;
+                    1005           IF (?RTX_BANKSWITCHING = 0)
+  0003              1006              ?RTX_INTREGSIZE  EQU   3       ; SP/reentrant SP (P2:?C_PBP)
+                                   ENDIF
+                    1010     
+                    1011           ;------------------------------------------------------------------
+                    1012           ; 
+                    1013           ; RTX Idle Function
+                    1014           ;
+                    1015           ; RTX-51 jumps to this code when entering the idle loop
+                    1016           
+                    1017             ?RTX?RTX_IDLE_FUNC?RTXCONF SEGMENT  CODE
+----                1018                                         RSEG  ?RTX?RTX_IDLE_FUNC?RTXCONF
+0000                1019             ?RTX_IDLE_FUNC:
+                    1020     IF (?RTX_USE_IDLE = 1)
+                    1021                     ; Switch to idle mode when configured
+                    1022                     ENTER_IDLE
+                    1035     ENDIF                                    
+0007 80F7           1036                     JMP   ?RTX_IDLE_FUNC
+                    1037     
+                    1038           ;------------------------------------------------------------------
+                    1039           ; Define the Fast-Task stack and context space
+                    1040           ;
+                    1041           ?RTX?FTASKDATA?U     SEGMENT  IDATA
+----                1042                                RSEG     ?RTX?FTASKDATA?U
+0000                1043                                DS ?RTX_INTSTKSIZE
+                    1044     
+                    1045     
+                    1046           ;------------------------------------------------------------------
+                    1047           ; Define the mailbox FIFOs
+                    1048           ; ========================
+                    1049           ; NOTE: this segment must be page-aligned; do not change !
+                    1050     
+                    1051             ?RTX?RTX_MBX_PAGE  SEGMENT XDATA PAGE
+----                1052                                RSEG    ?RTX?RTX_MBX_PAGE
+                    1053     
+                    1054     IF (?RTX_MAILBOX_SUPPORT = 1)
+0000                1055     ?RTX_MBX_PAGE:       DS      8*32
+                             ENDIF
+0100                1059     ?RTX_MBX_PAGE_END:   DS      0
+                    1060     
+                    1061     
+                    1062           ;------------------------------------------------------------------
+                    1063           ; Define the semaphore FIFOs
+                    1064           ; ==========================
+                    1065           ; NOTE: this segment must be page-aligned; do not change !
+                    1066     
+                    1067             ?RTX?RTX_SEM_PAGE  SEGMENT XDATA PAGE
+----                1068                          RSEG  ?RTX?RTX_SEM_PAGE
+                    1069     
+                    1070     IF (?RTX_SEMAPHORE_SUPPORT = 1)
+0000                1071     ?RTX_SEM_PAGE:       DS      8*16
+                             ENDIF
+0080                1075     ?RTX_SEM_PAGE_END:   DS      0
+                    1076     
+                    1077     
+                    1078     ;*----------------------------------------------------------------------*
+                    1079     ;*  END OF MODULE
+                    1080     ;*----------------------------------------------------------------------*
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE    10
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E                              T Y P E  V A L U E   ATTRIBUTES
+
+?B_CURRENTBANK. . . . . . . . . . .  N NUMB   0000H   A   
+?CPU. . . . . . . . . . . . . . . .    ----   -----       
+?RTX?CONFIGURATION. . . . . . . . .  N NUMB   -----       
+?RTX?FTASKDATA?U. . . . . . . . . .  I SEG    0018H       REL=UNIT
+?RTX?INT_MASK?RTXCONF . . . . . . .  D SEG    0009H       REL=UNIT
+?RTX?RTX_IDLE_FUNC?RTXCONF. . . . .  C SEG    0009H       REL=UNIT
+?RTX?RTX_INIT_INT_REG_FLAGS?RTXCONF  C SEG    0005H       REL=UNIT
+?RTX?RTX_INT_TO_BIT_TABLE?RTXCONF .  C SEG    004BH       REL=UNIT
+?RTX?RTX_MBX_PAGE . . . . . . . . .  X SEG    0100H       REL=PAGE
+?RTX?RTX_SEM_PAGE . . . . . . . . .  X SEG    0080H       REL=PAGE
+?RTX_BANKSWITCHING. . . . . . . . .  N NUMB   0000H   A   
+?RTX_CLK_INT_NBR. . . . . . . . . .  N NUMB   0001H   A   
+?RTX_CPU_TYPE . . . . . . . . . . .  N NUMB   0096H   A   
+?RTX_D_IE . . . . . . . . . . . . .  D ADDR   0001H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_D_IE1. . . . . . . . . . . . .  D ADDR   0004H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_D_IE2. . . . . . . . . . . . .  D ADDR   0007H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_ENA_INT_REG1 . . . . . . . . .  B ADDR   -----       EXT
+?RTX_ENA_INT_REG2 . . . . . . . . .  B ADDR   -----       EXT
+?RTX_EXTRENTSIZE. . . . . . . . . .  N NUMB   0032H   A   
+?RTX_EXTSTKSIZE . . . . . . . . . .  N NUMB   0020H   A   
+?RTX_IDLE_FUNC. . . . . . . . . . .  C ADDR   0000H   R   SEG=?RTX?RTX_IDLE_FUNC?RTXCONF
+?RTX_IE . . . . . . . . . . . . . .  D ADDR   00A8H   A   
+?RTX_IEN1 . . . . . . . . . . . . .  D ADDR   008FH   A   
+?RTX_IEN1_INIT. . . . . . . . . . .  N NUMB   0000H   A   
+?RTX_IEN2 . . . . . . . . . . . . .  D ADDR   00AFH   A   
+?RTX_IEN2_INIT. . . . . . . . . . .  N NUMB   0000H   A   
+?RTX_IE_INIT. . . . . . . . . . . .  N NUMB   0000H   A   
+?RTX_INIT_INT_REG_FLAGS . . . . . .  C ADDR   0000H   R   SEG=?RTX?RTX_INIT_INT_REG_FLAGS?RTXCONF
+?RTX_INT0_TID . . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT10_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT11_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT12_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT16_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT17_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT18_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT19_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT20_TID. . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT2_TID . . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT3_TID . . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT4_TID . . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT5_TID . . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT8_TID . . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INT9_TID . . . . . . . . . . .  X ADDR   -----       EXT
+?RTX_INTBASE. . . . . . . . . . . .  N NUMB   0000H   A   
+?RTX_INTREGSIZE . . . . . . . . . .  N NUMB   0003H   A   
+?RTX_INTSTKSIZE . . . . . . . . . .  N NUMB   0018H   A   
+?RTX_INT_HANDLER. . . . . . . . . .  C ADDR   -----       EXT
+?RTX_INT_TO_BIT_TABLE_BASE. . . . .  C ADDR   0000H   R   SEG=?RTX?RTX_INT_TO_BIT_TABLE?RTXCONF
+?RTX_MAILBOX_SUPPORT. . . . . . . .  N NUMB   0001H   A   
+?RTX_MAX_INT_NBR. . . . . . . . . .  N NUMB   0018H   A   
+?RTX_MBX_PAGE . . . . . . . . . . .  X ADDR   0000H   R   SEG=?RTX?RTX_MBX_PAGE
+?RTX_MBX_PAGE_END . . . . . . . . .  X ADDR   0100H   R   SEG=?RTX?RTX_MBX_PAGE
+?RTX_ND_IE. . . . . . . . . . . . .  D ADDR   0002H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_ND_IE1 . . . . . . . . . . . .  D ADDR   0005H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_ND_IE2 . . . . . . . . . . . .  D ADDR   0008H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_NM_IE. . . . . . . . . . . . .  D ADDR   0000H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_NM_IE1 . . . . . . . . . . . .  D ADDR   0003H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_NM_IE2 . . . . . . . . . . . .  D ADDR   0006H   R   SEG=?RTX?INT_MASK?RTXCONF
+?RTX_SAVE_INT_BANK. . . . . . . . .  N NUMB   0000H   A   
+?RTX_SEMAPHORE_SUPPORT. . . . . . .  N NUMB   0001H   A   
+?RTX_SEM_PAGE . . . . . . . . . . .  X ADDR   0000H   R   SEG=?RTX?RTX_SEM_PAGE
+?RTX_SEM_PAGE_END . . . . . . . . .  X ADDR   0080H   R   SEG=?RTX?RTX_SEM_PAGE
+?RTX_SWITCHBANK . . . . . . . . . .  N NUMB   0000H   A   
+?RTX_SYSCLK_INTHNDLR. . . . . . . .  C ADDR   -----       EXT
+?RTX_SYSTEM_TIMER . . . . . . . . .  N NUMB   0000H   A   
+?RTX_TCON . . . . . . . . . . . . .  D ADDR   0088H   A   
+?RTX_TCONTROL . . . . . . . . . . .  B ADDR   0088H.4 A   
+?RTX_TCON_AND_MASK. . . . . . . . .  N NUMB   00FFH   A   
+?RTX_TCON_OR_MASK . . . . . . . . .  N NUMB   0000H   A   
+?RTX_TFLAG. . . . . . . . . . . . .  B ADDR   0088H.5 A   
+?RTX_THIGH. . . . . . . . . . . . .  D ADDR   008CH   A   
+?RTX_TIMESHARING. . . . . . . . . .  N NUMB   0001H   A   
+A51 MACRO ASSEMBLER  RTX-51 CONFIGURATION                                       10/15/2017 13:25:56 PAGE    11
+
+?RTX_TLOW . . . . . . . . . . . . .  D ADDR   008AH   A   
+?RTX_TMOD . . . . . . . . . . . . .  D ADDR   0089H   A   
+?RTX_TMOD_AND_MASK. . . . . . . . .  N NUMB   00F0H   A   
+?RTX_TMOD_OR_MASK . . . . . . . . .  N NUMB   0001H   A   
+?RTX_TMP1 . . . . . . . . . . . . .  D ADDR   -----       EXT
+?RTX_USE_IDLE . . . . . . . . . . .  N NUMB   0001H   A   
+INT0_VECTOR . . . . . . . . . . . .  C ADDR   0003H   A   
+INT10_VECTOR. . . . . . . . . . . .  C ADDR   0053H   A   
+INT11_VECTOR. . . . . . . . . . . .  C ADDR   005BH   A   
+INT12_VECTOR. . . . . . . . . . . .  C ADDR   0063H   A   
+INT16_VECTOR. . . . . . . . . . . .  C ADDR   0083H   A   
+INT17_VECTOR. . . . . . . . . . . .  C ADDR   008BH   A   
+INT18_VECTOR. . . . . . . . . . . .  C ADDR   0093H   A   
+INT19_VECTOR. . . . . . . . . . . .  C ADDR   009BH   A   
+INT20_VECTOR. . . . . . . . . . . .  C ADDR   00A3H   A   
+INT2_VECTOR . . . . . . . . . . . .  C ADDR   0013H   A   
+INT3_VECTOR . . . . . . . . . . . .  C ADDR   001BH   A   
+INT4_VECTOR . . . . . . . . . . . .  C ADDR   0023H   A   
+INT5_VECTOR . . . . . . . . . . . .  C ADDR   002BH   A   
+INT8_VECTOR . . . . . . . . . . . .  C ADDR   0043H   A   
+INT9_VECTOR . . . . . . . . . . . .  C ADDR   004BH   A   
+INT_EN_MASK_NUMBER. . . . . . . . .  N NUMB   0003H   A   
+PCON. . . . . . . . . . . . . . . .  D ADDR   0087H   A   
+
+
+REGISTER BANK(S) USED: 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

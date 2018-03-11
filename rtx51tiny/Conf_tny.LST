@@ -1,0 +1,863 @@
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.01
+OBJECT MODULE PLACED IN Conf_tny.OBJ
+ASSEMBLER INVOKED BY: D:\keil\C51\BIN\A51.EXE Conf_tny.A51 SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     $nomod51  DEBUG
+                       2     ;------------------------------------------------------------------------------
+                       3     ;  This file is part of the RTX-51 TINY  Real-Time Operating System Package
+                       4     ;  Copyright KEIL ELEKTRONIK GmbH and Keil Software, Inc. 1991-2002
+                       5     ;  Version 2.02
+                       6     ;------------------------------------------------------------------------------
+                       7     ;  CONF_TNY.A51:  This code allows the configuration of the
+                       8     ;                 RTX-51 TINY Real-Time Operating System
+                       9     ;
+                      10     ;  Copy this file to your project folder and add the copy to your uVision2
+                      11     ;  project.  You can customize several parameters of RTX51 Tiny within this
+                      12     ;  configuration file.
+                      13     ;
+                      14     ;  If you use command line tools, translate this file with:
+                      15     ;
+                      16     ;     Ax51 CONF_TNY.A51
+                      17     ;
+                      18     ;  If you use command line tools, link the modified CONF_TNY.OBJ file to 
+                      19     ;  your application with:
+                      20     ;
+                      21     ;     Lx51 <your object file list>, CONF_TNY.OBJ <controls>
+                      22     ;
+                      23     ;------------------------------------------------------------------------------
+                      24     ;
+                      25     ;  RTX-51 TINY Hardware-Timer
+                      26     ;  ==========================
+                      27     ;
+                      28     ;  With the following EQU statements the initialization of the RTX-51 TINY
+                      29     ;  Hardware-Timer can be defined (RTX-51 TINY uses the 8051 Timer 0 for 
+                      30     ;  controlling RTX-51 software timers).
+                      31     ;
+                      32     ;  Define the register bank used for the timer interrupt.
+  0001                33     INT_REGBANK     EQU     1       ; default is Registerbank 1
+                      34     ;
+                      35     ;  Define Hardware-Timer tick time in 8051 machine cycles.
+  2710                36     INT_CLOCK       EQU     10000   ; default is 10000 cycles
+                      37     ;
+                      38     ;  Define Round-Robin Timeout in Hardware-Timer ticks.
+  0001                39     TIMESHARING     EQU     1       ; default is 5 Hardware-Timer ticks.
+                      40     ;                               ; 0 disables Round-Robin Task Switching
+                      41     ;
+                      42     ;  Long User Interrupt Routines: set to 1 if your application contains 
+                      43     ;  user interrupt functions that may take longer than a hardware timer 
+                      44     ;  interval for execution.
+  0000                45     LONG_USR_INTR   EQU     0       ; 0 user interrupts execute fast.
+                      46     ;                               ; 1 user interrupts take long execution times.
+                      47     ;
+                      48     ;
+                      49     ;------------------------------------------------------------------------------
+                      50     ;
+                      51     ;  USER CODE FOR 8051 HARDWARE TIMER INTERRUPT
+                      52     ;  ===========================================
+                      53     ;
+                      54     ;  The following macro defines the code executed on a hardware timer interrupt.
+                      55     ;
+                      56     ;  Define instructions executed on a hardware timer interrupt.
+                      57     HW_TIMER_CODE   MACRO
+                      58                                     ; Empty Macro by default
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     2
+
+                      59                     RETI
+                      60                     ENDM
+                      61     ;
+                      62     ;
+                      63     ;------------------------------------------------------------------------------
+                      64     ;
+                      65     ;  CODE BANKING SUPPORT
+                      66     ;  ====================
+                      67     ;
+                      68     ;  The following EQU statement controls the code banking support for RTX51 TINY.
+                      69     ;
+                      70     ;  Enable or disable code banking support
+  0000                71     CODE_BANKING     EQU     0      ; 0 (default) application uses no code banking
+                      72     ;                               ; 1 application uses code banking
+                      73     ;
+                      74     ;------------------------------------------------------------------------------
+                      75     ;
+                      76     ;  RTX-51 TINY Stack Space
+                      77     ;  =======================
+                      78     ;
+                      79     ;  The following EQU statements defines the size of the internal RAM used
+                      80     ;  for stack area and the minimum free space on the stack.  A macro defines
+                      81     ;  the code executed when there is there is not enough free stack on the
+                      82     ;  CPU stack.
+                      83     ;
+                      84     ;  Define the highest RAM address used for CPU stack
+  00FF                85     RAMTOP          EQU     0FFH    ; default is address (256-1)
+                      86     ;
+  0014                87     FREE_STACK      EQU     20      ; default is 20 bytes free space on stack
+                      88     ;                               ; the value 0 disables stack checking
+                      89     ;
+                      90     STACK_ERROR     MACRO
+                      91                     CLR     EA      ; disable interrupts
+                      92                     SJMP    $       ; endless loop if stack space is exhausted
+                      93                     ENDM
+                      94     ;
+                      95     ;
+                      96     ;------------------------------------------------------------------------------
+                      97     ;
+                      98     ;  8051 CPU IDLE CODE
+                      99     ;  ==================
+                     100     ;
+                     101     ;  Many 8051 devices provide an IDLE MODE that reduces power consumption and
+                     102     ;  EMC.  The following macro defines the code executed when there is no 
+                     103     ;  ready task in the system.  The code must set the CPU into an IDLE MODE
+                     104     ;  that stops instruction execution until an 8051 hardware interrupt occurs. 
+                     105     ;
+                     106     
+                     107     ; Disable or Enable CPU_IDLE CODE
+  0001               108     CPU_IDLE_CODE   EQU     1       ; 0  CPU_IDLE MACRO is not inserted
+                     109                                     ; 1  CPU_IDLE MACRO is executed
+                     110     
+  0087               111     PCON            DATA    087H    ; Power Control SFR on most 8051 devices
+                     112     
+                     113     ; Stop CPU execution until hardware interrupt; executed when there is no 
+                     114     ; active task in the system. 
+                     115     CPU_IDLE        MACRO
+                     116                     ORL     PCON,#1            
+                     117                     NOP                    
+                     118                 NOP                    
+                     119                 NOP
+                     120                 NOP
+                     121     
+                     122     
+                     123     
+                     124     
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     3
+
+                     125     
+                     126                     ENDM
+                     127     ;
+                     128     ;
+                     129     ;------------------------------------------------------------------------------
+                     130     ;----------------- !!! End of User Configuration Part    !!! ------------------
+                     131     ;----------------- !!! Do not modify code sections below !!! ------------------
+                     132     ;------------------------------------------------------------------------------
+                     133     
+                     134     ; SFR Symbols
+  00D0               135     PSW     DATA    0D0H
+  00E0               136     ACC     DATA    0E0H
+  00F0               137     B       DATA    0F0H
+  0081               138     SP      DATA    81H
+  0082               139     DPL     DATA    82H
+  0083               140     DPH     DATA    83H
+  0088               141     TCON    DATA    88H
+  0089               142     TMOD    DATA    89H
+  008A               143     TL0     DATA    8AH
+  008B               144     TL1     DATA    8BH
+  008C               145     TH0     DATA    8CH
+  008D               146     TH1     DATA    8DH
+  00A8               147     IE      DATA    0A8H
+                     148     
+                     149     ; TCON
+  008F               150     TF1     BIT     8FH
+  008E               151     TR1     BIT     8EH
+  008D               152     TF0     BIT     8DH
+  008C               153     TR0     BIT     8CH
+  008B               154     IE1     BIT     8BH
+  008A               155     IT1     BIT     8AH
+  0089               156     IE0     BIT     89H
+  0088               157     IT0     BIT     88H
+                     158     ; IE 
+  00AF               159     EA      BIT     0AFH
+  00AC               160     ES      BIT     0ACH
+  00AB               161     ET1     BIT     0ABH
+  00AA               162     EX1     BIT     0AAH
+  00A9               163     ET0     BIT     0A9H
+  00A8               164     EX0     BIT     0A8H
+                     165     
+                     166     ; Check Configuration Values
+                     167     
+                     168     
+                     169                     NAME    ?RTX51_TINY_KERNAL
+                     170     
+                     171     PUBLIC  ?RTX_CURRENTTASK 
+                     172     PUBLIC  ?RTX_RAMTOP
+                     173     PUBLIC  os_switch_task
+                     174     PUBLIC  ?RTX?SET_ISR
+                     175     
+                     176     EXTRN   NUMBER (?RTX_MAXTASKN)          ; max Task Number
+                     177     
+  00FF               178     ?RTX_RAMTOP       EQU   RAMTOP
+  D8F0               179     ?RTX_CLOCK        EQU   -INT_CLOCK
+                     180     
+  0008               181     ?RTX_REGISTERBANK EQU   INT_REGBANK * 8
+----                 182                       DSEG  AT    ?RTX_REGISTERBANK
+0008                 183                       DS    2     ; temporary space
+000A                 184     ?RTX_SAVEACC:     DS    1
+  REG                185     saveacc           EQU   R2    ; for access in interrupt service routine
+000B                 186     ?RTX_SAVEPSW:     DS    1
+  REG                187     savepsw           EQU   R3    ; for access in interrupt service routine
+000C                 188     ?RTX_CURRENTTASK: DS    1
+  REG                189     currenttask       EQU   R4    ; for access in interrupt service routine
+                     190     
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     4
+
+                     191     IF (TIMESHARING <> 0)
+000D                 192     ?RTX_ROBINTIME:   DS    1
+  REG                193     robintime         EQU   R5    ; for access in interrupt service routine
+                     194     ENDIF
+                     195     
+                     196     IF (CODE_BANKING <> 0)
+                             EXTRN   DATA    (?B_CURRENTBANK)
+                             EXTRN   CODE    (?B_RESTORE_BANK)
+                             ENDIF
+                     200     
+                     201     
+                     202     ;------------------------------------------------
+                     203     ; Table of Task Entry Pointers
+                     204     ;------------------------------------------------
+                     205     PUBLIC  ?RTX_TASKENTRY
+                     206     
+                     207     ?RTX?TASKENT?S  SEGMENT CODE
+----                 208                     RSEG    ?RTX?TASKENT?S
+0000                 209     ?RTX_TASKENTRY: DS      2
+                     210     
+                     211     ;------------------------------------------------
+                     212     ; Table of Stack Pointers for each task
+                     213     ;------------------------------------------------
+                     214     PUBLIC  ?RTX_TASKSP
+                     215     
+                     216     ?RTX?TASKSP?S   SEGMENT IDATA
+----                 217                     RSEG    ?RTX?TASKSP?S
+0000                 218     ?RTX_TASKSP:    DS      1
+                     219     
+                     220     ;------------------------------------------------
+                     221     ; Table of Task Timer/State Pointers
+                     222     ;------------------------------------------------
+                     223     PUBLIC  ?RTX_TASKSTATUS
+                     224     
+                     225     ?RTX?TASKSTATE?S  SEGMENT IDATA
+----                 226                       RSEG    ?RTX?TASKSTATE?S
+0000                 227     ?RTX_TASKSTATUS:
+0000                 228     TimerVal:       DS      1       ; Task Timer (Software Timer for each task)
+0001                 229     TaskState:      DS      1       ; Task Status (state of each Task)
+                     230     
+                     231     ; Definitions for Bits in Task State
+                     232     ;  TaskState.0  = Wait for Signal
+                     233     ;  TaskState.1  = Wait for TimeOut
+                     234     ;  TaskState.2  = Signal Flag
+                     235     ;  TaskState.3  = TimeOut Flag
+                     236     ;  TaskState.4  = Task Ready (Wait for Running)
+                     237     ;  TaskState.5  = Task Active (enabled with os_create)
+                     238     ;  TaskState.6  = Round Robin Time Out
+                     239     ;  TaskState.7  = Run Flag
+                     240     
+                     241     ; byte mask definitions
+  0001               242     K_SIG           EQU     1
+  0002               243     K_TMO           EQU     2
+  0004               244     SIG_EVENT       EQU     4
+  0008               245     TMO_EVENT       EQU     8
+  0010               246     K_READY         EQU     16
+  0020               247     K_ACTIVE        EQU     32
+  0040               248     K_ROBIN         EQU     64
+  0080               249     K_IVL           EQU     128  ; not a task state bit; only used in os_wait
+  0080               250     RDY_EVENT       EQU     128  ; READY status flag
+  0080               251     K_RDY           EQU     128  ; READY status flag
+                     252     
+                     253     ; bit position definitions
+  0000               254     B_WAITSIG       EQU     0
+  0001               255     B_WAITTIM       EQU     1
+  0002               256     B_SIGNAL        EQU     2
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     5
+
+  0003               257     B_TIMEOUT       EQU     3
+  0004               258     B_READY         EQU     4
+  0005               259     B_ACTIVE        EQU     5
+  0006               260     B_ROBIN         EQU     6
+  0007               261     B_IVL           EQU     7    ; not a task state bit; only used in os_wait
+  0007               262     B_RDY           EQU     7
+                     263     
+                     264     
+                     265     IF (TIMESHARING OR CPU_IDLE_CODE)
+                     266     ?RTX?BITS       SEGMENT BIT
+----                 267                     RSEG    ?RTX?BITS
+                     268     ENDIF
+                     269     
+                     270     IF (TIMESHARING)
+0000                 271     ?RTX_TS_DELAY:  DBIT    1       ; Status bit set when task switch in progress
+                     272     ENDIF
+                     273     
+                     274     IF (CPU_IDLE_CODE)
+0001                 275     ?RTX_ISR_SIG:   DBIT    1       ; Status bit set when interrupt or os_set_signal
+                     276     ENDIF
+                     277     
+                     278     
+----                 279                     CSEG    AT      0BH
+000B 020000   F      280                     JMP     TIMERINT
+                     281     
+                     282     ?RTX?CODE       SEGMENT CODE
+----                 283                     RSEG    ?RTX?CODE
+                     284                     USING   0               ; Registerbank 0 for following code
+                     285     
+                     286     IF (FREE_STACK <> 0)
+0000                 287     ?RTX_STACKERROR:
+                     288                     STACK_ERROR             ; User defined Stack Error Code
+                     291     ENDIF
+                     292     
+0004                 293     HW_TIMER:       HW_TIMER_CODE
+                     296     
+0005                 297     TIMERINT:
+                     298     
+                     299     IF (LONG_USR_INTR)
+                                             PUSH    ACC
+                                             MOV     A,PSW
+                                             ANL     A,#018H
+                                             XRL     A,#?RTX_REGISTERBANK
+                                             JNZ     CONT_TIMINT
+                             ; avoid recursive timer interrupt
+                                             POP     ACC
+                                             RETI            ; Return from Recursive Timer Interrupt
+                             CONT_TIMINT:    POP     ACC
+                             
+                             ENDIF
+                     311     
+0005 120000   F      312                     CALL    HW_TIMER        ; Enable Interrupts again.
+                     313     
+0008 85D00B          314                     MOV     ?RTX_SAVEPSW,PSW
+000B 75D008          315                     MOV     PSW,#?RTX_REGISTERBANK
+000E FA              316                     MOV     saveacc,A
+                     317     ; Update 8051 Interrupt Timer
+000F C28C            318                     CLR     TR0
+0011 E58A            319                     MOV     A,TL0
+0013 24F7            320                     ADD     A,#LOW (?RTX_CLOCK + 7)
+0015 F58A            321                     MOV     TL0,A
+0017 E58C            322                     MOV     A,TH0
+0019 34D8            323                     ADDC    A,#HIGH (?RTX_CLOCK + 7)
+001B F58C            324                     MOV     TH0,A
+001D D28C            325                     SETB    TR0
+                     326     
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     6
+
+                     327     IF (FREE_STACK <> 0)
+                     328     ; Check if enough free stack is available
+001F EC              329                     MOV     A,currenttask
+0020 2400     F      330                     ADD     A,#?RTX?TASKSP?S+1
+0022 F8              331                     MOV     R0,A
+0023 E6              332                     MOV     A,@R0
+0024 BC0002   F      333                     CJNE    currenttask,#?RTX_MAXTASKN,checkstack
+0027 74FF            334                     MOV     A,#RAMTOP
+0029 C3              335     checkstack:     CLR     C
+002A 9581            336                     SUBB    A,SP
+002C B41400          337                     CJNE    A,#FREE_STACK,$+3
+002F 40CF            338                     JC      ?RTX_STACKERROR
+                     339     ENDIF
+                     340     
+                     341     ; Update & Check Task Timers
+0031 7900     F      342                     MOV     R1,#?RTX_MAXTASKN+1
+0033 7800     F      343                     MOV     R0,#?RTX?TASKSTATE?S
+0035 16              344     TIMERLOOP:      DEC     @R0          ; Decrement timer
+0036 E6              345                     MOV     A,@R0
+0037 08              346                     INC     R0           ; advance to TaskState
+0038 700B            347                     JNZ     NoTimeout
+003A C2AF            348                     CLR     EA
+003C E6              349                     MOV     A,@R0
+003D 30E103          350                     JNB     ACC.B_WAITTIM,NoWaitTimeout
+0040 4418            351                     ORL     A,#(K_READY+TMO_EVENT)
+0042 F6              352                     MOV     @R0,A
+0043 D2AF            353     NoWaitTimeout:  SETB    EA
+0045 08              354     NoTimeout:      INC     R0           ; advance to TaskTimer
+0046 D9ED            355                     DJNZ    R1,TIMERLOOP
+                     356     
+0048 EA              357                     MOV     A,saveacc
+0049 8BD0            358                     MOV     PSW,savepsw
+                     359                     USING   0               ; Registerbank 0 for following code
+                     360     
+                     361     IF (TIMESHARING == 0)
+                             ; Round Robin Task Switching not required.  System Interrupt ends here
+                             ?RTX?SET_ISR:   
+                             IF (CPU_IDLE_CODE)
+                                             SETB    ?RTX_ISR_SIG
+                             ENDIF
+                                             RET     
+                             ENDIF
+                     369     
+                     370     IF (TIMESHARING)
+                     371     ; Round Robin Task Switching required.  Check if task generates timeout
+                     372     ; Check for Round Robin Timeout on the current task
+004B 300003   F      373                     JNB     ?RTX_TS_DELAY,CheckRobinTime
+004E                 374     NoRobinTimeout: 
+004E                 375     ?RTX?SET_ISR:   
+                     376     IF (CPU_IDLE_CODE)
+004E D200     F      377                     SETB    ?RTX_ISR_SIG
+                     378     ENDIF
+0050 22              379                     RET     
+0051 D50DFA          380     CheckRobinTime: DJNZ     ?RTX_ROBINTIME,NoRobinTimeout
+                     381     
+0054                 382     ?RTX_TASKSWITCHING:
+0054 C0E0            383                     PUSH    ACC
+0056 C0D0            384                     PUSH    PSW
+0058 C0F0            385                     PUSH    B
+005A C083            386                     PUSH    DPH
+005C C082            387                     PUSH    DPL
+005E C000            388                     PUSH    AR0
+0060 C001            389                     PUSH    AR1
+0062 C002            390                     PUSH    AR2
+0064 C003            391                     PUSH    AR3
+0066 C004            392                     PUSH    AR4
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     7
+
+0068 C005            393                     PUSH    AR5
+006A C006            394                     PUSH    AR6
+006C C007            395                     PUSH    AR7
+                     396     IF (CODE_BANKING <> 0)
+                                             PUSH    ?B_CURRENTBANK
+                             ENDIF
+                     399     
+006E E50C            400                     MOV     A,?RTX_CURRENTTASK
+0070 23              401                     RL      A
+0071 2400     F      402                     ADD     A,#?RTX?TASKSTATE?S+1
+0073 F8              403                     MOV     R0,A
+0074 7440            404                     MOV     A,#K_ROBIN
+0076 C2AF            405                     CLR     EA
+0078 46              406                     ORL     A,@R0
+0079 F6              407                     MOV     @R0,A
+007A D2AF            408                     SETB    EA
+                     409     IF (CODE_BANKING <> 0)
+                                             SJMP    os_switch_task1
+                             ENDIF
+                     412     ENDIF
+                     413     
+                     414     ;------------------------------------------------
+                     415     ; Perform a Task-Switch
+                     416     ;  void os_switch_task (void)
+                     417     ;      uchar i;
+                     418     ;      uchar limit;
+                     419     
+                     420     ;---- Variable 'current' assigned to Register 'R6' ----
+                     421     ;---- Variable 'next' assigned to Register 'R7' ----
+                     422     ;---- Variable 'i' assigned to Register 'R0' ----
+                     423     ;---- Variable 'limit' assigned to Register 'R5' ----
+                     424     ;
+                     425     ;------------------------------------------------
+                     426     
+007C                 427     os_switch_task:
+                     428     
+                     429     IF (CODE_BANKING <> 0)
+                                             PUSH    ?B_CURRENTBANK
+                             ENDIF
+                     432     
+007C                 433     os_switch_task1:
+                     434     
+                     435     ;      next = current;
+                     436     IF (TIMESHARING <> 0)
+007C D200     F      437                     SETB    ?RTX_TS_DELAY           ; Delay Task Switching
+                     438     ENDIF
+007E E50C            439                     MOV     A,?RTX_CURRENTTASK
+0080 FF              440                     MOV     R7,A
+                     441     ;      while (1)  {
+0081 23              442                     RL      A
+0082 2400     F      443                     ADD     A,#?RTX?TASKSTATE?S+1
+0084 F8              444                     MOV     R0,A
+0085                 445     ?C0001:
+                     446     ;        if (++next == MAXTASKN+1)  next = 0;
+0085 0F              447                     INC     R7
+0086 08              448                     INC     R0
+0087 08              449                     INC     R0
+                     450     IF (CPU_IDLE_CODE)
+0088 EF              451                     MOV     A,R7
+0089 B50C0A          452                     CJNE    A,?RTX_CURRENTTASK,NoIDLE
+008C 100007   F      453                     JBC     ?RTX_ISR_SIG,NoIDLE
+                     454                     CPU_IDLE          ; CPU sleep
+0096                 465     NoIDLE:
+                     466     ENDIF
+0096 BF0004   F      467                     CJNE    R7,#?RTX_MAXTASKN+1,?C0003
+0099 7F00            468                     MOV     R7,#0
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     8
+
+009B 7800     F      469                     MOV     R0,#?RTX?TASKSTATE?S+1
+009D                 470     ?C0003:
+                     471     ;        if (STATE[next].st & K_READY)  break;
+009D E6              472                     MOV     A,@R0
+009E 30E4E4          473                     JNB     ACC.B_READY,?C0001
+                     474     ;      }
+                     475     ;
+                     476     
+                     477     PUBLIC  ?RTX_NEXTID
+                     478     PUBLIC  ?RTX_NEXTTASK
+                     479     
+  0007               480     ?RTX_NEXTID     EQU     AR7
+00A1 00              481     ?RTX_NEXTTASK:  NOP             ; for Debugging
+                     482     
+                     483     ;      while (current < next)  {
+00A2                 484     ?C0005:
+00A2 E50C            485                     MOV     A,?RTX_CURRENTTASK
+00A4 C3              486                     CLR     C
+00A5 9F              487                     SUBB    A,R7
+00A6 5020            488                     JNC     ?C0011
+                     489     
+                     490     ;        current++;
+00A8 050C            491                     INC     ?RTX_CURRENTTASK
+                     492     ;        i = STKP[current];
+00AA 7400     F      493                     MOV     A,#?RTX?TASKSP?S
+00AC 250C            494                     ADD     A,?RTX_CURRENTTASK
+00AE F8              495                     MOV     R0,A
+00AF E6              496                     MOV     A,@R0
+00B0 FD              497                     MOV     R5,A
+                     498     ;        STKP[current] = SP;
+00B1 A681            499                     MOV     @R0,SP
+                     500     ;        if (current == MAXTASKN) limit = RAMTOP;
+00B3 08              501                     INC     R0
+00B4 E6              502                     MOV     A,@R0
+00B5 AE0C            503                     MOV     R6,?RTX_CURRENTTASK
+00B7 BE0002   F      504                     CJNE    R6,#?RTX_MAXTASKN,?C0007
+00BA 74FF            505                     MOV     A,#RAMTOP
+00BC                 506     ?C0007:
+00BC CD              507                     XCH     A,R5
+00BD F8              508                     MOV     R0,A
+                     509     ;        else                       limit = STKP[current+1];
+                     510     ;
+                     511     ;        while (i != limit)  {
+00BE                 512     ?C0009:
+00BE E8              513                     MOV     A,R0
+00BF 6D              514                     XRL     A,R5
+00C0 60E0            515                     JZ      ?C0005
+                     516     ;          SP++;
+                     517     ;          i++;
+                     518     ;          STACK[SP] = STACK[i];
+00C2 08              519                     INC     R0
+00C3 E6              520                     MOV     A,@R0
+00C4 C0E0            521                     PUSH    ACC
+00C6 80F6            522                     SJMP    ?C0009
+                     523     ;        }
+                     524     ;      }
+00C8                 525     ?C0011:
+                     526     ;
+                     527     ;      while (current > next)  {
+00C8 E50C            528                     MOV     A,?RTX_CURRENTTASK
+00CA D3              529                     SETB    C
+00CB 9F              530                     SUBB    A,R7
+00CC 4027            531                     JC      ?C0012
+                     532             
+00CE E50C            533                     MOV     A,?RTX_CURRENTTASK
+00D0 2400     F      534                     ADD     A,#?RTX?TASKSP?S+1
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE     9
+
+00D2 F8              535                     MOV     R0,A
+00D3 E6              536                     MOV     A,@R0
+                     537     ;        if (current == (MAXTASKN)) i = RAMTOP;
+                     538     ;        else                       i = STKP[current+1];
+00D4 AE0C            539                     MOV     R6,?RTX_CURRENTTASK
+00D6 BE0002   F      540                     CJNE    R6,#?RTX_MAXTASKN,?C0013
+00D9 74FF            541                     MOV     A,#RAMTOP
+00DB                 542     ?C0013:
+00DB FD              543                     MOV     R5,A
+                     544     ;        limit = STKP[current];
+00DC 18              545                     DEC     R0
+00DD E6              546                     MOV     A,@R0
+00DE CD              547                     XCH     A,R5
+00DF F8              548                     MOV     R0,A
+                     549     ;
+                     550     ;        while (SP != limit)  {
+00E0                 551     ?C0015:
+00E0 E581            552                     MOV     A,SP
+00E2 6D              553                     XRL     A,R5
+00E3 6006            554                     JZ      ?C0016
+                     555     ;          STACK[i] = STACK[SP];
+                     556     ;          i--;
+                     557     ;          SP--;
+00E5 D0E0            558                     POP     ACC
+00E7 F6              559                     MOV     @R0,A
+00E8 18              560                     DEC     R0
+                     561     
+00E9 80F5            562                     SJMP    ?C0015
+00EB                 563     ?C0016:
+                     564     ;        }
+                     565     ;        STKP[current] = i;
+00EB E50C            566                     MOV     A,?RTX_CURRENTTASK
+00ED 2400     F      567                     ADD     A,#?RTX?TASKSP?S
+00EF C8              568                     XCH     A,R0
+00F0 F6              569                     MOV     @R0,A
+                     570     ;        current--;
+00F1 150C            571                     DEC     ?RTX_CURRENTTASK
+00F3 80D3            572                     SJMP    ?C0011
+00F5                 573     ?C0012:
+                     574     ;      }
+                     575     
+                     576     ;      RoundRobinTime = ?RTX_TIMESHARING
+                     577     IF (TIMESHARING)
+00F5 750D01          578                     MOV     ?RTX_ROBINTIME,#TIMESHARING
+                     579     ENDIF
+                     580              
+                     581     ;       if (STATE[current].st & K_ROBIN)  goto RobinOn;
+00F8 E50C            582                     MOV     A,?RTX_CURRENTTASK
+00FA 23              583                     RL      A
+00FB 2400     F      584                     ADD     A,#?RTX?TASKSTATE?S+1
+00FD F8              585                     MOV     R0,A
+00FE 7F04            586                     MOV     R7,#SIG_EVENT
+0100 C2AF            587                     CLR     EA
+0102 E6              588                     MOV     A,@R0
+                     589     IF (TIMESHARING)
+0103 10E61E          590                     JBC     ACC.B_ROBIN,RobinOn
+                     591     ENDIF
+                     592     ;       if ((STATE[current].st & K_SIG) && (STATE[current].st & SIG_EVENT)
+                     593     ;          goto SignalOn;
+0106 30E003          594                     JNB     ACC.B_WAITSIG,SignalOff
+0109 10E20C          595                     JBC     ACC.B_SIGNAL,SignalOn
+010C                 596     SignalOff:
+                     597     ;       if ((STATE[current].st & K_TMO) && (STATE[current].st & TMO_EVENT)
+                     598     ;          goto TimeOutOn;
+010C 7F00            599                     MOV     R7,#0           ; No Event
+010E 30E107          600                     JNB     ACC.B_WAITTIM,NoEvent
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE    10
+
+0111 30E304          601                     JNB     ACC.B_TIMEOUT,NoEvent
+0114                 602     TimeOutOn:      
+0114 7F08            603                     MOV     R7,#TMO_EVENT
+0116 54F4            604                     ANL     A,#0F4H
+0118                 605     SignalOn:
+0118 547C            606     NoEvent:        ANL     A,#NOT (K_RDY + K_TMO + K_SIG)  ; Clear RDY + Wait bits
+011A C6              607                     XCH     A,@R0
+011B D2AF            608                     SETB    EA
+                     609     
+011D 5480            610                     ANL     A,#K_RDY
+011F 4207            611                     ORL     AR7,A
+                     612     IF (TIMESHARING <> 0)
+                     613       IF (CODE_BANKING)
+                                             POP     ACC
+                                             CALL    ?B_RESTORE_BANK
+                               ENDIF
+0121 C200     F      617                     CLR     ?RTX_TS_DELAY
+0123 22              618                     RET
+                     619     ELSE
+                               IF (CODE_BANKING)
+                                             POP     ACC
+                                             JMP     ?B_RESTORE_BANK
+                               ENDIF
+                                             RET
+                             ENDIF
+                     626                     
+                     627                     
+                     628     
+                     629     ;------------------------------------------------
+                     630     IF (TIMESHARING <> 0)
+0124 F6              631     RobinOn:        MOV     @R0,A
+0125 D2AF            632                     SETB    EA
+                     633     IF (CODE_BANKING)
+                                             POP     ACC
+                                             CALL    ?B_RESTORE_BANK
+                             ENDIF
+0127 D007            637                     POP     AR7
+0129 D006            638                     POP     AR6
+012B D005            639                     POP     AR5
+012D D004            640                     POP     AR4
+012F D003            641                     POP     AR3
+0131 D002            642                     POP     AR2
+0133 D001            643                     POP     AR1
+0135 D000            644                     POP     AR0
+0137 D082            645                     POP     DPL
+0139 D083            646                     POP     DPH
+013B D0F0            647                     POP     B
+013D D0D0            648                     POP     PSW
+013F D0E0            649                     POP     ACC
+0141 C200     F      650                     CLR     ?RTX_TS_DELAY
+0143 22              651                     RET                     ; Restart Task
+                     652     ENDIF
+                     653     ;    }
+                     654     ;  }
+                     655     
+                     656     
+                     657     
+                     658     ;------------------------------------------------
+                     659     ; Start RTX-51 Tiny Kernel
+                     660     ;------------------------------------------------
+                     661     
+                     662     EXTRN CODE (?C_STARTUP)
+                     663     PUBLIC  main
+                     664     
+0144 7800     F      665     main:           MOV     R0,#?RTX?TASKSP?S
+0146 A681            666                     MOV     @R0,SP
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE    11
+
+0148 7400     F      667                     MOV     A,#?RTX_MAXTASKN
+014A 6006            668                     JZ      main2
+014C FF              669                     MOV     R7,A
+014D 08              670     main1:          INC     R0
+014E 76FF            671                     MOV     @R0,#RAMTOP
+0150 DFFB            672                     DJNZ    R7,main1
+0152 7F00     F      673     main2:          MOV     R7,#?RTX_MAXTASKN+1
+0154 E4              674                     CLR     A
+0155 7800     F      675                     MOV     R0,#?RTX?TASKSTATE?S
+0157 F6              676     main1x:         MOV     @R0,A
+0158 08              677                     INC     R0
+0159 F6              678                     MOV     @R0,A
+015A 08              679                     INC     R0
+015B DFFA            680                     DJNZ    R7,main1x
+015D 7800     F      681                     MOV     R0,#?RTX?TASKSTATE?S+1
+015F 7630            682                     MOV     @R0,#K_ACTIVE+K_READY
+0161 900000   F      683                     MOV     DPTR,#?RTX?TASKENT?S
+0164 7401            684                     MOV     A,#1
+0166 93              685                     MOVC    A,@A+DPTR
+0167 C0E0            686                     PUSH    ACC
+0169 E4              687                     CLR     A
+016A 93              688                     MOVC    A,@A+DPTR
+016B C0E0            689                     PUSH    ACC
+                     690     IF (TIMESHARING <> 0)
+016D 750D01          691                     MOV     ?RTX_ROBINTIME,#TIMESHARING
+                     692     ENDIF
+0170 438901          693                     ORL     TMOD,#01H       ; Timer 0 Mode 1
+0173 758AF0          694                     MOV     TL0,#LOW (?RTX_CLOCK)
+0176 758CD8          695                     MOV     TH0,#HIGH (?RTX_CLOCK)
+0179 D28C            696                     SETB    TR0
+017B D2AF            697                     SETB    EA
+017D D2A9            698                     SETB    ET0
+017F 22              699                     RET             ; Start Task 0
+                     700     
+                     701     
+                     702     ;------------------------------------------------
+                     703     
+                     704     PUBLIC ?RTX_TASKIDX
+0180 00       F      705     ?RTX_TASKIDX:   DB      ?RTX_MAXTASKN           ; for Debugging
+                     706     
+                     707                     END
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE    12
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+?C0001 . . . . . .  C ADDR   0085H   R   SEG=?RTX?CODE
+?C0003 . . . . . .  C ADDR   009DH   R   SEG=?RTX?CODE
+?C0005 . . . . . .  C ADDR   00A2H   R   SEG=?RTX?CODE
+?C0007 . . . . . .  C ADDR   00BCH   R   SEG=?RTX?CODE
+?C0009 . . . . . .  C ADDR   00BEH   R   SEG=?RTX?CODE
+?C0011 . . . . . .  C ADDR   00C8H   R   SEG=?RTX?CODE
+?C0012 . . . . . .  C ADDR   00F5H   R   SEG=?RTX?CODE
+?C0013 . . . . . .  C ADDR   00DBH   R   SEG=?RTX?CODE
+?C0015 . . . . . .  C ADDR   00E0H   R   SEG=?RTX?CODE
+?C0016 . . . . . .  C ADDR   00EBH   R   SEG=?RTX?CODE
+?C_STARTUP . . . .  C ADDR   -----       EXT
+?RTX51_TINY_KERNAL  N NUMB   -----       
+?RTX?BITS. . . . .  B SEG    0002H       REL=UNIT
+?RTX?CODE. . . . .  C SEG    0181H       REL=UNIT
+?RTX?SET_ISR . . .  C ADDR   004EH   R   SEG=?RTX?CODE
+?RTX?TASKENT?S . .  C SEG    0002H       REL=UNIT
+?RTX?TASKSP?S. . .  I SEG    0001H       REL=UNIT
+?RTX?TASKSTATE?S .  I SEG    0002H       REL=UNIT
+?RTX_CLOCK . . . .  N NUMB   D8F0H   A   
+?RTX_CURRENTTASK .  D ADDR   000CH   A   
+?RTX_ISR_SIG . . .  B ADDR   0000H.1 R   SEG=?RTX?BITS
+?RTX_MAXTASKN. . .  N ADDR   -----       EXT
+?RTX_NEXTID. . . .  D ADDR   0007H   A   
+?RTX_NEXTTASK. . .  C ADDR   00A1H   R   SEG=?RTX?CODE
+?RTX_RAMTOP. . . .  N NUMB   00FFH   A   
+?RTX_REGISTERBANK.  N NUMB   0008H   A   
+?RTX_ROBINTIME . .  D ADDR   000DH   A   
+?RTX_SAVEACC . . .  D ADDR   000AH   A   
+?RTX_SAVEPSW . . .  D ADDR   000BH   A   
+?RTX_STACKERROR. .  C ADDR   0000H   R   SEG=?RTX?CODE
+?RTX_TASKENTRY . .  C ADDR   0000H   R   SEG=?RTX?TASKENT?S
+?RTX_TASKIDX . . .  C ADDR   0180H   R   SEG=?RTX?CODE
+?RTX_TASKSP. . . .  I ADDR   0000H   R   SEG=?RTX?TASKSP?S
+?RTX_TASKSTATUS. .  I ADDR   0000H   R   SEG=?RTX?TASKSTATE?S
+?RTX_TASKSWITCHING  C ADDR   0054H   R   SEG=?RTX?CODE
+?RTX_TS_DELAY. . .  B ADDR   0000H.0 R   SEG=?RTX?BITS
+ACC. . . . . . . .  D ADDR   00E0H   A   
+AR0. . . . . . . .  D ADDR   0000H   A   
+AR1. . . . . . . .  D ADDR   0001H   A   
+AR2. . . . . . . .  D ADDR   0002H   A   
+AR3. . . . . . . .  D ADDR   0003H   A   
+AR4. . . . . . . .  D ADDR   0004H   A   
+AR5. . . . . . . .  D ADDR   0005H   A   
+AR6. . . . . . . .  D ADDR   0006H   A   
+AR7. . . . . . . .  D ADDR   0007H   A   
+B. . . . . . . . .  D ADDR   00F0H   A   
+B_ACTIVE . . . . .  N NUMB   0005H   A   
+B_IVL. . . . . . .  N NUMB   0007H   A   
+B_RDY. . . . . . .  N NUMB   0007H   A   
+B_READY. . . . . .  N NUMB   0004H   A   
+B_ROBIN. . . . . .  N NUMB   0006H   A   
+B_SIGNAL . . . . .  N NUMB   0002H   A   
+B_TIMEOUT. . . . .  N NUMB   0003H   A   
+B_WAITSIG. . . . .  N NUMB   0000H   A   
+B_WAITTIM. . . . .  N NUMB   0001H   A   
+CHECKROBINTIME . .  C ADDR   0051H   R   SEG=?RTX?CODE
+CHECKSTACK . . . .  C ADDR   0029H   R   SEG=?RTX?CODE
+CODE_BANKING . . .  N NUMB   0000H   A   
+CPU_IDLE_CODE. . .  N NUMB   0001H   A   
+CURRENTTASK. . . .    REG    R4          
+A51 MACRO ASSEMBLER  CONF_TNY                                                             02/06/2016 21:21:31 PAGE    13
+
+DPH. . . . . . . .  D ADDR   0083H   A   
+DPL. . . . . . . .  D ADDR   0082H   A   
+EA . . . . . . . .  B ADDR   00A8H.7 A   
+ES . . . . . . . .  B ADDR   00A8H.4 A   
+ET0. . . . . . . .  B ADDR   00A8H.1 A   
+ET1. . . . . . . .  B ADDR   00A8H.3 A   
+EX0. . . . . . . .  B ADDR   00A8H.0 A   
+EX1. . . . . . . .  B ADDR   00A8H.2 A   
+FREE_STACK . . . .  N NUMB   0014H   A   
+HW_TIMER . . . . .  C ADDR   0004H   R   SEG=?RTX?CODE
+IE . . . . . . . .  D ADDR   00A8H   A   
+IE0. . . . . . . .  B ADDR   0088H.1 A   
+IE1. . . . . . . .  B ADDR   0088H.3 A   
+INT_CLOCK. . . . .  N NUMB   2710H   A   
+INT_REGBANK. . . .  N NUMB   0001H   A   
+IT0. . . . . . . .  B ADDR   0088H.0 A   
+IT1. . . . . . . .  B ADDR   0088H.2 A   
+K_ACTIVE . . . . .  N NUMB   0020H   A   
+K_IVL. . . . . . .  N NUMB   0080H   A   
+K_RDY. . . . . . .  N NUMB   0080H   A   
+K_READY. . . . . .  N NUMB   0010H   A   
+K_ROBIN. . . . . .  N NUMB   0040H   A   
+K_SIG. . . . . . .  N NUMB   0001H   A   
+K_TMO. . . . . . .  N NUMB   0002H   A   
+LONG_USR_INTR. . .  N NUMB   0000H   A   
+MAIN . . . . . . .  C ADDR   0144H   R   SEG=?RTX?CODE
+MAIN1. . . . . . .  C ADDR   014DH   R   SEG=?RTX?CODE
+MAIN1X . . . . . .  C ADDR   0157H   R   SEG=?RTX?CODE
+MAIN2. . . . . . .  C ADDR   0152H   R   SEG=?RTX?CODE
+NOEVENT. . . . . .  C ADDR   0118H   R   SEG=?RTX?CODE
+NOIDLE . . . . . .  C ADDR   0096H   R   SEG=?RTX?CODE
+NOROBINTIMEOUT . .  C ADDR   004EH   R   SEG=?RTX?CODE
+NOTIMEOUT. . . . .  C ADDR   0045H   R   SEG=?RTX?CODE
+NOWAITTIMEOUT. . .  C ADDR   0043H   R   SEG=?RTX?CODE
+OS_SWITCH_TASK . .  C ADDR   007CH   R   SEG=?RTX?CODE
+OS_SWITCH_TASK1. .  C ADDR   007CH   R   SEG=?RTX?CODE
+PCON . . . . . . .  D ADDR   0087H   A   
+PSW. . . . . . . .  D ADDR   00D0H   A   
+RAMTOP . . . . . .  N NUMB   00FFH   A   
+RDY_EVENT. . . . .  N NUMB   0080H   A   
+ROBINON. . . . . .  C ADDR   0124H   R   SEG=?RTX?CODE
+ROBINTIME. . . . .    REG    R5          
+SAVEACC. . . . . .    REG    R2          
+SAVEPSW. . . . . .    REG    R3          
+SIGNALOFF. . . . .  C ADDR   010CH   R   SEG=?RTX?CODE
+SIGNALON . . . . .  C ADDR   0118H   R   SEG=?RTX?CODE
+SIG_EVENT. . . . .  N NUMB   0004H   A   
+SP . . . . . . . .  D ADDR   0081H   A   
+TASKSTATE. . . . .  I ADDR   0001H   R   SEG=?RTX?TASKSTATE?S
+TCON . . . . . . .  D ADDR   0088H   A   
+TF0. . . . . . . .  B ADDR   0088H.5 A   
+TF1. . . . . . . .  B ADDR   0088H.7 A   
+TH0. . . . . . . .  D ADDR   008CH   A   
+TH1. . . . . . . .  D ADDR   008DH   A   
+TIMEOUTON. . . . .  C ADDR   0114H   R   SEG=?RTX?CODE
+TIMERINT . . . . .  C ADDR   0005H   R   SEG=?RTX?CODE
+TIMERLOOP. . . . .  C ADDR   0035H   R   SEG=?RTX?CODE
+TIMERVAL . . . . .  I ADDR   0000H   R   SEG=?RTX?TASKSTATE?S
+TIMESHARING. . . .  N NUMB   0001H   A   
+TL0. . . . . . . .  D ADDR   008AH   A   
+TL1. . . . . . . .  D ADDR   008BH   A   
+TMOD . . . . . . .  D ADDR   0089H   A   
+TMO_EVENT. . . . .  N NUMB   0008H   A   
+TR0. . . . . . . .  B ADDR   0088H.4 A   
+TR1. . . . . . . .  B ADDR   0088H.6 A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

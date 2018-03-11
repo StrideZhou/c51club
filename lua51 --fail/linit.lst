@@ -1,0 +1,172 @@
+C51 COMPILER V9.00   LINIT                                                                 11/27/2017 19:45:02 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LINIT
+OBJECT MODULE PLACED IN .\obj\linit.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\linit.c OMF2 BROWSE DEBUG PRINT(.\linit.lst) OBJECT(.\obj\li
+                    -nit.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: linit.c,v 1.14.1.1 2007/12/27 13:02:25 roberto Exp $
+   3          ** Initialization of libraries for lua.c
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #define linit_c
+   9          #define LUA_LIB
+  10          
+  11          #include "lua.h"
+  12          
+  13          #include "lualib.h"
+  14          #include "lauxlib.h"
+*** ERROR C202 IN LINE 138 OF SRC\LAUXLIB.H: 'BUFSIZ': undefined identifier
+*** ERROR C136 IN LINE 138 OF SRC\LAUXLIB.H: invalid dimension size: [0]
+  15          #include "lrotable.h"
+  16          #include "luaconf.h"
+  17          #ifndef LUA_CROSS_COMPILER
+              #include "platform_conf.h"
+              #endif
+  20          
+  21          #ifdef LUA_RPC
+              #include "desktop_conf.h"
+              #endif
+  24          
+  25          LUALIB_API int luaopen_platform (lua_State *L);
+  26          int luaopen_dummy(lua_State *L);
+  27          
+  28          // Declare table
+  29          #if defined(LUA_PLATFORM_LIBS_ROM) && LUA_OPTIMIZE_MEMORY == 2
+              #undef _ROM
+              #define _ROM( name, openf, table ) extern const luaR_entry table[];
+              LUA_PLATFORM_LIBS_ROM;
+              #endif
+  34          
+  35          // ****************************************************************************
+  36          // Platform module handling
+  37          // Automatically generate all the data_ required for platform modules
+  38          
+  39          #if defined( PLATFORM_MODULES_ENABLE )
+              
+              #if LUA_OPTIMIZE_MEMORY == 2
+              #undef _ROM
+              #define _ROM( name, openf, table ) extern const luaR_entry table[];
+              PLATFORM_MODULES_LIBS_ROM
+              #else // #if LUA_OPTIMIZE_MEMORY == 2
+              #undef _ROM
+              #define _ROM( name, openf, table ) extern const luaL_reg table[];
+              PLATFORM_MODULES_LIBS_ROM
+              #endif // #if LUA_OPTIMIZE_MEMORY == 2
+              
+              #if LUA_OPTIMIZE_MEMORY == 2
+              const luaR_entry platform_map[] = {
+C51 COMPILER V9.00   LINIT                                                                 11/27/2017 19:45:02 PAGE 2   
+
+              #undef _ROM
+              #define _ROM( name, openf, table ) { LRO_STRKEY( name ), LRO_ROVAL( table ) },
+                PLATFORM_MODULES_LIBS_ROM
+                { LRO_NILKEY, LRO_NILVAL }
+              };
+              #else // #if LUA_OPTIMIZE_MEMORY == 2
+              typedef struct {
+                const char *name;
+                const luaL_reg *table;
+              } PLATFORM_MODULE_ENTRY;
+              
+              static const PLATFORM_MODULE_ENTRY platform_map_tables[] = {
+              #undef _ROM
+              #define _ROM( name, openf, table ) { name, table },
+                PLATFORM_MODULES_LIBS_ROM
+                { NULL, NULL }
+              };
+              #endif // #if LUA_OPTIMIZE_MEMORY == 2
+              
+              #undef _ROM
+              #define _ROM( name, openf, table ) int openf (lua_State*);
+              PLATFORM_MODULES_LIBS_ROM
+              static const lua_CFunction platform_open_funcs[] = {
+              #undef _ROM
+              #define _ROM( name, openf, table ) openf,
+                PLATFORM_MODULES_LIBS_ROM
+                luaopen_dummy
+              };
+              
+              LUALIB_API int luaopen_platform (lua_State *L)
+              {
+              #if LUA_OPTIMIZE_MEMORY == 0
+                // Register the platform table first and each of the platform module's tables
+                const PLATFORM_MODULE_ENTRY *plibs = platform_map_tables;
+              
+                lua_newtable(L);
+                lua_pushvalue(L, -1);
+                lua_setfield(L, LUA_GLOBALSINDEX, PS_LIB_TABLE_NAME);
+                for(; plibs->name; plibs ++) {
+                  lua_newtable(L);
+                  luaL_register(L, NULL, plibs->table);
+                  lua_setfield(L, -2, plibs->name);
+                }
+                lua_pop(L, 1);
+              #endif // #if LUA_OPTIMIZE_MEMORY == 0
+                // In any case, call each platform module's initialization function if present
+                unsigned i;
+                for (i = 0; i < sizeof(platform_open_funcs) / sizeof(lua_CFunction); i++) {
+                  lua_pushcfunction(L, platform_open_funcs[i]);
+                  lua_call(L, 0, 0);
+                }
+                return 0;
+              }
+              #endif // #if defined( PLATFORM_MODULES_ENABLE )
+ 107          
+ 108          // End of platform module section
+ 109          // ****************************************************************************
+ 110          
+ 111          
+ 112          // Dummy open function
+ 113          int luaopen_dummy(lua_State *L)
+ 114          {
+C51 COMPILER V9.00   LINIT                                                                 11/27/2017 19:45:02 PAGE 3   
+
+ 115   1        return 0;
+ 116   1      }
+ 117          
+ 118          #undef _ROM
+ 119          #define _ROM( name, openf, table ) { name, openf },
+ 120          
+ 121          static const luaL_Reg lualibs[] = {
+ 122            {"", luaopen_base},
+ 123          #ifdef LUA_PLATFORM_LIBS_REG
+                LUA_PLATFORM_LIBS_REG,
+              #endif 
+ 126          #if defined(LUA_PLATFORM_LIBS_ROM)
+                LUA_PLATFORM_LIBS_ROM
+              #endif
+ 129          #if defined(LUA_LIBS_NOLTR)
+                LUA_LIBS_NOLTR
+              #endif
+ 132            {NULL, NULL}
+ 133          };
+ 134          
+ 135          const luaR_table lua_rotable[] = 
+ 136          {
+ 137          #if defined(LUA_PLATFORM_LIBS_ROM) && LUA_OPTIMIZE_MEMORY == 2
+              #undef _ROM
+              #define _ROM( name, openf, table ) { name, table },
+                LUA_PLATFORM_LIBS_ROM
+              #endif
+ 142            {NULL, NULL}
+ 143          };
+ 144          
+ 145          LUALIB_API void luaL_openlibs (lua_State *L) {
+ 146   1        const luaL_Reg *lib = lualibs;
+ 147   1        for (; lib->name; lib++)
+ 148   1          if (lib->func) {
+ 149   2            lua_pushcfunction(L, lib->func);
+ 150   2            lua_pushstring(L, lib->name);
+ 151   2            lua_call(L, 1, 0);
+ 152   2          }
+ 153   1      }
+ 154          
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  2 ERROR(S)

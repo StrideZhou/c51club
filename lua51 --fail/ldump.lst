@@ -1,0 +1,375 @@
+C51 COMPILER V9.00   LDUMP                                                                 11/27/2017 19:45:01 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LDUMP
+OBJECT MODULE PLACED IN .\obj\ldump.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\ldump.c OMF2 BROWSE DEBUG PRINT(.\ldump.lst) OBJECT(.\obj\ld
+                    -ump.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: ldump.c,v 2.8.1.1 2007/12/27 13:02:25 roberto Exp $
+   3          ** save precompiled Lua chunks
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          #include <stddef.h>
+   8          #include <sys/types.h>
+*** WARNING C318 IN LINE 8 OF src\ldump.c: can't open file 'sys/types.h'
+   9          #include <string.h>
+  10          
+  11          #define ldump_c
+  12          #define LUA_CORE
+  13          
+  14          #include "lua.h"
+  15          
+  16          #include "lobject.h"
+  17          #include "lstate.h"
+  18          #include "lundump.h"
+  19          
+  20          typedef struct {
+  21           lua_State* L;
+  22           lua_Writer writer;
+  23           void* data_;
+  24           int strip;
+  25           int status;
+  26           DumpTargetInfo target;
+  27           size_t wrote;
+  28          } DumpState;
+  29          
+  30          #define DumpMem(b,n,size,D)     DumpBlock(b,(n)*(size),D)
+  31          #define DumpVar(x,D)            DumpMem(&x,1,sizeof(x),D)
+  32          
+  33          static void DumpBlock(const void* b, size_t size, DumpState* D)
+  34          {
+  35   1       if (D->status==0)
+  36   1       {
+  37   2        lua_unlock(D->L);
+*** WARNING C275 IN LINE 37 OF SRC\LDUMP.C: expression with possibly no effect
+  38   2        D->status=(*D->writer)(D->L,b,size,D->data);
+*** ERROR C141 IN LINE 38 OF SRC\LDUMP.C: syntax error near 'data', expected '<id>'
+*** ERROR C212 IN LINE 38 OF SRC\LDUMP.C: indirect call: parameters do not fit within registers
+  39   2        D->wrote+=size;
+  40   2        lua_lock(D->L);
+  41   2       }
+  42   1      }
+  43          
+  44          static void DumpChar(int y, DumpState* D)
+  45          {
+  46   1       char x=(char)y;
+  47   1       DumpVar(x,D);
+  48   1      }
+  49          
+  50          static void Align4(DumpState *D)
+C51 COMPILER V9.00   LDUMP                                                                 11/27/2017 19:45:01 PAGE 2   
+
+  51          {
+  52   1       while(D->wrote&3)
+  53   1        DumpChar(0,D);
+  54   1      }
+  55          
+  56          static void MaybeByteSwap(char *number, size_t numbersize, DumpState *D)
+  57          {
+  58   1       int x=1;
+  59   1       int platform_little_endian = *(char*)&x;
+  60   1       if (platform_little_endian != D->target.little_endian)
+  61   1       {
+  62   2        unsigned long i;
+  63   2        for (i=0; i<numbersize/2; i++)
+  64   2        {
+  65   3         char temp = number[i];
+  66   3         number[i] = number[numbersize-1-i];
+  67   3         number[numbersize-1-i] = temp;
+  68   3        }
+  69   2       }
+  70   1      }
+  71          
+  72          static void DumpIntWithSize(int x, int sizeof_int, DumpState* D)
+  73          {
+  74   1       /* dump signed integer */
+  75   1       switch(sizeof_int) {
+  76   2        case 1: {
+  77   3         if (x>0x7F || x<(-0x80)) D->status=LUA_ERR_CC_INTOVERFLOW; 
+  78   3         DumpChar(x,D);
+  79   3        } break;
+  80   2        case 2: {
+  81   3         if (x>0x7FFF || x<(-0x8000)) D->status=LUA_ERR_CC_INTOVERFLOW; 
+  82   3         int16_t y=(int16_t)x;
+*** ERROR C202 IN LINE 82 OF SRC\LDUMP.C: 'int16_t': undefined identifier
+*** ERROR C141 IN LINE 82 OF SRC\LDUMP.C: syntax error near 'y'
+*** ERROR C141 IN LINE 82 OF SRC\LDUMP.C: syntax error near 'x'
+  83   3         MaybeByteSwap((char*)&y,2,D);
+*** ERROR C202 IN LINE 83 OF SRC\LDUMP.C: 'y': undefined identifier
+  84   3         DumpVar(y,D);
+*** ERROR C202 IN LINE 84 OF SRC\LDUMP.C: 'y': undefined identifier
+  85   3        } break;
+  86   2        case 4: {
+  87   3         /* Need to reduce bounds by 1 to avoid messing 32-bit compilers up */
+  88   3         if (x>0x7FFFFFFE || x<(-0x7FFFFFFF)) D->status=LUA_ERR_CC_INTOVERFLOW; 
+  89   3         int32_t y=(int32_t)x;
+*** ERROR C202 IN LINE 89 OF SRC\LDUMP.C: 'int32_t': undefined identifier
+*** ERROR C141 IN LINE 89 OF SRC\LDUMP.C: syntax error near 'y'
+*** ERROR C141 IN LINE 89 OF SRC\LDUMP.C: syntax error near 'x'
+  90   3         MaybeByteSwap((char*)&y,4,D);
+*** ERROR C202 IN LINE 90 OF SRC\LDUMP.C: 'y': undefined identifier
+  91   3         DumpVar(y,D);
+*** ERROR C202 IN LINE 91 OF SRC\LDUMP.C: 'y': undefined identifier
+  92   3        } break;
+  93   2        default: lua_assert(0);
+  94   2       }
+  95   1      }
+  96          
+  97          static void DumpInt(int x, DumpState* D)
+  98          {
+  99   1       DumpIntWithSize(x,D->target.sizeof_int,D);
+ 100   1      }
+ 101          
+ 102          static void DumpSize(uint32_t x, DumpState* D)
+C51 COMPILER V9.00   LDUMP                                                                 11/27/2017 19:45:01 PAGE 3   
+
+ 103          {
+ 104   1       /* dump unsigned integer */
+ 105   1       switch(D->target.sizeof_strsize_t) {
+ 106   2        case 1: {
+ 107   3         if (x>0xFF) D->status=LUA_ERR_CC_INTOVERFLOW; 
+ 108   3         DumpChar(x,D);
+ 109   3        } break;
+ 110   2        case 2: {
+ 111   3         if (x>0xFFFF) D->status=LUA_ERR_CC_INTOVERFLOW;
+ 112   3         uint16_t y=(uint16_t)x;
+*** ERROR C141 IN LINE 112 OF SRC\LDUMP.C: syntax error near 'uint16_t'
+*** ERROR C202 IN LINE 112 OF SRC\LDUMP.C: 'y': undefined identifier
+ 113   3         MaybeByteSwap((char*)&y,2,D);
+*** ERROR C202 IN LINE 113 OF SRC\LDUMP.C: 'y': undefined identifier
+ 114   3         DumpVar(y,D);
+*** ERROR C202 IN LINE 114 OF SRC\LDUMP.C: 'y': undefined identifier
+ 115   3        } break;
+ 116   2        case 4: {
+ 117   3         /* Reduce bounds to avoid messing 32-bit compilers up */
+ 118   3         if (x>0xFFFFFFFE) D->status=LUA_ERR_CC_INTOVERFLOW;
+ 119   3         uint32_t y=x;
+*** ERROR C141 IN LINE 119 OF SRC\LDUMP.C: syntax error near 'uint32_t'
+*** ERROR C202 IN LINE 119 OF SRC\LDUMP.C: 'y': undefined identifier
+ 120   3         MaybeByteSwap((char*)&y,4,D);
+*** ERROR C202 IN LINE 120 OF SRC\LDUMP.C: 'y': undefined identifier
+ 121   3         DumpVar(y,D);
+*** ERROR C202 IN LINE 121 OF SRC\LDUMP.C: 'y': undefined identifier
+ 122   3        } break;
+ 123   2        default: lua_assert(0);
+ 124   2       }
+ 125   1      }
+ 126          
+ 127          static void DumpNumber(lua_Number x, DumpState* D)
+ 128          {
+ 129   1      #if defined( LUA_NUMBER_INTEGRAL ) && !defined( LUA_CROSS_COMPILER )
+                DumpIntWithSize(x,D->target.sizeof_lua_Number,D);
+              #else // #if defined( LUA_NUMBER_INTEGRAL ) && !defined( LUA_CROSS_COMPILER )
+ 132   1       if (D->target.lua_Number_integral)
+ 133   1       {
+ 134   2        if (((float)(int)x)!=x) D->status=LUA_ERR_CC_NOTINTEGER;
+ 135   2        DumpIntWithSize(x,D->target.sizeof_lua_Number,D);
+ 136   2       }
+ 137   1       else
+ 138   1       {
+ 139   2        switch(D->target.sizeof_lua_Number)
+ 140   2        {
+ 141   3         /* do we need bounds checking? */
+ 142   3         case 4: {
+ 143   4          float y=x;
+ 144   4          MaybeByteSwap((char*)&y,4,D);
+ 145   4          DumpVar(y,D);
+ 146   4         } break;
+ 147   3         case 8: {
+ 148   4          double y=x;
+ 149   4          // ARM FPA mode: keep endianness, but swap high and low parts of the 
+ 150   4          // memory representation. This is the default compilation mode for ARM 
+ 151   4          // targets with non-EABI gcc
+ 152   4          if(D->target.is_arm_fpa)
+ 153   4          {
+ 154   5            char *pnum=(char*)&y, temp[4];
+ 155   5            memcpy(temp,pnum,4);
+ 156   5            memcpy(pnum,pnum+4,4);
+C51 COMPILER V9.00   LDUMP                                                                 11/27/2017 19:45:01 PAGE 4   
+
+ 157   5            memcpy(pnum+4,temp,4);
+ 158   5          }    
+ 159   4          MaybeByteSwap((char*)&y,8,D);
+ 160   4          DumpVar(y,D);
+ 161   4         } break;
+ 162   3         default: lua_assert(0);
+ 163   3        }
+ 164   2       }
+ 165   1      #endif // #if defined( LUA_NUMBER_INTEGRAL ) && !defined( LUA_CROSS_COMPILER )
+ 166   1      }
+ 167          
+ 168          static void DumpCode(const Proto *f, DumpState* D)
+ 169          {
+ 170   1       DumpInt(f->sizecode,D);
+ 171   1       char buf[10];
+*** ERROR C141 IN LINE 171 OF SRC\LDUMP.C: syntax error near 'char'
+*** ERROR C202 IN LINE 171 OF SRC\LDUMP.C: 'buf': undefined identifier
+ 172   1       int i;
+*** ERROR C141 IN LINE 172 OF SRC\LDUMP.C: syntax error near 'int'
+*** ERROR C202 IN LINE 172 OF SRC\LDUMP.C: 'i': undefined identifier
+ 173   1       Align4(D);
+ 174   1       for (i=0; i<f->sizecode; i++)
+*** ERROR C202 IN LINE 174 OF SRC\LDUMP.C: 'i': undefined identifier
+ 175   1       {
+ 176   2        memcpy(buf,&f->code[i],sizeof(Instruction));
+*** ERROR C202 IN LINE 176 OF SRC\LDUMP.C: 'buf': undefined identifier
+*** ERROR C141 IN LINE 176 OF SRC\LDUMP.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 176 OF SRC\LDUMP.C: syntax error near ')'
+ 177   2        MaybeByteSwap(buf,sizeof(Instruction),D);
+ 178   2        DumpBlock(buf,sizeof(Instruction),D);
+*** ERROR C202 IN LINE 178 OF SRC\LDUMP.C: 'buf': undefined identifier
+ 179   2       }
+ 180   1      }
+ 181          
+ 182          static void DumpString(const TString* s, DumpState* D)
+ 183          {
+ 184   1       if (s==NULL || getstr(s)==NULL)
+ 185   1       {
+ 186   2        strsize_t size=0;
+ 187   2        DumpSize(size,D);
+ 188   2       }
+ 189   1       else
+ 190   1       {
+ 191   2        strsize_t size=( strsize_t )s->tsv.len+1;             /* include trailing '\0' */
+ 192   2        DumpSize(size,D);
+ 193   2        DumpBlock(getstr(s),size,D);
+ 194   2       }
+ 195   1      }
+ 196          
+ 197          static void DumpFunction(const Proto* f, const TString* p, DumpState* D);
+ 198          
+ 199          static void DumpConstants(const Proto* f, DumpState* D)
+ 200          {
+ 201   1       int i,n=f->sizek;
+ 202   1       DumpInt(n,D);
+ 203   1       for (i=0; i<n; i++)
+ 204   1       {
+ 205   2        const TValue* o=&f->k[i];
+ 206   2        DumpChar(ttype(o),D);
+ 207   2        switch (ttype(o))
+ 208   2        {
+ 209   3         case LUA_TNIL:
+C51 COMPILER V9.00   LDUMP                                                                 11/27/2017 19:45:01 PAGE 5   
+
+ 210   3              break;
+ 211   3         case LUA_TBOOLEAN:
+ 212   3              DumpChar(bvalue(o),D);
+ 213   3              break;
+ 214   3         case LUA_TNUMBER:
+ 215   3              DumpNumber(nvalue(o),D);
+ 216   3              break;
+ 217   3         case LUA_TSTRING:
+ 218   3              DumpString(rawtsvalue(o),D);
+ 219   3              break;
+ 220   3         default:
+ 221   3              lua_assert(0);                  /* cannot happen */
+ 222   3              break;
+ 223   3        }
+ 224   2       }
+ 225   1       n=f->sizep;
+ 226   1       DumpInt(n,D);
+ 227   1       for (i=0; i<n; i++) DumpFunction(f->p[i],f->source,D);
+ 228   1      }
+ 229          
+ 230          static void DumpDebug(const Proto* f, DumpState* D)
+ 231          {
+ 232   1       int i,n;
+ 233   1       n= (D->strip) ? 0 : f->sizelineinfo;
+ 234   1       DumpInt(n,D);
+ 235   1       Align4(D);
+ 236   1       for (i=0; i<n; i++)
+ 237   1       {
+ 238   2        DumpInt(f->lineinfo[i],D);
+ 239   2       }
+ 240   1       
+ 241   1       n= (D->strip) ? 0 : f->sizelocvars;
+ 242   1       DumpInt(n,D);
+ 243   1       for (i=0; i<n; i++)
+ 244   1       {
+ 245   2        DumpString(f->locvars[i].varname,D);
+ 246   2        DumpInt(f->locvars[i].startpc,D);
+ 247   2        DumpInt(f->locvars[i].endpc,D);
+ 248   2       }
+ 249   1      
+ 250   1       n= (D->strip) ? 0 : f->sizeupvalues;
+ 251   1       DumpInt(n,D);
+ 252   1       for (i=0; i<n; i++) DumpString(f->upvalues[i],D);
+ 253   1      }
+ 254          
+ 255          static void DumpFunction(const Proto* f, const TString* p, DumpState* D)
+ 256          {
+ 257   1       DumpString((f->source==p || D->strip) ? NULL : f->source,D);
+ 258   1       DumpInt(f->linedefined,D);
+ 259   1       DumpInt(f->lastlinedefined,D);
+ 260   1       DumpChar(f->nups,D);
+ 261   1       DumpChar(f->numparams,D);
+ 262   1       DumpChar(f->is_vararg,D);
+ 263   1       DumpChar(f->maxstacksize,D);
+ 264   1       DumpCode(f,D);
+ 265   1       DumpConstants(f,D);
+ 266   1       DumpDebug(f,D);
+ 267   1      }
+ 268          
+ 269          static void DumpHeader(DumpState* D)
+ 270          {
+ 271   1       char buf[LUAC_HEADERSIZE];
+C51 COMPILER V9.00   LDUMP                                                                 11/27/2017 19:45:01 PAGE 6   
+
+ 272   1       char *h=buf;
+ 273   1       
+ 274   1       /* This code_ must be kept in sync wiht luaU_header */
+ 275   1       memcpy(h,LUA_SIGNATURE,sizeof(LUA_SIGNATURE)-1);
+ 276   1       h+=sizeof(LUA_SIGNATURE)-1;
+ 277   1       *h++=(char)LUAC_VERSION;
+ 278   1       *h++=(char)LUAC_FORMAT;
+ 279   1       *h++=(char)D->target.little_endian;
+ 280   1       *h++=(char)D->target.sizeof_int;
+ 281   1       *h++=(char)D->target.sizeof_strsize_t;
+ 282   1       *h++=(char)sizeof(Instruction);
+ 283   1       *h++=(char)D->target.sizeof_lua_Number;
+ 284   1       *h++=(char)D->target.lua_Number_integral;
+ 285   1       
+ 286   1       DumpBlock(buf,LUAC_HEADERSIZE,D);
+ 287   1      }
+ 288          
+ 289          /*
+ 290          ** dump Lua function as precompiled chunk with specified target
+ 291          */
+ 292          int luaU_dump_crosscompile (lua_State* L, const Proto* f, lua_Writer w, void* data_, int strip, DumpTarget
+             -Info target)
+ 293          {
+ 294   1       DumpState D;
+ 295   1       D.L=L;
+ 296   1       D.writer=w;
+ 297   1       D.data=data;
+ 298   1       D.strip=strip;
+ 299   1       D.status=0;
+ 300   1       D.target=target;
+ 301   1       D.wrote=0;
+ 302   1       DumpHeader(&D);
+ 303   1       DumpFunction(f,NULL,&D);
+ 304   1       return D.status;
+ 305   1      }
+ 306          
+ 307          /*
+ 308           ** dump Lua function as precompiled chunk with local machine as target
+ 309           */
+ 310          int luaU_dump (lua_State* L, const Proto* f, lua_Writer w, void* data_, int strip)
+ 311          {
+ 312   1       DumpTargetInfo target;
+ 313   1       int test=1;
+ 314   1       target.little_endian=*(char*)&test;
+ 315   1       target.sizeof_int=sizeof(int);
+ 316   1       target.sizeof_strsize_t=sizeof(strsize_t);
+ 317   1       target.sizeof_lua_Number=sizeof(lua_Number);
+ 318   1       target.lua_Number_integral=(((lua_Number)0.5)==0);
+ 319   1       target.is_arm_fpa=0;
+ 320   1       return luaU_dump_crosscompile(L,f,w,data,strip,target);
+ 321   1      }
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  29 ERROR(S)

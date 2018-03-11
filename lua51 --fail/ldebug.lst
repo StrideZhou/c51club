@@ -1,0 +1,756 @@
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LDEBUG
+OBJECT MODULE PLACED IN .\obj\ldebug.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\ldebug.c OMF2 BROWSE DEBUG PRINT(.\ldebug.lst) OBJECT(.\obj\
+                    -ldebug.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: ldebug.c,v 2.29.1.6 2008/05/08 16:56:26 roberto Exp $
+   3          ** Debug Interface
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <stdarg.h>
+   9          #include <stddef.h>
+  10          #include <string.h>
+  11          
+  12          
+  13          #define ldebug_c
+  14          #define LUA_CORE
+  15          
+  16          #include "lua.h"
+  17          
+  18          #include "lapi.h"
+  19          #include "lcode.h"
+  20          #include "ldebug.h"
+  21          #include "ldo.h"
+  22          #include "lfunc.h"
+  23          #include "lobject.h"
+  24          #include "lopcodes.h"
+  25          #include "lstate.h"
+  26          #include "lstring.h"
+  27          #include "ltable.h"
+  28          #include "ltm.h"
+  29          #include "lvm.h"
+  30          
+  31          
+  32          
+  33          static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name);
+  34          
+  35          
+  36          static int currentpc (lua_State *L, CallInfo *ci) {
+  37   1        if (!isLua(ci)) return -1;  /* function is not a Lua function? */
+  38   1        if (ci == L->ci)
+  39   1          ci->savedpc = L->savedpc;
+  40   1        return pcRel(ci->savedpc, ci_func(ci)->l.p);
+*** ERROR C141 IN LINE 40 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 40 OF SRC\LDEBUG.C: syntax error near ';'
+  41   1      }
+  42          
+  43          
+  44          static int currentline (lua_State *L, CallInfo *ci) {
+  45   1        int pc = currentpc(L, ci);
+  46   1        if (pc < 0)
+  47   1          return -1;  /* only active lua functions have current-line information */
+  48   1        else
+  49   1          return getline(ci_func(ci)->l.p, pc);
+  50   1      }
+  51          
+  52          
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 2   
+
+  53          /*
+  54          ** this function can be called asynchronous (e.g. during a signal)
+  55          */
+  56          LUA_API int lua_sethook (lua_State *L, lua_Hook func, int mask, int count) {
+  57   1        if (func == NULL || mask == 0) {  /* turn off hooks? */
+  58   2          mask = 0;
+  59   2          func = NULL;
+  60   2        }
+  61   1        L->hook = func;
+  62   1        L->basehookcount = count;
+  63   1        resethookcount(L);
+  64   1        L->hookmask = cast_byte(mask);
+  65   1        return 1;
+  66   1      }
+  67          
+  68          
+  69          LUA_API lua_Hook lua_gethook (lua_State *L) {
+  70   1        return L->hook;
+  71   1      }
+  72          
+  73          
+  74          LUA_API int lua_gethookmask (lua_State *L) {
+  75   1        return L->hookmask;
+  76   1      }
+  77          
+  78          
+  79          LUA_API int lua_gethookcount (lua_State *L) {
+  80   1        return L->basehookcount;
+  81   1      }
+  82          
+  83          
+  84          LUA_API int lua_getstack (lua_State *L, int level, lua_Debug *ar) {
+  85   1        int status;
+  86   1        CallInfo *ci;
+  87   1        lua_lock(L);
+  88   1        for (ci = L->ci; level > 0 && ci > L->base_ci; ci--) {
+  89   2          level--;
+  90   2          if (f_isLua(ci))  /* Lua function? */
+  91   2            level -= ci->tailcalls;  /* skip lost tail calls */
+  92   2        }
+  93   1        if (level == 0 && ci > L->base_ci) {  /* level found? */
+  94   2          status = 1;
+  95   2          ar->i_ci = cast_int(ci - L->base_ci);
+  96   2        }
+  97   1        else if (level < 0) {  /* level is of a lost tail call? */
+  98   2          status = 1;
+  99   2          ar->i_ci = 0;
+ 100   2        }
+ 101   1        else status = 0;  /* no such level */
+ 102   1        lua_unlock(L);
+ 103   1        return status;
+ 104   1      }
+ 105          
+ 106          
+ 107          static Proto *getluaproto (CallInfo *ci) {
+ 108   1        return (isLua(ci) ? ci_func(ci)->l.p : NULL);
+ 109   1      }
+ 110          
+ 111          
+ 112          static const char *findlocal (lua_State *L, CallInfo *ci, int n) {
+ 113   1        const char *name;
+ 114   1        Proto *fp = getluaproto(ci);
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 3   
+
+ 115   1        if (fp && (name = luaF_getlocalname(fp, n, currentpc(L, ci))) != NULL)
+ 116   1          return name;  /* is a local variable in a Lua function */
+ 117   1        else {
+ 118   2          StkId limit = (ci == L->ci) ? L->top : (ci+1)->func;
+ 119   2          if (limit - ci->base >= n && n > 0)  /* is 'n' inside 'ci' stack? */
+ 120   2            return "(*temporary)";
+ 121   2          else
+ 122   2            return NULL;
+ 123   2        }
+ 124   1      }
+ 125          
+ 126          
+ 127          LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
+ 128   1        CallInfo *ci = L->base_ci + ar->i_ci;
+ 129   1        const char *name = findlocal(L, ci, n);
+ 130   1        lua_lock(L);
+ 131   1        if (name)
+ 132   1            luaA_pushobject(L, ci->base + (n - 1));
+ 133   1        lua_unlock(L);
+ 134   1        return name;
+ 135   1      }
+ 136          
+ 137          
+ 138          LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
+ 139   1        CallInfo *ci = L->base_ci + ar->i_ci;
+ 140   1        const char *name = findlocal(L, ci, n);
+ 141   1        lua_lock(L);
+ 142   1        if (name)
+ 143   1            setobjs2s(L, ci->base + (n - 1), L->top - 1);
+ 144   1        L->top--;  /* pop value */
+ 145   1        lua_unlock(L);
+ 146   1        return name;
+ 147   1      }
+ 148          
+ 149          
+ 150          static void funcinfo (lua_Debug *ar, Closure *cl, void *plight) {
+ 151   1        if (plight || cl->c.isC) {
+ 152   2          ar->source = "=[C]";
+ 153   2          ar->linedefined = -1;
+ 154   2          ar->lastlinedefined = -1;
+ 155   2          ar->what = "C";
+ 156   2        }
+ 157   1        else {
+ 158   2          ar->source = getstr(cl->l.p->source);
+ 159   2          ar->linedefined = cl->l.p->linedefined;
+ 160   2          ar->lastlinedefined = cl->l.p->lastlinedefined;
+ 161   2          ar->what = (ar->linedefined == 0) ? "main" : "Lua";
+ 162   2        }
+ 163   1        luaO_chunkid(ar->short_src, ar->source, LUA_IDSIZE);
+ 164   1      }
+ 165          
+ 166          
+ 167          static void info_tailcall (lua_Debug *ar) {
+ 168   1        ar->name = ar->namewhat = "";
+ 169   1        ar->what = "tail";
+ 170   1        ar->lastlinedefined = ar->linedefined = ar->currentline = -1;
+ 171   1        ar->source = "=(tail call)";
+ 172   1        luaO_chunkid(ar->short_src, ar->source, LUA_IDSIZE);
+ 173   1        ar->nups = 0;
+ 174   1      }
+ 175          
+ 176          
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 4   
+
+ 177          static void collectvalidlines (lua_State *L, Closure *f) {
+ 178   1        if (f == NULL || f->c.isC) {
+ 179   2          setnilvalue(L->top);
+ 180   2        }
+ 181   1        else {
+ 182   2          Table *t = luaH_new(L, 0, 0);
+ 183   2          int *lineinfo = f->l.p->lineinfo;
+ 184   2          int i;
+ 185   2          for (i=0; i<f->l.p->sizelineinfo; i++)
+ 186   2            setbvalue(luaH_setnum(L, t, lineinfo[i]), 1);
+ 187   2          sethvalue(L, L->top, t); 
+ 188   2        }
+ 189   1        incr_top(L);
+ 190   1      }
+ 191          
+ 192          
+ 193          static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
+ 194                              Closure *f, void *plight, CallInfo *ci) {
+ 195   1        int status = 1;
+ 196   1        if (plight == NULL && f == NULL) {
+ 197   2          info_tailcall(ar);
+ 198   2          return status;
+ 199   2        }
+ 200   1        for (; *what; what++) {
+ 201   2          switch (*what) {
+ 202   3            case 'S': {
+ 203   4              funcinfo(ar, f, plight);
+ 204   4              break;
+ 205   4            }
+ 206   3            case 'l': {
+ 207   4              ar->currentline = (ci) ? currentline(L, ci) : -1;
+ 208   4              break;
+ 209   4            }
+ 210   3            case 'u': {
+ 211   4              ar->nups = f ? f->c.nupvalues : 0;
+ 212   4              break;
+ 213   4            }
+ 214   3            case 'n': {
+ 215   4              ar->namewhat = (ci) ? getfuncname(L, ci, &ar->name) : NULL;
+ 216   4              if (ar->namewhat == NULL) {
+ 217   5                ar->namewhat = "";  /* not found */
+ 218   5                ar->name = NULL;
+ 219   5              }
+ 220   4              break;
+ 221   4            }
+ 222   3            case 'L':
+ 223   3            case 'f':  /* handled by lua_getinfo */
+ 224   3              break;
+ 225   3            default: status = 0;  /* invalid option */
+ 226   3          }
+ 227   2        }
+ 228   1        return status;
+ 229   1      }
+ 230          
+ 231          
+ 232          LUA_API int lua_getinfo (lua_State *L, const char *what, lua_Debug *ar) {
+ 233   1        int status;
+ 234   1        Closure *f = NULL;
+ 235   1        CallInfo *ci = NULL;
+ 236   1        void *plight = NULL;
+ 237   1        lua_lock(L);
+ 238   1        if (*what == '>') {
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 5   
+
+ 239   2          StkId func = L->top - 1;
+ 240   2          luai_apicheck(L, ttisfunction(func) || ttislightfunction(func));
+ 241   2          what++;  /* skip the '>' */
+ 242   2          if (ttisfunction(func))
+ 243   2            f = clvalue(func);
+ 244   2          else
+ 245   2            plight = fvalue(func);
+ 246   2          L->top--;  /* pop function */
+ 247   2        }
+ 248   1        else if (ar->i_ci != 0) {  /* no tail call? */
+ 249   2          ci = L->base_ci + ar->i_ci;
+ 250   2          lua_assert(ttisfunction(ci->func) || ttislightfunction(ci->func));
+ 251   2          if (ttisfunction(ci->func))
+ 252   2            f = clvalue(ci->func);
+ 253   2          else
+ 254   2            plight = fvalue(ci->func);
+ 255   2        }
+ 256   1        status = auxgetinfo(L, what, ar, f, plight, ci);
+ 257   1        if (strchr(what, 'f')) {
+ 258   2          if (f != NULL) 
+ 259   2            setclvalue(L, L->top, f)
+ 260   2          else if (plight != NULL)
+ 261   2            setfvalue(L->top, plight)
+ 262   2          else
+ 263   2            setnilvalue(L->top);
+ 264   2          incr_top(L);
+ 265   2        }
+ 266   1        if (strchr(what, 'L'))
+ 267   1          collectvalidlines(L, f);
+ 268   1        lua_unlock(L);
+ 269   1        return status;
+ 270   1      }
+ 271          
+ 272          
+ 273          /*
+ 274          ** {======================================================
+ 275          ** Symbolic Execution and code_ checker
+ 276          ** =======================================================
+ 277          */
+ 278          
+ 279          #define check(x)                if (!(x)) return 0;
+ 280          
+ 281          #define checkjump(pt,pc)        check(0 <= pc && pc < pt->sizecode)
+ 282          
+ 283          #define checkreg(pt,reg)        check((reg) < (pt)->maxstacksize)
+ 284          
+ 285          
+ 286          
+ 287          static int precheck (const Proto *pt) {
+ 288   1        check(pt->maxstacksize <= MAXSTACK);
+ 289   1        check(pt->numparams+(pt->is_vararg & VARARG_HASARG) <= pt->maxstacksize);
+ 290   1        check(!(pt->is_vararg & VARARG_NEEDSARG) ||
+ 291   1                    (pt->is_vararg & VARARG_HASARG));
+ 292   1        check(pt->sizeupvalues <= pt->nups);
+ 293   1        check(pt->sizelineinfo == pt->sizecode || pt->sizelineinfo == 0);
+ 294   1        check(pt->sizecode > 0 && GET_OPCODE(pt->code[pt->sizecode-1]) == OP_RETURN);
+*** ERROR C141 IN LINE 294 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 294 OF SRC\LDEBUG.C: syntax error near ']'
+*** ERROR C141 IN LINE 294 OF SRC\LDEBUG.C: syntax error near '>>'
+*** ERROR C141 IN LINE 294 OF SRC\LDEBUG.C: syntax error near ')'
+*** ERROR C190 IN LINE 294 OF SRC\LDEBUG.C: '&': not an lvalue
+*** ERROR C141 IN LINE 294 OF SRC\LDEBUG.C: syntax error near ')'
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 6   
+
+ 295   1        return 1;
+ 296   1      }
+ 297          
+ 298          
+ 299          #define checkopenop(pt,pc)      luaG_checkopenop((pt)->code[(pc)+1])
+ 300          
+ 301          int luaG_checkopenop (Instruction i) {
+ 302   1        switch (GET_OPCODE(i)) {
+ 303   2          case OP_CALL:
+ 304   2          case OP_TAILCALL:
+ 305   2          case OP_RETURN:
+ 306   2          case OP_SETLIST: {
+ 307   3            check(GETARG_B(i) == 0);
+ 308   3            return 1;
+ 309   3          }
+ 310   2          default: return 0;  /* invalid instruction after an open call */
+ 311   2        }
+ 312   1      }
+ 313          
+ 314          
+ 315          static int checkArgMode (const Proto *pt, int r, enum OpArgMask mode) {
+ 316   1        switch (mode) {
+ 317   2          case OpArgN: check(r == 0); break;
+ 318   2          case OpArgU: break;
+ 319   2          case OpArgR: checkreg(pt, r); break;
+ 320   2          case OpArgK:
+ 321   2            check(ISK(r) ? INDEXK(r) < pt->sizek : r < pt->maxstacksize);
+ 322   2            break;
+ 323   2        }
+ 324   1        return 1;
+ 325   1      }
+ 326          
+ 327          
+ 328          static Instruction symbexec (const Proto *pt, int lastpc, int reg) {
+ 329   1        int pc;
+ 330   1        int last;  /* stores position of last instruction that changed `reg' */
+ 331   1        last = pt->sizecode-1;  /* points to final return (a `neutral' instruction) */
+ 332   1        check(precheck(pt));
+ 333   1        for (pc = 0; pc < lastpc; pc++) {
+ 334   2          Instruction i = pt->code[pc];
+*** ERROR C141 IN LINE 334 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 334 OF SRC\LDEBUG.C: syntax error near '['
+ 335   2          OpCode op = GET_OPCODE(i);
+*** ERROR C141 IN LINE 335 OF SRC\LDEBUG.C: syntax error near 'OpCode'
+*** ERROR C202 IN LINE 335 OF SRC\LDEBUG.C: 'op': undefined identifier
+ 336   2          int a = GETARG_A(i);
+*** ERROR C141 IN LINE 336 OF SRC\LDEBUG.C: syntax error near 'int'
+*** ERROR C202 IN LINE 336 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 337   2          int b = 0;
+*** ERROR C141 IN LINE 337 OF SRC\LDEBUG.C: syntax error near 'int'
+*** ERROR C202 IN LINE 337 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 338   2          int c = 0;
+*** ERROR C141 IN LINE 338 OF SRC\LDEBUG.C: syntax error near 'int'
+*** ERROR C202 IN LINE 338 OF SRC\LDEBUG.C: 'c': undefined identifier
+ 339   2          check(op < NUM_OPCODES);
+*** ERROR C202 IN LINE 339 OF SRC\LDEBUG.C: 'op': undefined identifier
+ 340   2          checkreg(pt, a);
+*** ERROR C202 IN LINE 340 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 341   2          switch (getOpMode(op)) {
+*** ERROR C202 IN LINE 341 OF SRC\LDEBUG.C: 'op': undefined identifier
+ 342   3            case iABC: {
+ 343   4              b = GETARG_B(i);
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 7   
+
+*** ERROR C202 IN LINE 343 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 344   4              c = GETARG_C(i);
+*** ERROR C202 IN LINE 344 OF SRC\LDEBUG.C: 'c': undefined identifier
+ 345   4              check(checkArgMode(pt, b, getBMode(op)));
+*** ERROR C202 IN LINE 345 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 346   4              check(checkArgMode(pt, c, getCMode(op)));
+*** ERROR C202 IN LINE 346 OF SRC\LDEBUG.C: 'c': undefined identifier
+ 347   4              break;
+ 348   4            }
+ 349   3            case iABx: {
+ 350   4              b = GETARG_Bx(i);
+*** ERROR C202 IN LINE 350 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 351   4              if (getBMode(op) == OpArgK) check(b < pt->sizek);
+*** ERROR C202 IN LINE 351 OF SRC\LDEBUG.C: 'op': undefined identifier
+*** ERROR C202 IN LINE 351 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 352   4              break;
+ 353   4            }
+ 354   3            case iAsBx: {
+ 355   4              b = GETARG_sBx(i);
+*** ERROR C202 IN LINE 355 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 356   4              if (getBMode(op) == OpArgR) {
+*** ERROR C202 IN LINE 356 OF SRC\LDEBUG.C: 'op': undefined identifier
+ 357   5                int dest = pc+1+b;
+*** ERROR C202 IN LINE 357 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 358   5                check(0 <= dest && dest < pt->sizecode);
+ 359   5                if (dest > 0) {
+ 360   6                  int j;
+ 361   6                  /* check that it does not jump to a setlist count; this
+ 362   6                     is tricky, because the count from a previous setlist may
+ 363   6                     have the same value of an invalid setlist; so, we must
+ 364   6                     go all the way back to the first of them (if any) */
+ 365   6                  for (j = 0; j < dest; j++) {
+ 366   7                    Instruction d = pt->code[dest-1-j];
+*** ERROR C141 IN LINE 366 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 366 OF SRC\LDEBUG.C: syntax error near '['
+*** ERROR C141 IN LINE 366 OF SRC\LDEBUG.C: syntax error near ']'
+ 367   7                    if (!(GET_OPCODE(d) == OP_SETLIST && GETARG_C(d) == 0)) break;
+ 368   7                  }
+ 369   6                  /* if 'j' is even, previous value is not a setlist (even if
+ 370   6                     it looks like one) */
+ 371   6                  check((j&1) == 0);
+ 372   6                }
+ 373   5              }
+ 374   4              break;
+ 375   4            }
+ 376   3          }
+ 377   2          if (testAMode(op)) {
+*** ERROR C202 IN LINE 377 OF SRC\LDEBUG.C: 'op': undefined identifier
+ 378   3            if (a == reg) last = pc;  /* change register `a' */
+*** ERROR C202 IN LINE 378 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 379   3          }
+ 380   2          if (testTMode(op)) {
+*** ERROR C202 IN LINE 380 OF SRC\LDEBUG.C: 'op': undefined identifier
+ 381   3            check(pc+2 < pt->sizecode);  /* check skip */
+ 382   3            check(GET_OPCODE(pt->code[pc+1]) == OP_JMP);
+*** ERROR C141 IN LINE 382 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 382 OF SRC\LDEBUG.C: syntax error near ']'
+*** ERROR C141 IN LINE 382 OF SRC\LDEBUG.C: syntax error near '>>'
+*** ERROR C141 IN LINE 382 OF SRC\LDEBUG.C: syntax error near ')'
+*** ERROR C190 IN LINE 382 OF SRC\LDEBUG.C: '&': not an lvalue
+*** ERROR C141 IN LINE 382 OF SRC\LDEBUG.C: syntax error near ')'
+ 383   3          }
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 8   
+
+ 384   2          switch (op) {
+*** ERROR C202 IN LINE 384 OF SRC\LDEBUG.C: 'op': undefined identifier
+ 385   3            case OP_LOADBOOL: {
+ 386   4              if (c == 1) {  /* does it jump? */
+*** ERROR C202 IN LINE 386 OF SRC\LDEBUG.C: 'c': undefined identifier
+ 387   5                check(pc+2 < pt->sizecode);  /* check its jump */
+ 388   5                check(GET_OPCODE(pt->code[pc+1]) != OP_SETLIST ||
+ 389   5                      GETARG_C(pt->code[pc+1]) != 0);
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near ']'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near '>>'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near ')'
+*** ERROR C190 IN LINE 389 OF SRC\LDEBUG.C: '&': not an lvalue
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near ')'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near ']'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near ')'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near ')'
+*** ERROR C141 IN LINE 389 OF SRC\LDEBUG.C: syntax error near ')'
+ 390   5              }
+ 391   4              break;
+ 392   4            }
+ 393   3            case OP_LOADNIL: {
+ 394   4              if (a <= reg && reg <= b)
+*** ERROR C202 IN LINE 394 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 395   4                last = pc;  /* set registers from `a' to `b' */
+ 396   4              break;
+ 397   4            }
+ 398   3            case OP_GETUPVAL:
+ 399   3            case OP_SETUPVAL: {
+ 400   4              check(b < pt->nups);
+*** ERROR C202 IN LINE 400 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 401   4              break;
+ 402   4            }
+ 403   3            case OP_GETGLOBAL:
+ 404   3            case OP_SETGLOBAL: {
+ 405   4              check(ttisstring(&pt->k[b]));
+*** ERROR C202 IN LINE 405 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 406   4              break;
+ 407   4            }
+ 408   3            case OP_SELF: {
+ 409   4              checkreg(pt, a+1);
+*** ERROR C202 IN LINE 409 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 410   4              if (reg == a+1) last = pc;
+*** ERROR C202 IN LINE 410 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 411   4              break;
+ 412   4            }
+ 413   3            case OP_CONCAT: {
+ 414   4              check(b < c);  /* at least two operands */
+*** ERROR C202 IN LINE 414 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 415   4              break;
+ 416   4            }
+ 417   3            case OP_TFORLOOP: {
+ 418   4              check(c >= 1);  /* at least one result (control variable) */
+*** ERROR C202 IN LINE 418 OF SRC\LDEBUG.C: 'c': undefined identifier
+ 419   4              checkreg(pt, a+2+c);  /* space for results */
+*** ERROR C202 IN LINE 419 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 420   4              if (reg >= a+2) last = pc;  /* affect all regs above its base */
+*** ERROR C202 IN LINE 420 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 421   4              break;
+ 422   4            }
+ 423   3            case OP_FORLOOP:
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 9   
+
+ 424   3            case OP_FORPREP:
+ 425   3              checkreg(pt, a+3);
+*** ERROR C202 IN LINE 425 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 426   3              /* go through */
+ 427   3            case OP_JMP: {
+ 428   4              int dest = pc+1+b;
+*** ERROR C202 IN LINE 428 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 429   4              /* not full check and jump is forward and do not skip `lastpc'? */
+ 430   4              if (reg != NO_REG && pc < dest && dest <= lastpc)
+ 431   4                pc += b;  /* do the jump */
+*** ERROR C202 IN LINE 431 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 432   4              break;
+ 433   4            }
+ 434   3            case OP_CALL:
+ 435   3            case OP_TAILCALL: {
+ 436   4              if (b != 0) {
+*** ERROR C202 IN LINE 436 OF SRC\LDEBUG.C: 'b': undefined identifier
+ 437   5                checkreg(pt, a+b-1);
+*** ERROR C202 IN LINE 437 OF SRC\LDEBUG.C: 'a': undefined identifier
+ 438   5              }
+ 439   4              c--;  /* c = num. returns */
+*** ERROR C202 IN LINE 439 OF SRC\LDEBUG.C: 'c': undefined identifier
+ 440   4              if (c == LUA_MULTRET) {
+*** ERROR C202 IN LINE 440 OF SRC\LDEBUG.C: 'c': undefined identifier
+ 441   5                check(checkopenop(pt, pc));
+*** ERROR C141 IN LINE 441 OF SRC\LDEBUG.C: syntax error near 'code', expected '<id>'
+ 442   5              }
+ 443   4              else if (c != 0)
+ 444   4                checkreg(pt, a+c-1);
+ 445   4              if (reg >= a) last = pc;  /* affect all registers above base */
+ 446   4              break;
+ 447   4            }
+ 448   3            case OP_RETURN: {
+ 449   4              b--;  /* b = num. returns */
+ 450   4              if (b > 0) checkreg(pt, a+b-1);
+ 451   4              break;
+ 452   4            }
+ 453   3            case OP_SETLIST: {
+ 454   4              if (b > 0) checkreg(pt, a + b);
+ 455   4              if (c == 0) {
+ 456   5                pc++;
+ 457   5                check(pc < pt->sizecode - 1);
+ 458   5              }
+ 459   4              break;
+ 460   4            }
+ 461   3            case OP_CLOSURE: {
+ 462   4              int nup, j;
+ 463   4              check(b < pt->sizep);
+ 464   4              nup = pt->p[b]->nups;
+ 465   4              check(pc + nup < pt->sizecode);
+ 466   4              for (j = 1; j <= nup; j++) {
+ 467   5                OpCode op1 = GET_OPCODE(pt->code[pc + j]);
+ 468   5                check(op1 == OP_GETUPVAL || op1 == OP_MOVE);
+ 469   5              }
+ 470   4              if (reg != NO_REG)  /* tracing? */
+ 471   4                pc += nup;  /* do not 'execute' these pseudo-instructions */
+ 472   4              break;
+ 473   4            }
+ 474   3            case OP_VARARG: {
+ 475   4              check((pt->is_vararg & VARARG_ISVARARG) &&
+ 476   4                   !(pt->is_vararg & VARARG_NEEDSARG));
+ 477   4              b--;
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 10  
+
+ 478   4              if (b == LUA_MULTRET) check(checkopenop(pt, pc));
+ 479   4              checkreg(pt, a+b-1);
+ 480   4              break;
+ 481   4            }
+ 482   3            default: break;
+ 483   3          }
+ 484   2        }
+ 485   1        return pt->code[last];
+ 486   1      }
+ 487          
+ 488          #undef check
+ 489          #undef checkjump
+ 490          #undef checkreg
+ 491          
+ 492          /* }====================================================== */
+ 493          
+ 494          
+ 495          int luaG_checkcode (const Proto *pt) {
+ 496   1        return (symbexec(pt, pt->sizecode, NO_REG) != 0);
+ 497   1      }
+ 498          
+ 499          
+ 500          static const char *kname (Proto *p, int c) {
+ 501   1        if (ISK(c) && ttisstring(&p->k[INDEXK(c)]))
+ 502   1          return svalue(&p->k[INDEXK(c)]);
+ 503   1        else
+ 504   1          return "?";
+ 505   1      }
+ 506          
+ 507          
+ 508          static const char *getobjname (lua_State *L, CallInfo *ci, int stackpos,
+ 509                                         const char **name) {
+ 510   1        if (isLua(ci)) {  /* a Lua function? */
+ 511   2          Proto *p = ci_func(ci)->l.p;
+ 512   2          int pc = currentpc(L, ci);
+ 513   2          Instruction i;
+ 514   2          *name = luaF_getlocalname(p, stackpos+1, pc);
+ 515   2          if (*name)  /* is a local? */
+ 516   2            return "local";
+ 517   2          i = symbexec(p, pc, stackpos);  /* try symbolic execution */
+ 518   2          lua_assert(pc != -1);
+ 519   2          switch (GET_OPCODE(i)) {
+ 520   3            case OP_GETGLOBAL: {
+ 521   4              int g = GETARG_Bx(i);  /* global index */
+ 522   4              lua_assert(ttisstring(&p->k[g]));
+ 523   4              *name = svalue(&p->k[g]);
+ 524   4              return "global";
+ 525   4            }
+ 526   3            case OP_MOVE: {
+ 527   4              int a = GETARG_A(i);
+ 528   4              int b = GETARG_B(i);  /* move from `b' to `a' */
+ 529   4              if (b < a)
+ 530   4                return getobjname(L, ci, b, name);  /* get name for `b' */
+ 531   4              break;
+ 532   4            }
+ 533   3            case OP_GETTABLE: {
+ 534   4              int k = GETARG_C(i);  /* key index */
+ 535   4              *name = kname(p, k);
+ 536   4              return "field";
+ 537   4            }
+ 538   3            case OP_GETUPVAL: {
+ 539   4              int u = GETARG_B(i);  /* upvalue index */
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 11  
+
+ 540   4              *name = p->upvalues ? getstr(p->upvalues[u]) : "?";
+ 541   4              return "upvalue";
+ 542   4            }
+ 543   3            case OP_SELF: {
+ 544   4              int k = GETARG_C(i);  /* key index */
+ 545   4              *name = kname(p, k);
+ 546   4              return "method";
+ 547   4            }
+ 548   3            default: break;
+ 549   3          }
+ 550   2        }
+ 551   1        return NULL;  /* no useful name found */
+ 552   1      }
+ 553          
+ 554          
+ 555          static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
+ 556   1        Instruction i;
+ 557   1        if ((isLua(ci) && ci->tailcalls > 0) || !isLua(ci - 1))
+ 558   1          return NULL;  /* calling function is not Lua (or is unknown) */
+ 559   1        ci--;  /* calling function */
+ 560   1        i = ci_func(ci)->l.p->code[currentpc(L, ci)];
+ 561   1        if (GET_OPCODE(i) == OP_CALL || GET_OPCODE(i) == OP_TAILCALL ||
+ 562   1            GET_OPCODE(i) == OP_TFORLOOP)
+ 563   1          return getobjname(L, ci, GETARG_A(i), name);
+ 564   1        else
+ 565   1          return NULL;  /* no useful name can be found */
+ 566   1      }
+ 567          
+ 568          
+ 569          /* only ANSI way to check whether a pointer points to an array */
+ 570          static int isinstack (CallInfo *ci, const TValue *o) {
+ 571   1        StkId p;
+ 572   1        for (p = ci->base; p < ci->top; p++)
+ 573   1          if (o == p) return 1;
+ 574   1        return 0;
+ 575   1      }
+ 576          
+ 577          
+ 578          void luaG_typeerror (lua_State *L, const TValue *o, const char *op) {
+ 579   1        const char *name = NULL;
+ 580   1        const char *t = luaT_typenames[ttype(o)];
+ 581   1        const char *kind = (isinstack(L->ci, o)) ?
+ 582   1                               getobjname(L, L->ci, cast_int(o - L->base), &name) :
+ 583   1                               NULL;
+ 584   1        if (kind)
+ 585   1          luaG_runerror(L, "attempt to %s %s " LUA_QS " (a %s value)",
+ 586   1                      op, kind, name, t);
+ 587   1        else
+ 588   1          luaG_runerror(L, "attempt to %s a %s value", op, t);
+ 589   1      }
+ 590          
+ 591          
+ 592          void luaG_concaterror (lua_State *L, StkId p1, StkId p2) {
+ 593   1        if (ttisstring(p1) || ttisnumber(p1)) p1 = p2;
+ 594   1        lua_assert(!ttisstring(p1) && !ttisnumber(p1));
+ 595   1        luaG_typeerror(L, p1, "concatenate");
+ 596   1      }
+ 597          
+ 598          
+ 599          void luaG_aritherror (lua_State *L, const TValue *p1, const TValue *p2) {
+ 600   1        TValue temp;
+ 601   1        if (luaV_tonumber(p1, &temp) == NULL)
+C51 COMPILER V9.00   LDEBUG                                                                11/27/2017 19:45:01 PAGE 12  
+
+ 602   1          p2 = p1;  /* first operand is wrong */
+ 603   1        luaG_typeerror(L, p2, "perform arithmetic on");
+ 604   1      }
+ 605          
+ 606          
+ 607          int luaG_ordererror (lua_State *L, const TValue *p1, const TValue *p2) {
+ 608   1        const char *t1 = luaT_typenames[ttype(p1)];
+ 609   1        const char *t2 = luaT_typenames[ttype(p2)];
+ 610   1        if (t1[2] == t2[2])
+ 611   1          luaG_runerror(L, "attempt to compare two %s values", t1);
+ 612   1        else
+ 613   1          luaG_runerror(L, "attempt to compare %s with %s", t1, t2);
+ 614   1        return 0;
+ 615   1      }
+ 616          
+ 617          
+ 618          static void addinfo (lua_State *L, const char *msg) {
+ 619   1        CallInfo *ci = L->ci;
+ 620   1        if (isLua(ci)) {  /* is Lua code_? */
+ 621   2          char buff[LUA_IDSIZE];  /* add file:line information */
+ 622   2          int line = currentline(L, ci);
+ 623   2          luaO_chunkid(buff, getstr(getluaproto(ci)->source), LUA_IDSIZE);
+ 624   2          luaO_pushfstring(L, "%s:%d: %s", buff, line, msg);
+ 625   2        }
+ 626   1      }
+ 627          
+ 628          
+ 629          void luaG_errormsg (lua_State *L) {
+ 630   1        if (L->errfunc != 0) {  /* is there an error handling function? */
+ 631   2          StkId errfunc = restorestack(L, L->errfunc);
+ 632   2          if (!ttisfunction(errfunc) && !ttislightfunction(errfunc)) luaD_throw(L, LUA_ERRERR);
+ 633   2          setobjs2s(L, L->top, L->top - 1);  /* move argument */
+ 634   2          setobjs2s(L, L->top - 1, errfunc);  /* push function */
+ 635   2          incr_top(L);
+ 636   2          luaD_call(L, L->top - 2, 1);  /* call it */
+ 637   2        }
+ 638   1        luaD_throw(L, LUA_ERRRUN);
+ 639   1      }
+ 640          
+ 641          
+ 642          void luaG_runerror (lua_State *L, const char *fmt, ...) {
+ 643   1        va_list argp;
+ 644   1        va_start(argp, fmt);
+ 645   1        addinfo(L, luaO_pushvfstring(L, fmt, argp));
+ 646   1        va_end(argp);
+ 647   1        luaG_errormsg(L);
+ 648   1      }
+ 649          
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  73 ERROR(S)

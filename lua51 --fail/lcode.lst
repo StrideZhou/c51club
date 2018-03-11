@@ -1,0 +1,941 @@
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LCODE
+OBJECT MODULE PLACED IN .\obj\lcode.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\lcode.c OMF2 BROWSE DEBUG PRINT(.\lcode.lst) OBJECT(.\obj\lc
+                    -ode.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: lcode.c,v 2.25.1.5 2011/01/31 14:53:16 roberto Exp $
+   3          ** Code generator for Lua
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          #include <stdlib.h>
+   9          
+  10          #define lcode_c
+  11          #define LUA_CORE
+  12          
+  13          #include "lua.h"
+  14          
+  15          #include "lcode.h"
+  16          #include "ldebug.h"
+  17          #include "ldo.h"
+  18          #include "lgc.h"
+  19          #include "llex.h"
+  20          #include "lmem.h"
+  21          #include "lobject.h"
+  22          #include "lopcodes.h"
+  23          #include "lparser.h"
+  24          #include "ltable.h"
+  25          
+  26          
+  27          #define hasjumps(e)     ((e)->t != (e)->f)
+  28          
+  29          
+  30          static int isnumeral(expdesc *e) {
+  31   1        return (e->k == VKNUM && e->t == NO_JUMP && e->f == NO_JUMP);
+  32   1      }
+  33          
+  34          
+  35          void luaK_nil (FuncState *fs, int from, int n) {
+  36   1        Instruction *previous;
+  37   1        if (fs->pc > fs->lasttarget) {  /* no jumps to current position? */
+  38   2          if (fs->pc == 0) {  /* function start? */
+  39   3            if (from >= fs->nactvar)
+  40   3              return;  /* positions are already clean */
+  41   3          }
+  42   2          else {
+  43   3            previous = &fs->f->code[fs->pc-1];
+*** ERROR C141 IN LINE 43 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 43 OF SRC\LCODE.C: syntax error near ']'
+  44   3            if (GET_OPCODE(*previous) == OP_LOADNIL) {
+  45   4              int pfrom = GETARG_A(*previous);
+  46   4              int pto = GETARG_B(*previous);
+  47   4              if (pfrom <= from && from <= pto+1) {  /* can connect both? */
+  48   5                if (from+n-1 > pto)
+  49   5                  SETARG_B(*previous, from+n-1);
+  50   5                return;
+  51   5              }
+  52   4            }
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 2   
+
+  53   3          }
+  54   2        }
+  55   1        luaK_codeABC(fs, OP_LOADNIL, from, from+n-1, 0);  /* else no optimization */
+  56   1      }
+  57          
+  58          
+  59          int luaK_jump (FuncState *fs) {
+  60   1        int jpc = fs->jpc;  /* save list of jumps to here */
+  61   1        int j;
+  62   1        fs->jpc = NO_JUMP;
+  63   1        j = luaK_codeAsBx(fs, OP_JMP, 0, NO_JUMP);
+  64   1        luaK_concat(fs, &j, jpc);  /* keep them on hold */
+  65   1        return j;
+  66   1      }
+  67          
+  68          
+  69          void luaK_ret (FuncState *fs, int first, int nret) {
+  70   1        luaK_codeABC(fs, OP_RETURN, first, nret+1, 0);
+  71   1      }
+  72          
+  73          
+  74          static int condjump (FuncState *fs, OpCode op, int A, int B, int C) {
+  75   1        luaK_codeABC(fs, op, A, B, C);
+  76   1        return luaK_jump(fs);
+  77   1      }
+  78          
+  79          
+  80          static void fixjump (FuncState *fs, int pc, int dest) {
+  81   1        Instruction *jmp = &fs->f->code[pc];
+*** ERROR C141 IN LINE 81 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 81 OF SRC\LCODE.C: syntax error near '['
+  82   1        int offset = dest-(pc+1);
+*** ERROR C141 IN LINE 82 OF SRC\LCODE.C: syntax error near 'int'
+*** ERROR C202 IN LINE 82 OF SRC\LCODE.C: 'offset': undefined identifier
+  83   1        lua_assert(dest != NO_JUMP);
+  84   1        if (abs(offset) > MAXARG_sBx)
+*** ERROR C202 IN LINE 84 OF SRC\LCODE.C: 'offset': undefined identifier
+  85   1          luaX_syntaxerror(fs->ls, "control structure too long");
+  86   1        SETARG_sBx(*jmp, offset);
+*** ERROR C202 IN LINE 86 OF SRC\LCODE.C: 'offset': undefined identifier
+  87   1      }
+  88          
+  89          
+  90          /*
+  91          ** returns current `pc' and marks it as a jump target (to avoid wrong
+  92          ** optimizations with consecutive instructions not in the same basic block).
+  93          */
+  94          int luaK_getlabel (FuncState *fs) {
+  95   1        fs->lasttarget = fs->pc;
+  96   1        return fs->pc;
+  97   1      }
+  98          
+  99          
+ 100          static int getjump (FuncState *fs, int pc) {
+ 101   1        int offset = GETARG_sBx(fs->f->code[pc]);
+*** ERROR C141 IN LINE 101 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 101 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C190 IN LINE 101 OF SRC\LCODE.C: '&': not an lvalue
+*** ERROR C141 IN LINE 101 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C141 IN LINE 101 OF SRC\LCODE.C: syntax error near ')'
+ 102   1        if (offset == NO_JUMP)  /* point to itself represents end of list */
+ 103   1          return NO_JUMP;  /* end of list */
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 3   
+
+ 104   1        else
+ 105   1          return (pc+1)+offset;  /* turn offset into absolute position */
+ 106   1      }
+ 107          
+ 108          
+ 109          static Instruction *getjumpcontrol (FuncState *fs, int pc) {
+ 110   1        Instruction *pi = &fs->f->code[pc];
+*** ERROR C141 IN LINE 110 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 110 OF SRC\LCODE.C: syntax error near '['
+ 111   1        if (pc >= 1 && testTMode(GET_OPCODE(*(pi-1))))
+ 112   1          return pi-1;
+ 113   1        else
+ 114   1          return pi;
+ 115   1      }
+ 116          
+ 117          
+ 118          /*
+ 119          ** check whether list has any jump that do not produce a value
+ 120          ** (or produce an inverted value)
+ 121          */
+ 122          static int need_value (FuncState *fs, int list) {
+ 123   1        for (; list != NO_JUMP; list = getjump(fs, list)) {
+ 124   2          Instruction i = *getjumpcontrol(fs, list);
+ 125   2          if (GET_OPCODE(i) != OP_TESTSET) return 1;
+ 126   2        }
+ 127   1        return 0;  /* not found */
+ 128   1      }
+ 129          
+ 130          
+ 131          static int patchtestreg (FuncState *fs, int node, int reg) {
+ 132   1        Instruction *i = getjumpcontrol(fs, node);
+ 133   1        if (GET_OPCODE(*i) != OP_TESTSET)
+ 134   1          return 0;  /* cannot patch other instructions */
+ 135   1        if (reg != NO_REG && reg != GETARG_B(*i))
+ 136   1          SETARG_A(*i, reg);
+ 137   1        else  /* no register to put value or register already has the value */
+ 138   1          *i = CREATE_ABC(OP_TEST, GETARG_B(*i), 0, GETARG_C(*i));
+ 139   1      
+ 140   1        return 1;
+ 141   1      }
+ 142          
+ 143          
+ 144          static void removevalues (FuncState *fs, int list) {
+ 145   1        for (; list != NO_JUMP; list = getjump(fs, list))
+ 146   1            patchtestreg(fs, list, NO_REG);
+ 147   1      }
+ 148          
+ 149          
+ 150          static void patchlistaux (FuncState *fs, int list, int vtarget, int reg,
+ 151                                    int dtarget) {
+ 152   1        while (list != NO_JUMP) {
+ 153   2          int next = getjump(fs, list);
+ 154   2          if (patchtestreg(fs, list, reg))
+ 155   2            fixjump(fs, list, vtarget);
+ 156   2          else
+ 157   2            fixjump(fs, list, dtarget);  /* jump to default target */
+ 158   2          list = next;
+ 159   2        }
+ 160   1      }
+ 161          
+ 162          
+ 163          static void dischargejpc (FuncState *fs) {
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 4   
+
+ 164   1        patchlistaux(fs, fs->jpc, fs->pc, NO_REG, fs->pc);
+ 165   1        fs->jpc = NO_JUMP;
+ 166   1      }
+ 167          
+ 168          
+ 169          void luaK_patchlist (FuncState *fs, int list, int target) {
+ 170   1        if (target == fs->pc)
+ 171   1          luaK_patchtohere(fs, list);
+ 172   1        else {
+ 173   2          lua_assert(target < fs->pc);
+ 174   2          patchlistaux(fs, list, target, NO_REG, target);
+ 175   2        }
+ 176   1      }
+ 177          
+ 178          
+ 179          void luaK_patchtohere (FuncState *fs, int list) {
+ 180   1        luaK_getlabel(fs);
+ 181   1        luaK_concat(fs, &fs->jpc, list);
+ 182   1      }
+ 183          
+ 184          
+ 185          void luaK_concat (FuncState *fs, int *l1, int l2) {
+ 186   1        if (l2 == NO_JUMP) return;
+ 187   1        else if (*l1 == NO_JUMP)
+ 188   1          *l1 = l2;
+ 189   1        else {
+ 190   2          int list = *l1;
+ 191   2          int next;
+ 192   2          while ((next = getjump(fs, list)) != NO_JUMP)  /* find last element */
+ 193   2            list = next;
+ 194   2          fixjump(fs, list, l2);
+ 195   2        }
+ 196   1      }
+ 197          
+ 198          
+ 199          void luaK_checkstack (FuncState *fs, int n) {
+ 200   1        int newstack = fs->freereg + n;
+ 201   1        if (newstack > fs->f->maxstacksize) {
+ 202   2          if (newstack >= MAXSTACK)
+ 203   2            luaX_syntaxerror(fs->ls, "function or expression too complex");
+ 204   2          fs->f->maxstacksize = cast_byte(newstack);
+ 205   2        }
+ 206   1      }
+ 207          
+ 208          
+ 209          void luaK_reserveregs (FuncState *fs, int n) {
+ 210   1        luaK_checkstack(fs, n);
+ 211   1        fs->freereg += n;
+ 212   1      }
+ 213          
+ 214          
+ 215          static void freereg (FuncState *fs, int reg) {
+ 216   1        if (!ISK(reg) && reg >= fs->nactvar) {
+ 217   2          fs->freereg--;
+ 218   2          lua_assert(reg == fs->freereg);
+ 219   2        }
+ 220   1      }
+ 221          
+ 222          
+ 223          static void freeexp (FuncState *fs, expdesc *e) {
+ 224   1        if (e->k == VNONRELOC)
+ 225   1          freereg(fs, e->u.s.info);
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 5   
+
+ 226   1      }
+ 227          
+ 228          
+ 229          static int addk (FuncState *fs, TValue *k, TValue *v) {
+ 230   1        lua_State *L = fs->L;
+ 231   1        TValue *idx = luaH_set(L, fs->h, k);
+ 232   1        Proto *f = fs->f;
+ 233   1        int oldsize = f->sizek;
+ 234   1        if (ttisnumber(idx)) {
+ 235   2          lua_assert(luaO_rawequalObj(&fs->f->k[cast_int(nvalue(idx))], v));
+ 236   2          return cast_int(nvalue(idx));
+ 237   2        }
+ 238   1        else {  /* constant not found; create a new entry */
+ 239   2          setnvalue(idx, cast_num(fs->nk));
+ 240   2          luaM_growvector(L, f->k, fs->nk, f->sizek, TValue,
+ 241   2                          MAXARG_Bx, "constant table overflow");
+ 242   2          while (oldsize < f->sizek) setnilvalue(&f->k[oldsize++]);
+*** ERROR C199 IN LINE 242 OF SRC\LCODE.C: left side of '->' requires struct/union pointer
+ 243   2          setobj(L, &f->k[fs->nk], v);
+ 244   2          luaC_barrier(L, f, v);
+ 245   2          return fs->nk++;
+ 246   2        }
+ 247   1      }
+ 248          
+ 249          
+ 250          int luaK_stringK (FuncState *fs, TString *s) {
+ 251   1        TValue o;
+ 252   1        setsvalue(fs->L, &o, s);
+ 253   1        return addk(fs, &o, &o);
+ 254   1      }
+ 255          
+ 256          
+ 257          int luaK_numberK (FuncState *fs, lua_Number r) {
+ 258   1        TValue o;
+ 259   1        setnvalue(&o, r);
+ 260   1        return addk(fs, &o, &o);
+ 261   1      }
+ 262          
+ 263          
+ 264          static int boolK (FuncState *fs, int b) {
+ 265   1        TValue o;
+ 266   1        setbvalue(&o, b);
+ 267   1        return addk(fs, &o, &o);
+ 268   1      }
+ 269          
+ 270          
+ 271          static int nilK (FuncState *fs) {
+ 272   1        TValue k, v;
+ 273   1        setnilvalue(&v);
+ 274   1        /* cannot use nil as key; instead use table itself to represent nil */
+ 275   1        sethvalue(fs->L, &k, fs->h);
+ 276   1        return addk(fs, &k, &v);
+ 277   1      }
+ 278          
+ 279          
+ 280          void luaK_setreturns (FuncState *fs, expdesc *e, int nresults) {
+ 281   1        if (e->k == VCALL) {  /* expression is an open function call? */
+ 282   2          SETARG_C(getcode(fs, e), nresults+1);
+*** ERROR C141 IN LINE 282 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 282 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 282 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 282 OF SRC\LCODE.C: syntax error near ']'
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 6   
+
+*** ERROR C190 IN LINE 282 OF SRC\LCODE.C: '&': not an lvalue
+*** ERROR C141 IN LINE 282 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C141 IN LINE 282 OF SRC\LCODE.C: syntax error near ')'
+ 283   2        }
+ 284   1        else if (e->k == VVARARG) {
+ 285   2          SETARG_B(getcode(fs, e), nresults+1);
+*** ERROR C141 IN LINE 285 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 285 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 285 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 285 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C190 IN LINE 285 OF SRC\LCODE.C: '&': not an lvalue
+*** ERROR C141 IN LINE 285 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C141 IN LINE 285 OF SRC\LCODE.C: syntax error near ')'
+ 286   2          SETARG_A(getcode(fs, e), fs->freereg);
+*** ERROR C141 IN LINE 286 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 286 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 286 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 286 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 286 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C141 IN LINE 286 OF SRC\LCODE.C: syntax error near ')'
+ 287   2          luaK_reserveregs(fs, 1);
+ 288   2        }
+ 289   1      }
+ 290          
+ 291          
+ 292          void luaK_setoneret (FuncState *fs, expdesc *e) {
+ 293   1        if (e->k == VCALL) {  /* expression is an open function call? */
+ 294   2          e->k = VNONRELOC;
+ 295   2          e->u.s.info = GETARG_A(getcode(fs, e));
+*** ERROR C141 IN LINE 295 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 295 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 295 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C190 IN LINE 295 OF SRC\LCODE.C: '&': not an lvalue
+*** ERROR C141 IN LINE 295 OF SRC\LCODE.C: syntax error near ')'
+ 296   2        }
+ 297   1        else if (e->k == VVARARG) {
+ 298   2          SETARG_B(getcode(fs, e), 2);
+*** ERROR C141 IN LINE 298 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 298 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 298 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 298 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C190 IN LINE 298 OF SRC\LCODE.C: '&': not an lvalue
+*** ERROR C141 IN LINE 298 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C141 IN LINE 298 OF SRC\LCODE.C: syntax error near ')'
+ 299   2          e->k = VRELOCABLE;  /* can relocate its simple result */
+ 300   2        }
+ 301   1      }
+ 302          
+ 303          
+ 304          void luaK_dischargevars (FuncState *fs, expdesc *e) {
+ 305   1        switch (e->k) {
+ 306   2          case VLOCAL: {
+ 307   3            e->k = VNONRELOC;
+ 308   3            break;
+ 309   3          }
+ 310   2          case VUPVAL: {
+ 311   3            e->u.s.info = luaK_codeABC(fs, OP_GETUPVAL, 0, e->u.s.info, 0);
+ 312   3            e->k = VRELOCABLE;
+ 313   3            break;
+ 314   3          }
+ 315   2          case VGLOBAL: {
+ 316   3            e->u.s.info = luaK_codeABx(fs, OP_GETGLOBAL, 0, e->u.s.info);
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 7   
+
+ 317   3            e->k = VRELOCABLE;
+ 318   3            break;
+ 319   3          }
+ 320   2          case VINDEXED: {
+ 321   3            freereg(fs, e->u.s.aux);
+ 322   3            freereg(fs, e->u.s.info);
+ 323   3            e->u.s.info = luaK_codeABC(fs, OP_GETTABLE, 0, e->u.s.info, e->u.s.aux);
+ 324   3            e->k = VRELOCABLE;
+ 325   3            break;
+ 326   3          }
+ 327   2          case VVARARG:
+ 328   2          case VCALL: {
+ 329   3            luaK_setoneret(fs, e);
+ 330   3            break;
+ 331   3          }
+ 332   2          default: break;  /* there is one value available (somewhere) */
+ 333   2        }
+ 334   1      }
+ 335          
+ 336          
+ 337          static int code__label (FuncState *fs, int A, int b, int jump) {
+ 338   1        luaK_getlabel(fs);  /* those instructions may be jump targets */
+ 339   1        return luaK_codeABC(fs, OP_LOADBOOL, A, b, jump);
+ 340   1      }
+ 341          
+ 342          
+ 343          static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
+ 344   1        luaK_dischargevars(fs, e);
+ 345   1        switch (e->k) {
+ 346   2          case VNIL: {
+ 347   3            luaK_nil(fs, reg, 1);
+ 348   3            break;
+ 349   3          }
+ 350   2          case VFALSE:  case VTRUE: {
+ 351   3            luaK_codeABC(fs, OP_LOADBOOL, reg, e->k == VTRUE, 0);
+ 352   3            break;
+ 353   3          }
+ 354   2          case VK: {
+ 355   3            luaK_codeABx(fs, OP_LOADK, reg, e->u.s.info);
+ 356   3            break;
+ 357   3          }
+ 358   2          case VKNUM: {
+ 359   3            luaK_codeABx(fs, OP_LOADK, reg, luaK_numberK(fs, e->u.nval));
+ 360   3            break;
+ 361   3          }
+ 362   2          case VRELOCABLE: {
+ 363   3            Instruction *pc = &getcode(fs, e);
+*** ERROR C141 IN LINE 363 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 363 OF SRC\LCODE.C: syntax error near '['
+*** ERROR C141 IN LINE 363 OF SRC\LCODE.C: syntax error near ']'
+ 364   3            SETARG_A(*pc, reg);
+ 365   3            break;
+ 366   3          }
+ 367   2          case VNONRELOC: {
+ 368   3            if (reg != e->u.s.info)
+ 369   3              luaK_codeABC(fs, OP_MOVE, reg, e->u.s.info, 0);
+ 370   3            break;
+ 371   3          }
+ 372   2          default: {
+ 373   3            lua_assert(e->k == VVOID || e->k == VJMP);
+ 374   3            return;  /* nothing to do... */
+ 375   3          }
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 8   
+
+ 376   2        }
+ 377   1        e->u.s.info = reg;
+ 378   1        e->k = VNONRELOC;
+ 379   1      }
+ 380          
+ 381          
+ 382          static void discharge2anyreg (FuncState *fs, expdesc *e) {
+ 383   1        if (e->k != VNONRELOC) {
+ 384   2          luaK_reserveregs(fs, 1);
+ 385   2          discharge2reg(fs, e, fs->freereg-1);
+ 386   2        }
+ 387   1      }
+ 388          
+ 389          
+ 390          static void exp2reg (FuncState *fs, expdesc *e, int reg) {
+ 391   1        discharge2reg(fs, e, reg);
+ 392   1        if (e->k == VJMP)
+ 393   1          luaK_concat(fs, &e->t, e->u.s.info);  /* put this jump in `t' list */
+ 394   1        if (hasjumps(e)) {
+ 395   2          int final;  /* position after whole expression */
+ 396   2          int p_f = NO_JUMP;  /* position of an eventual LOAD false */
+ 397   2          int p_t = NO_JUMP;  /* position of an eventual LOAD true */
+ 398   2          if (need_value(fs, e->t) || need_value(fs, e->f)) {
+ 399   3            int fj = (e->k == VJMP) ? NO_JUMP : luaK_jump(fs);
+ 400   3            p_f = code__label(fs, reg, 0, 1);
+ 401   3            p_t = code__label(fs, reg, 1, 0);
+ 402   3            luaK_patchtohere(fs, fj);
+ 403   3          }
+ 404   2          final = luaK_getlabel(fs);
+ 405   2          patchlistaux(fs, e->f, final, reg, p_f);
+ 406   2          patchlistaux(fs, e->t, final, reg, p_t);
+ 407   2        }
+ 408   1        e->f = e->t = NO_JUMP;
+ 409   1        e->u.s.info = reg;
+ 410   1        e->k = VNONRELOC;
+ 411   1      }
+ 412          
+ 413          
+ 414          void luaK_exp2nextreg (FuncState *fs, expdesc *e) {
+ 415   1        luaK_dischargevars(fs, e);
+ 416   1        freeexp(fs, e);
+ 417   1        luaK_reserveregs(fs, 1);
+ 418   1        exp2reg(fs, e, fs->freereg - 1);
+ 419   1      }
+ 420          
+ 421          
+ 422          int luaK_exp2anyreg (FuncState *fs, expdesc *e) {
+ 423   1        luaK_dischargevars(fs, e);
+ 424   1        if (e->k == VNONRELOC) {
+ 425   2          if (!hasjumps(e)) return e->u.s.info;  /* exp is already in a register */
+ 426   2          if (e->u.s.info >= fs->nactvar) {  /* reg. is not a local? */
+ 427   3            exp2reg(fs, e, e->u.s.info);  /* put value on it */
+ 428   3            return e->u.s.info;
+ 429   3          }
+ 430   2        }
+ 431   1        luaK_exp2nextreg(fs, e);  /* default */
+ 432   1        return e->u.s.info;
+ 433   1      }
+ 434          
+ 435          
+ 436          void luaK_exp2val (FuncState *fs, expdesc *e) {
+ 437   1        if (hasjumps(e))
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 9   
+
+ 438   1          luaK_exp2anyreg(fs, e);
+ 439   1        else
+ 440   1          luaK_dischargevars(fs, e);
+ 441   1      }
+ 442          
+ 443          
+ 444          int luaK_exp2RK (FuncState *fs, expdesc *e) {
+ 445   1        luaK_exp2val(fs, e);
+ 446   1        switch (e->k) {
+ 447   2          case VKNUM:
+ 448   2          case VTRUE:
+ 449   2          case VFALSE:
+ 450   2          case VNIL: {
+ 451   3            if (fs->nk <= MAXINDEXRK) {  /* constant fit in RK operand? */
+ 452   4              e->u.s.info = (e->k == VNIL)  ? nilK(fs) :
+ 453   4                            (e->k == VKNUM) ? luaK_numberK(fs, e->u.nval) :
+ 454   4                                              boolK(fs, (e->k == VTRUE));
+ 455   4              e->k = VK;
+ 456   4              return RKASK(e->u.s.info);
+ 457   4            }
+ 458   3            else break;
+ 459   3          }
+ 460   2          case VK: {
+ 461   3            if (e->u.s.info <= MAXINDEXRK)  /* constant fit in argC? */
+ 462   3              return RKASK(e->u.s.info);
+ 463   3            else break;
+ 464   3          }
+ 465   2          default: break;
+ 466   2        }
+ 467   1        /* not a constant in the right range: put it in a register */
+ 468   1        return luaK_exp2anyreg(fs, e);
+ 469   1      }
+ 470          
+ 471          
+ 472          void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
+ 473   1        switch (var->k) {
+ 474   2          case VLOCAL: {
+ 475   3            freeexp(fs, ex);
+ 476   3            exp2reg(fs, ex, var->u.s.info);
+ 477   3            return;
+ 478   3          }
+ 479   2          case VUPVAL: {
+ 480   3            int e = luaK_exp2anyreg(fs, ex);
+ 481   3            luaK_codeABC(fs, OP_SETUPVAL, e, var->u.s.info, 0);
+ 482   3            break;
+ 483   3          }
+ 484   2          case VGLOBAL: {
+ 485   3            int e = luaK_exp2anyreg(fs, ex);
+ 486   3            luaK_codeABx(fs, OP_SETGLOBAL, e, var->u.s.info);
+ 487   3            break;
+ 488   3          }
+ 489   2          case VINDEXED: {
+ 490   3            int e = luaK_exp2RK(fs, ex);
+ 491   3            luaK_codeABC(fs, OP_SETTABLE, var->u.s.info, var->u.s.aux, e);
+ 492   3            break;
+ 493   3          }
+ 494   2          default: {
+ 495   3            lua_assert(0);  /* invalid var kind to store */
+ 496   3            break;
+ 497   3          }
+ 498   2        }
+ 499   1        freeexp(fs, ex);
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 10  
+
+ 500   1      }
+ 501          
+ 502          
+ 503          void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
+ 504   1        int func;
+ 505   1        luaK_exp2anyreg(fs, e);
+ 506   1        freeexp(fs, e);
+ 507   1        func = fs->freereg;
+ 508   1        luaK_reserveregs(fs, 2);
+ 509   1        luaK_codeABC(fs, OP_SELF, func, e->u.s.info, luaK_exp2RK(fs, key));
+ 510   1        freeexp(fs, key);
+ 511   1        e->u.s.info = func;
+ 512   1        e->k = VNONRELOC;
+ 513   1      }
+ 514          
+ 515          
+ 516          static void invertjump (FuncState *fs, expdesc *e) {
+ 517   1        Instruction *pc = getjumpcontrol(fs, e->u.s.info);
+ 518   1        lua_assert(testTMode(GET_OPCODE(*pc)) && GET_OPCODE(*pc) != OP_TESTSET &&
+ 519   1                                                 GET_OPCODE(*pc) != OP_TEST);
+ 520   1        SETARG_A(*pc, !(GETARG_A(*pc)));
+ 521   1      }
+ 522          
+ 523          
+ 524          static int jumponcond (FuncState *fs, expdesc *e, int cond) {
+ 525   1        if (e->k == VRELOCABLE) {
+ 526   2          Instruction ie = getcode(fs, e);
+*** ERROR C141 IN LINE 526 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 526 OF SRC\LCODE.C: syntax error near '['
+*** ERROR C141 IN LINE 526 OF SRC\LCODE.C: syntax error near ']'
+ 527   2          if (GET_OPCODE(ie) == OP_NOT) {
+ 528   3            fs->pc--;  /* remove previous OP_NOT */
+ 529   3            return condjump(fs, OP_TEST, GETARG_B(ie), 0, !cond);
+ 530   3          }
+ 531   2          /* else go through */
+ 532   2        }
+ 533   1        discharge2anyreg(fs, e);
+ 534   1        freeexp(fs, e);
+ 535   1        return condjump(fs, OP_TESTSET, NO_REG, e->u.s.info, cond);
+ 536   1      }
+ 537          
+ 538          
+ 539          void luaK_goiftrue (FuncState *fs, expdesc *e) {
+ 540   1        int pc;  /* pc of last jump */
+ 541   1        luaK_dischargevars(fs, e);
+ 542   1        switch (e->k) {
+ 543   2          case VK: case VKNUM: case VTRUE: {
+ 544   3            pc = NO_JUMP;  /* always true; do nothing */
+ 545   3            break;
+ 546   3          }
+ 547   2          case VJMP: {
+ 548   3            invertjump(fs, e);
+ 549   3            pc = e->u.s.info;
+ 550   3            break;
+ 551   3          }
+ 552   2          default: {
+ 553   3            pc = jumponcond(fs, e, 0);
+ 554   3            break;
+ 555   3          }
+ 556   2        }
+ 557   1        luaK_concat(fs, &e->f, pc);  /* insert last jump in `f' list */
+ 558   1        luaK_patchtohere(fs, e->t);
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 11  
+
+ 559   1        e->t = NO_JUMP;
+ 560   1      }
+ 561          
+ 562          
+ 563          static void luaK_goiffalse (FuncState *fs, expdesc *e) {
+ 564   1        int pc;  /* pc of last jump */
+ 565   1        luaK_dischargevars(fs, e);
+ 566   1        switch (e->k) {
+ 567   2          case VNIL: case VFALSE: {
+ 568   3            pc = NO_JUMP;  /* always false; do nothing */
+ 569   3            break;
+ 570   3          }
+ 571   2          case VJMP: {
+ 572   3            pc = e->u.s.info;
+ 573   3            break;
+ 574   3          }
+ 575   2          default: {
+ 576   3            pc = jumponcond(fs, e, 1);
+ 577   3            break;
+ 578   3          }
+ 579   2        }
+ 580   1        luaK_concat(fs, &e->t, pc);  /* insert last jump in `t' list */
+ 581   1        luaK_patchtohere(fs, e->f);
+ 582   1        e->f = NO_JUMP;
+ 583   1      }
+ 584          
+ 585          
+ 586          static void code_not (FuncState *fs, expdesc *e) {
+ 587   1        luaK_dischargevars(fs, e);
+ 588   1        switch (e->k) {
+ 589   2          case VNIL: case VFALSE: {
+ 590   3            e->k = VTRUE;
+ 591   3            break;
+ 592   3          }
+ 593   2          case VK: case VKNUM: case VTRUE: {
+ 594   3            e->k = VFALSE;
+ 595   3            break;
+ 596   3          }
+ 597   2          case VJMP: {
+ 598   3            invertjump(fs, e);
+ 599   3            break;
+ 600   3          }
+ 601   2          case VRELOCABLE:
+ 602   2          case VNONRELOC: {
+ 603   3            discharge2anyreg(fs, e);
+ 604   3            freeexp(fs, e);
+ 605   3            e->u.s.info = luaK_codeABC(fs, OP_NOT, 0, e->u.s.info, 0);
+ 606   3            e->k = VRELOCABLE;
+ 607   3            break;
+ 608   3          }
+ 609   2          default: {
+ 610   3            lua_assert(0);  /* cannot happen */
+ 611   3            break;
+ 612   3          }
+ 613   2        }
+ 614   1        /* interchange true and false lists */
+ 615   1        { int temp = e->f; e->f = e->t; e->t = temp; }
+ 616   1        removevalues(fs, e->f);
+ 617   1        removevalues(fs, e->t);
+ 618   1      }
+ 619          
+ 620          
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 12  
+
+ 621          void luaK_indexed (FuncState *fs, expdesc *t, expdesc *k) {
+ 622   1        t->u.s.aux = luaK_exp2RK(fs, k);
+ 623   1        t->k = VINDEXED;
+ 624   1      }
+ 625          
+ 626          
+ 627          static int constfolding (OpCode op, expdesc *e1, expdesc *e2) {
+ 628   1        lua_Number v1, v2, r;
+ 629   1        if (!isnumeral(e1) || !isnumeral(e2)) return 0;
+ 630   1        v1 = e1->u.nval;
+ 631   1        v2 = e2->u.nval;
+ 632   1        switch (op) {
+ 633   2          case OP_ADD: r = luai_numadd(v1, v2); break;
+ 634   2          case OP_SUB: r = luai_numsub(v1, v2); break;
+ 635   2          case OP_MUL: r = luai_nummul(v1, v2); break;
+ 636   2          case OP_DIV:
+ 637   2            if (v2 == 0) return 0;  /* do not attempt to divide by 0 */
+ 638   2            r = luai_numdiv(v1, v2); break;
+ 639   2          case OP_MOD:
+ 640   2            if (v2 == 0) return 0;  /* do not attempt to divide by 0 */
+ 641   2            r = luai_nummod(v1, v2); break;
+ 642   2          case OP_POW: r = luai_numpow(v1, v2); break;
+ 643   2          case OP_UNM: r = luai_numunm(v1); break;
+ 644   2          case OP_LEN: return 0;  /* no constant folding for 'len' */
+ 645   2          default: lua_assert(0); r = 0; break;
+ 646   2        }
+ 647   1        if (luai_numisnan(r)) return 0;  /* do not attempt to produce NaN */
+ 648   1        e1->u.nval = r;
+ 649   1        return 1;
+ 650   1      }
+ 651          
+ 652          
+ 653          static void code_arith (FuncState *fs, OpCode op, expdesc *e1, expdesc *e2) {
+ 654   1        if (constfolding(op, e1, e2))
+ 655   1          return;
+ 656   1        else {
+ 657   2          int o2 = (op != OP_UNM && op != OP_LEN) ? luaK_exp2RK(fs, e2) : 0;
+ 658   2          int o1 = luaK_exp2RK(fs, e1);
+ 659   2          if (o1 > o2) {
+ 660   3            freeexp(fs, e1);
+ 661   3            freeexp(fs, e2);
+ 662   3          }
+ 663   2          else {
+ 664   3            freeexp(fs, e2);
+ 665   3            freeexp(fs, e1);
+ 666   3          }
+ 667   2          e1->u.s.info = luaK_codeABC(fs, op, 0, o1, o2);
+ 668   2          e1->k = VRELOCABLE;
+ 669   2        }
+ 670   1      }
+ 671          
+ 672          
+ 673          static void code_comp (FuncState *fs, OpCode op, int cond, expdesc *e1,
+ 674                                                                    expdesc *e2) {
+ 675   1        int o1 = luaK_exp2RK(fs, e1);
+ 676   1        int o2 = luaK_exp2RK(fs, e2);
+ 677   1        freeexp(fs, e2);
+ 678   1        freeexp(fs, e1);
+ 679   1        if (cond == 0 && op != OP_EQ) {
+ 680   2          int temp;  /* exchange args to replace by `<' or `<=' */
+ 681   2          temp = o1; o1 = o2; o2 = temp;  /* o1 <==> o2 */
+ 682   2          cond = 1;
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 13  
+
+ 683   2        }
+ 684   1        e1->u.s.info = condjump(fs, op, cond, o1, o2);
+ 685   1        e1->k = VJMP;
+ 686   1      }
+ 687          
+ 688          
+ 689          void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e) {
+ 690   1        expdesc e2;
+ 691   1        e2.t = e2.f = NO_JUMP; e2.k = VKNUM; e2.u.nval = 0;
+ 692   1        switch (op) {
+ 693   2          case OPR_MINUS: {
+ 694   3            if (!isnumeral(e))
+ 695   3              luaK_exp2anyreg(fs, e);  /* cannot operate on non-numeric constants */
+ 696   3            code_arith(fs, OP_UNM, e, &e2);
+ 697   3            break;
+ 698   3          }
+ 699   2          case OPR_NOT: code_not(fs, e); break;
+ 700   2          case OPR_LEN: {
+ 701   3            luaK_exp2anyreg(fs, e);  /* cannot operate on constants */
+ 702   3            code_arith(fs, OP_LEN, e, &e2);
+ 703   3            break;
+ 704   3          }
+ 705   2          default: lua_assert(0);
+ 706   2        }
+ 707   1      }
+ 708          
+ 709          
+ 710          void luaK_infix (FuncState *fs, BinOpr op, expdesc *v) {
+ 711   1        switch (op) {
+ 712   2          case OPR_AND: {
+ 713   3            luaK_goiftrue(fs, v);
+ 714   3            break;
+ 715   3          }
+ 716   2          case OPR_OR: {
+ 717   3            luaK_goiffalse(fs, v);
+ 718   3            break;
+ 719   3          }
+ 720   2          case OPR_CONCAT: {
+ 721   3            luaK_exp2nextreg(fs, v);  /* operand must be on the `stack' */
+ 722   3            break;
+ 723   3          }
+ 724   2          case OPR_ADD: case OPR_SUB: case OPR_MUL: case OPR_DIV:
+ 725   2          case OPR_MOD: case OPR_POW: {
+ 726   3            if (!isnumeral(v)) luaK_exp2RK(fs, v);
+ 727   3            break;
+ 728   3          }
+ 729   2          default: {
+ 730   3            luaK_exp2RK(fs, v);
+ 731   3            break;
+ 732   3          }
+ 733   2        }
+ 734   1      }
+ 735          
+ 736          
+ 737          void luaK_posfix (FuncState *fs, BinOpr op, expdesc *e1, expdesc *e2) {
+ 738   1        switch (op) {
+ 739   2          case OPR_AND: {
+ 740   3            lua_assert(e1->t == NO_JUMP);  /* list must be closed */
+ 741   3            luaK_dischargevars(fs, e2);
+ 742   3            luaK_concat(fs, &e2->f, e1->f);
+ 743   3            *e1 = *e2;
+ 744   3            break;
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 14  
+
+ 745   3          }
+ 746   2          case OPR_OR: {
+ 747   3            lua_assert(e1->f == NO_JUMP);  /* list must be closed */
+ 748   3            luaK_dischargevars(fs, e2);
+ 749   3            luaK_concat(fs, &e2->t, e1->t);
+ 750   3            *e1 = *e2;
+ 751   3            break;
+ 752   3          }
+ 753   2          case OPR_CONCAT: {
+ 754   3            luaK_exp2val(fs, e2);
+ 755   3            if (e2->k == VRELOCABLE && GET_OPCODE(getcode(fs, e2)) == OP_CONCAT) {
+*** ERROR C141 IN LINE 755 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 755 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 755 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C141 IN LINE 755 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C190 IN LINE 755 OF SRC\LCODE.C: '&': not an lvalue
+*** ERROR C141 IN LINE 755 OF SRC\LCODE.C: syntax error near ')'
+ 756   4              lua_assert(e1->u.s.info == GETARG_B(getcode(fs, e2))-1);
+ 757   4              freeexp(fs, e1);
+ 758   4              SETARG_B(getcode(fs, e2), e1->u.s.info);
+*** ERROR C141 IN LINE 758 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 758 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C141 IN LINE 758 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 758 OF SRC\LCODE.C: syntax error near ']'
+*** ERROR C190 IN LINE 758 OF SRC\LCODE.C: '&': not an lvalue
+*** ERROR C141 IN LINE 758 OF SRC\LCODE.C: syntax error near ')'
+*** ERROR C141 IN LINE 758 OF SRC\LCODE.C: syntax error near ')'
+ 759   4              e1->k = VRELOCABLE; e1->u.s.info = e2->u.s.info;
+ 760   4            }
+ 761   3            else {
+*** ERROR C141 IN LINE 761 OF SRC\LCODE.C: syntax error near 'else'
+ 762   4              luaK_exp2nextreg(fs, e2);  /* operand must be on the 'stack' */
+ 763   4              code_arith(fs, OP_CONCAT, e1, e2);
+ 764   4            }
+ 765   3            break;
+ 766   3          }
+ 767   2          case OPR_ADD: code_arith(fs, OP_ADD, e1, e2); break;
+ 768   2          case OPR_SUB: code_arith(fs, OP_SUB, e1, e2); break;
+ 769   2          case OPR_MUL: code_arith(fs, OP_MUL, e1, e2); break;
+ 770   2          case OPR_DIV: code_arith(fs, OP_DIV, e1, e2); break;
+ 771   2          case OPR_MOD: code_arith(fs, OP_MOD, e1, e2); break;
+ 772   2          case OPR_POW: code_arith(fs, OP_POW, e1, e2); break;
+ 773   2          case OPR_EQ: code_comp(fs, OP_EQ, 1, e1, e2); break;
+ 774   2          case OPR_NE: code_comp(fs, OP_EQ, 0, e1, e2); break;
+ 775   2          case OPR_LT: code_comp(fs, OP_LT, 1, e1, e2); break;
+ 776   2          case OPR_LE: code_comp(fs, OP_LE, 1, e1, e2); break;
+ 777   2          case OPR_GT: code_comp(fs, OP_LT, 0, e1, e2); break;
+ 778   2          case OPR_GE: code_comp(fs, OP_LE, 0, e1, e2); break;
+ 779   2          default: lua_assert(0);
+ 780   2        }
+ 781   1      }
+ 782          
+ 783          
+ 784          void luaK_fixline (FuncState *fs, int line) {
+ 785   1        fs->f->lineinfo[fs->pc - 1] = line;
+ 786   1      }
+ 787          
+ 788          
+ 789          static int luaK_code (FuncState *fs, Instruction i, int line) {
+ 790   1        Proto *f = fs->f;
+ 791   1        dischargejpc(fs);  /* `pc' will change */
+ 792   1        /* put new instruction in code_ array */
+C51 COMPILER V9.00   LCODE                                                                 11/27/2017 19:45:00 PAGE 15  
+
+ 793   1        luaM_growvector(fs->L, f->code, fs->pc, f->sizecode, Instruction,
+ 794   1                        MAX_INT, "code size overflow");
+*** ERROR C141 IN LINE 794 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+*** ERROR C141 IN LINE 794 OF SRC\LCODE.C: syntax error near 'code', expected '<id>'
+ 795   1        f->code[fs->pc] = i;
+ 796   1        /* save corresponding line information */
+ 797   1        luaM_growvector(fs->L, f->lineinfo, fs->pc, f->sizelineinfo, int,
+ 798   1                        MAX_INT, "code size overflow");
+ 799   1        f->lineinfo[fs->pc] = line;
+ 800   1        return fs->pc++;
+ 801   1      }
+ 802          
+ 803          
+ 804          int luaK_codeABC (FuncState *fs, OpCode o, int a, int b, int c) {
+ 805   1        lua_assert(getOpMode(o) == iABC);
+ 806   1        lua_assert(getBMode(o) != OpArgN || b == 0);
+ 807   1        lua_assert(getCMode(o) != OpArgN || c == 0);
+ 808   1        return luaK_code(fs, CREATE_ABC(o, a, b, c), fs->ls->lastline);
+ 809   1      }
+ 810          
+ 811          
+ 812          int luaK_codeABx (FuncState *fs, OpCode o, int a, unsigned int bc) {
+ 813   1        lua_assert(getOpMode(o) == iABx || getOpMode(o) == iAsBx);
+ 814   1        lua_assert(getCMode(o) == OpArgN);
+ 815   1        return luaK_code(fs, CREATE_ABx(o, a, bc), fs->ls->lastline);
+ 816   1      }
+ 817          
+ 818          
+ 819          void luaK_setlist (FuncState *fs, int base, int nelems, int tostore) {
+ 820   1        int c =  (nelems - 1)/LFIELDS_PER_FLUSH + 1;
+ 821   1        int b = (tostore == LUA_MULTRET) ? 0 : tostore;
+ 822   1        lua_assert(tostore != 0);
+ 823   1        if (c <= MAXARG_C)
+ 824   1          luaK_codeABC(fs, OP_SETLIST, base, b, c);
+ 825   1        else {
+ 826   2          luaK_codeABC(fs, OP_SETLIST, base, b, 0);
+ 827   2          luaK_code(fs, cast(Instruction, c), fs->ls->lastline);
+ 828   2        }
+ 829   1        fs->freereg = base + 1;  /* free registers with list values */
+ 830   1      }
+ 831          
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  70 ERROR(S)

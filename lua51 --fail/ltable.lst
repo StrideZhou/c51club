@@ -1,0 +1,826 @@
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE LTABLE
+OBJECT MODULE PLACED IN .\obj\ltable.obj
+COMPILER INVOKED BY: C:\my program\Keil\C51\BIN\C51.EXE src\ltable.c OMF2 BROWSE DEBUG PRINT(.\ltable.lst) OBJECT(.\obj\
+                    -ltable.obj)
+
+line level    source
+
+   1          /*
+   2          ** $Id: ltable.c,v 2.32.1.2 2007/12/28 15:32:23 roberto Exp $
+   3          ** Lua tables (hash)
+   4          ** See Copyright Notice in lua.h
+   5          */
+   6          
+   7          
+   8          /*
+   9          ** Implementation of tables (aka arrays, objects, or hash tables).
+  10          ** Tables keep its elements in two parts: an array part and a hash part.
+  11          ** Non-negative integer keys are all candidates to be kept in the array
+  12          ** part. The actual size of the array is the largest `n' such that at
+  13          ** least half the slots between 0 and n are in use.
+  14          ** Hash uses a mix of chained scatter table with Brent's variation.
+  15          ** A main invariant of these tables is that, if an element is not
+  16          ** in its main position (i.e. the `original' position that its hash gives
+  17          ** to it), then the colliding element is in its own main position.
+  18          ** Hence even when the load factor reaches 100%, performance remains good.
+  19          */
+  20          
+  21          #include <math.h>
+  22          #include <string.h>
+  23          
+  24          #define ltable_c
+  25          #define LUA_CORE
+  26          
+  27          #include "lua.h"
+  28          
+  29          #include "ldebug.h"
+  30          #include "ldo.h"
+  31          #include "lgc.h"
+  32          #include "lmem.h"
+  33          #include "lobject.h"
+  34          #include "lstate.h"
+  35          #include "ltable.h"
+  36          #include "lrotable.h"
+  37          
+  38          /*
+  39          ** max size of array part is 2^MAXBITS
+  40          */
+  41          #if LUAI_BITSINT > 26
+              #define MAXBITS         26
+              #else
+  44          #define MAXBITS         (LUAI_BITSINT-2)
+  45          #endif
+  46          
+  47          #define MAXASIZE        (1 << MAXBITS)
+  48          
+  49          
+  50          #define hashpow2(t,n)      (gnode(t, lmod((n), sizenode(t))))
+  51            
+  52          #define hashstr(t,str)  hashpow2(t, (str)->tsv.hash)
+  53          #define hashboolean(t,p)        hashpow2(t, p)
+  54          
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 2   
+
+  55          
+  56          /*
+  57          ** for some types, it is better to avoid modulus by power of 2, as
+  58          ** they tend to have many 2 factors.
+  59          */
+  60          #define hashmod(t,n)    (gnode(t, ((n) % ((sizenode(t)-1)|1))))
+  61          
+  62          
+  63          #define hashpointer(t,p)        hashmod(t, IntPoint(p))
+  64          
+  65          
+  66          /*
+  67          ** number of ints inside a lua_Number
+  68          */
+  69          #define numints         cast_int(sizeof(lua_Number)/sizeof(int))
+  70          
+  71          
+  72          
+  73          #define dummynode               (&dummynode_)
+  74          
+  75          static const Node dummynode_ = {
+  76            {LUA_TVALUE_NIL},  /* value */
+  77            {LUA_TKEY_NIL}     /* key */
+  78          };
+  79          
+  80          
+  81          /*
+  82          ** hash for lua_Numbers
+  83          */
+  84          static Node *hashnum (const Table *t, lua_Number n) {
+  85   1        unsigned int a[numints];
+  86   1        int i;
+  87   1        if (luai_numeq(n, 0))  /* avoid problems with -0 */
+  88   1          return gnode(t, 0);
+  89   1        memcpy(a, &n, sizeof(a));
+  90   1        for (i = 1; i < numints; i++) a[0] += a[i];
+  91   1        return hashmod(t, a[0]);
+  92   1      }
+  93          
+  94          
+  95          
+  96          /*
+  97          ** returns the `main' position of an element in a table (that is, the index
+  98          ** of its hash value)
+  99          */
+ 100          static Node *mainposition (const Table *t, const TValue *key) {
+ 101   1        switch (ttype(key)) {
+ 102   2          case LUA_TNUMBER:
+ 103   2            return hashnum(t, nvalue(key));
+ 104   2          case LUA_TSTRING:
+ 105   2            return hashstr(t, rawtsvalue(key));
+ 106   2          case LUA_TBOOLEAN:
+ 107   2            return hashboolean(t, bvalue(key));
+ 108   2          case LUA_TLIGHTUSERDATA:
+ 109   2          case LUA_TROTABLE:
+ 110   2          case LUA_TLIGHTFUNCTION:
+ 111   2            return hashpointer(t, pvalue(key));
+ 112   2          default:
+ 113   2            return hashpointer(t, gcvalue(key));
+ 114   2        }
+ 115   1      }
+ 116          
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 3   
+
+ 117          
+ 118          /*
+ 119          ** returns the index for `key' if `key' is an appropriate key to live in
+ 120          ** the array part of the table, -1 otherwise.
+ 121          */
+ 122          static int arrayindex (const TValue *key) {
+ 123   1        if (ttisnumber(key)) {
+ 124   2          lua_Number n = nvalue(key);
+ 125   2          int k;
+ 126   2          lua_number2int(k, n);
+ 127   2          if (luai_numeq(cast_num(k), n))
+ 128   2            return k;
+ 129   2        }
+ 130   1        return -1;  /* `key' did not match some condition */
+ 131   1      }
+ 132          
+ 133          
+ 134          /*
+ 135          ** returns the index of a `key' for table traversals. First goes all
+ 136          ** elements in the array part, then elements in the hash part. The
+ 137          ** beginning of a traversal is signalled by -1.
+ 138          */
+ 139          static int findindex (lua_State *L, Table *t, StkId key) {
+ 140   1        int i;
+ 141   1        if (ttisnil(key)) return -1;  /* first iteration */
+ 142   1        i = arrayindex(key);
+ 143   1        if (0 < i && i <= t->sizearray)  /* is `key' inside array part? */
+ 144   1          return i-1;  /* yes; that's the index (corrected to C) */
+ 145   1        else {
+ 146   2          Node *n = mainposition(t, key);
+ 147   2          do {  /* check whether `key' is somewhere in the chain */
+ 148   3            /* key may be dead already, but it is ok to use it in `next' */
+ 149   3            if (luaO_rawequalObj(key2tval(n), key) ||
+ 150   3                  (ttype(gkey(n)) == LUA_TDEADKEY && iscollectable(key) &&
+ 151   3                   gcvalue(gkey(n)) == gcvalue(key))) {
+ 152   4              i = cast_int(n - gnode(t, 0));  /* key index in hash table */
+ 153   4              /* hash elements are numbered after array ones */
+ 154   4              return i + t->sizearray;
+ 155   4            }
+ 156   3            else n = gnext(n);
+ 157   3          } while (n);
+ 158   2          luaG_runerror(L, "invalid key to " LUA_QL("next"));  /* key not found */
+ 159   2          return 0;  /* to avoid warnings */
+ 160   2        }
+ 161   1      }
+ 162          
+ 163          
+ 164          int luaH_next (lua_State *L, Table *t, StkId key) {
+ 165   1        int i = findindex(L, t, key);  /* find original element */
+ 166   1        for (i++; i < t->sizearray; i++) {  /* try first array part */
+ 167   2          if (!ttisnil(&t->array[i])) {  /* a non-nil value? */
+ 168   3            setnvalue(key, cast_num(i+1));
+ 169   3            setobj2s(L, key+1, &t->array[i]);
+*** WARNING C275 IN LINE 169 OF SRC\LTABLE.C: expression with possibly no effect
+ 170   3            return 1;
+ 171   3          }
+ 172   2        }
+ 173   1        for (i -= t->sizearray; i < sizenode(t); i++) {  /* then hash part */
+ 174   2          if (!ttisnil(gval(gnode(t, i)))) {  /* a non-nil value? */
+ 175   3            setobj2s(L, key, key2tval(gnode(t, i)));
+*** WARNING C275 IN LINE 175 OF SRC\LTABLE.C: expression with possibly no effect
+ 176   3            setobj2s(L, key+1, gval(gnode(t, i)));
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 4   
+
+*** WARNING C275 IN LINE 176 OF SRC\LTABLE.C: expression with possibly no effect
+ 177   3            return 1;
+ 178   3          }
+ 179   2        }
+ 180   1        return 0;  /* no more elements */
+ 181   1      }
+ 182          
+ 183          
+ 184          int luaH_next_ro (lua_State *L, void *t, StkId key) {
+ 185   1        luaR_next(L, t, key, key+1);
+ 186   1        return ttisnil(key) ? 0 : 1;
+ 187   1      }
+ 188          
+ 189          
+ 190          /*
+ 191          ** {=============================================================
+ 192          ** Rehash
+ 193          ** ==============================================================
+ 194          */
+ 195          
+ 196          
+ 197          static int computesizes (int nums[], int *narray) {
+ 198   1        int i;
+ 199   1        int twotoi;  /* 2^i */
+ 200   1        int a = 0;  /* number of elements smaller than 2^i */
+ 201   1        int na = 0;  /* number of elements to go to array part */
+ 202   1        int n = 0;  /* optimal size for array part */
+ 203   1        for (i = 0, twotoi = 1; twotoi/2 < *narray; i++, twotoi *= 2) {
+ 204   2          if (nums[i] > 0) {
+ 205   3            a += nums[i];
+ 206   3            if (a > twotoi/2) {  /* more than half elements present? */
+ 207   4              n = twotoi;  /* optimal size (till now) */
+ 208   4              na = a;  /* all elements smaller than n will go to array part */
+ 209   4            }
+ 210   3          }
+ 211   2          if (a == *narray) break;  /* all elements already counted */
+ 212   2        }
+ 213   1        *narray = n;
+ 214   1        lua_assert(*narray/2 <= na && na <= *narray);
+*** WARNING C275 IN LINE 214 OF SRC\LTABLE.C: expression with possibly no effect
+ 215   1        return na;
+ 216   1      }
+ 217          
+ 218          
+ 219          static int countint (const TValue *key, int *nums) {
+ 220   1        int k = arrayindex(key);
+ 221   1        if (0 < k && k <= MAXASIZE) {  /* is `key' an appropriate array index? */
+ 222   2          nums[ceillog2(k)]++;  /* count as such */
+ 223   2          return 1;
+ 224   2        }
+ 225   1        else
+ 226   1          return 0;
+ 227   1      }
+ 228          
+ 229          
+ 230          static int numusearray (const Table *t, int *nums) {
+ 231   1        int lg;
+ 232   1        int ttlg;  /* 2^lg */
+ 233   1        int ause = 0;  /* summation of `nums' */
+ 234   1        int i = 1;  /* count to traverse all array keys */
+ 235   1        for (lg=0, ttlg=1; lg<=MAXBITS; lg++, ttlg*=2) {  /* for each slice */
+ 236   2          int lc = 0;  /* counter */
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 5   
+
+ 237   2          int lim = ttlg;
+ 238   2          if (lim > t->sizearray) {
+ 239   3            lim = t->sizearray;  /* adjust upper limit */
+ 240   3            if (i > lim)
+ 241   3              break;  /* no more elements to count */
+ 242   3          }
+ 243   2          /* count elements in range (2^(lg-1), 2^lg] */
+ 244   2          for (; i <= lim; i++) {
+ 245   3            if (!ttisnil(&t->array[i-1]))
+ 246   3              lc++;
+ 247   3          }
+ 248   2          nums[lg] += lc;
+ 249   2          ause += lc;
+ 250   2        }
+ 251   1        return ause;
+ 252   1      }
+ 253          
+ 254          
+ 255          static int numusehash (const Table *t, int *nums, int *pnasize) {
+ 256   1        int totaluse = 0;  /* total number of elements */
+ 257   1        int ause = 0;  /* summation of `nums' */
+ 258   1        int i = sizenode(t);
+ 259   1        while (i--) {
+ 260   2          Node *n = &t->node[i];
+ 261   2          if (!ttisnil(gval(n))) {
+ 262   3            ause += countint(key2tval(n), nums);
+ 263   3            totaluse++;
+ 264   3          }
+ 265   2        }
+ 266   1        *pnasize += ause;
+ 267   1        return totaluse;
+ 268   1      }
+ 269          
+ 270          
+ 271          static void setarrayvector (lua_State *L, Table *t, int size) {
+ 272   1        int i;
+ 273   1        luaM_reallocvector(L, t->array, t->sizearray, size, TValue);
+ 274   1        for (i=t->sizearray; i<size; i++)
+ 275   1           setnilvalue(&t->array[i]);
+ 276   1        t->sizearray = size;
+ 277   1      }
+ 278          
+ 279          
+ 280          static Node *getfreepos (Table *t) {
+ 281   1        while (t->lastfree-- > t->node) {
+ 282   2          if (ttisnil(gkey(t->lastfree)))
+ 283   2            return t->lastfree;
+ 284   2        }
+ 285   1        return NULL;  /* could not find a free place */
+ 286   1      }
+ 287          
+ 288          
+ 289          static void resizenodevector (lua_State *L, Table *t, int oldsize, int newsize) {
+ 290   1        int lsize;
+ 291   1        if (newsize == 0) {  /* no elements to hash part? */
+ 292   2          t->node = cast(Node *, dummynode);  /* use common `dummynode' */
+ 293   2          lsize = 0;
+ 294   2        }
+ 295   1        else {
+ 296   2          Node *node = t->node;
+ 297   2          int i;
+ 298   2          lsize = ceillog2(newsize);
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 6   
+
+ 299   2          if (lsize > MAXBITS)
+ 300   2            luaG_runerror(L, "table overflow");
+ 301   2          newsize = twoto(lsize);
+ 302   2          if (node == dummynode) {
+ 303   3            oldsize = 0;
+ 304   3            node = NULL; /* don't try to realloc `dummynode' pointer. */
+ 305   3          }
+ 306   2          luaM_reallocvector(L, node, oldsize, newsize, Node);
+ 307   2          t->node = node;
+ 308   2          for (i=oldsize; i<newsize; i++) {
+ 309   3            Node *n = gnode(t, i);
+ 310   3            gnext(n) = NULL;
+ 311   3            setnilvalue(gkey(n));
+ 312   3            setnilvalue(gval(n));
+ 313   3          }
+ 314   2        }
+ 315   1        t->lsizenode = cast_byte(lsize);
+ 316   1        t->lastfree = gnode(t, newsize);  /* reset lastfree to end of table. */
+ 317   1      }
+ 318          
+ 319          
+ 320          static Node *find_prev_node(Node *mp, Node *next) {
+ 321   1        Node *prev = mp;
+ 322   1        while (prev != NULL && gnext(prev) != next) prev = gnext(prev);
+ 323   1        return prev;
+ 324   1      }
+ 325          
+ 326          
+ 327          /*
+ 328          ** move a node from it's old position to it's new position during a rehash;
+ 329          ** first, check whether the moving node's main position is free. If not, check whether
+ 330          ** colliding node is in its main position or not: if it is not, move colliding
+ 331          ** node to an empty place and put moving node in its main position; otherwise
+ 332          ** (colliding node is in its main position), moving node goes to an empty position. 
+ 333          */
+ 334          static int move_node (lua_State *L, Table *t, Node *node) {
+ 335   1        Node *mp = mainposition(t, key2tval(node));
+ 336   1        /* if node is in it's main position, don't need to move node. */
+ 337   1        if (mp == node) return 1;
+ 338   1        /* if node is in it's main position's chain, don't need to move node. */
+ 339   1        if (find_prev_node(mp, node) != NULL) return 1;
+ 340   1        /* is main position is free? */
+ 341   1        if (!ttisnil(gval(mp)) || mp == dummynode) {
+ 342   2          /* no; move main position node if it is out of its main position */
+ 343   2          Node *othermp;
+ 344   2          othermp = mainposition(t, key2tval(mp));
+ 345   2          if (othermp != mp) {  /* is colliding node out of its main position? */
+ 346   3            /* yes; swap colliding node with the node that is being moved. */
+ 347   3            Node *prev;
+ 348   3            Node tmp;
+ 349   3            tmp = *node;
+ 350   3            prev = find_prev_node(othermp, mp);  /* find previous */
+ 351   3            if (prev != NULL) gnext(prev) = node;  /* redo the chain with `n' in place of `mp' */
+ 352   3            *node = *mp;  /* copy colliding node into free pos. (mp->next also goes) */
+ 353   3            *mp = tmp;
+ 354   3            return (prev != NULL) ? 1 : 0; /* is colliding node part of its main position chain? */
+ 355   3          }
+ 356   2          else {  /* colliding node is in its own main position */
+ 357   3            /* add node to main position's chain. */
+ 358   3            gnext(node) = gnext(mp);  /* chain new position */
+ 359   3            gnext(mp) = node;
+ 360   3          }
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 7   
+
+ 361   2        }
+ 362   1        else { /* main position is free, move node */
+ 363   2          *mp = *node;
+ 364   2          gnext(node) = NULL;
+ 365   2          setnilvalue(gkey(node));
+ 366   2          setnilvalue(gval(node));
+ 367   2        }
+ 368   1        return 1;
+ 369   1      }
+*** WARNING C280 IN LINE 334 OF SRC\LTABLE.C: 'L': unreferenced local variable
+ 370          
+ 371          
+ 372          static int move_number (lua_State *L, Table *t, Node *node) {
+ 373   1        int key;
+ 374   1        lua_Number n = nvalue(key2tval(node));
+ 375   1        lua_number2int(key, n);
+ 376   1        if (luai_numeq(cast_num(key), nvalue(key2tval(node)))) {/* index is int? */
+ 377   2          /* (1 <= key && key <= t->sizearray) */
+ 378   2          if (cast(unsigned int, key-1) < cast(unsigned int, t->sizearray)) {
+ 379   3            setobjt2t(L, &t->array[key-1], gval(node));
+*** WARNING C275 IN LINE 379 OF SRC\LTABLE.C: expression with possibly no effect
+ 380   3            setnilvalue(gkey(node));
+ 381   3            setnilvalue(gval(node));
+ 382   3            return 1;
+ 383   3          }
+ 384   2        }
+ 385   1        return 0;
+ 386   1      }
+*** WARNING C280 IN LINE 372 OF SRC\LTABLE.C: 'L': unreferenced local variable
+ 387          
+ 388          
+ 389          static void resize_hashpart (lua_State *L, Table *t, int nhsize) {
+ 390   1        int i;
+ 391   1        int lsize=0;
+ 392   1        int oldhsize = (t->node != dummynode) ? twoto(t->lsizenode) : 0;
+ 393   1        if (nhsize > 0) { /* round new hashpart size up to next power of two. */
+ 394   2          lsize=ceillog2(nhsize);
+ 395   2          if (lsize > MAXBITS)
+ 396   2            luaG_runerror(L, "table overflow");
+ 397   2        }
+ 398   1        nhsize = twoto(lsize);
+ 399   1        /* grow hash part to new size. */
+ 400   1        if (oldhsize < nhsize)
+ 401   1          resizenodevector(L, t, oldhsize, nhsize);
+ 402   1        else { /* hash part might be shrinking */
+ 403   2          if (nhsize > 0) {
+ 404   3            t->lsizenode = cast_byte(lsize);
+ 405   3            t->lastfree = gnode(t, nhsize);  /* reset lastfree back to end of table. */
+ 406   3          }
+ 407   2          else { /* new hashpart size is zero. */
+ 408   3            resizenodevector(L, t, oldhsize, nhsize);
+ 409   3            return;
+ 410   3          }
+ 411   2        }
+ 412   1        /* break old chains, try moving int keys to array part and compact keys into new hashpart */
+ 413   1        for (i = 0; i < oldhsize; i++) {
+ 414   2          Node *old = gnode(t, i);
+ 415   2          gnext(old) = NULL;
+ 416   2          if (ttisnil(gval(old))) { /* clear nodes with nil values. */
+ 417   3            setnilvalue(gkey(old));
+ 418   3            continue;
+ 419   3          }
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 8   
+
+ 420   2          if (ttisnumber(key2tval(old))) { /* try moving the int keys into array part. */
+ 421   3            if(move_number(L, t, old))
+ 422   3              continue;
+ 423   3          }
+ 424   2          if (i >= nhsize) { /* move all valid keys to indices < nhsize. */
+ 425   3            Node *n = getfreepos(t);  /* get a free place */
+ 426   3            lua_assert(n != dummynode && n != NULL);
+*** WARNING C275 IN LINE 426 OF SRC\LTABLE.C: expression with possibly no effect
+ 427   3            *n = *old;
+ 428   3          }
+ 429   2        }
+ 430   1        /* shrink hash part */
+ 431   1        if (oldhsize > nhsize)
+ 432   1          resizenodevector(L, t, oldhsize, nhsize);
+ 433   1        /* move nodes to their new mainposition and re-create node chains */
+ 434   1        for (i = 0; i < nhsize; i++) {
+ 435   2          Node *curr = gnode(t, i);
+ 436   2          if (!ttisnil(gval(curr)))
+ 437   2            while (move_node(L, t, curr) == 0);
+ 438   2        }
+ 439   1      }
+ 440          
+ 441          
+ 442          static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
+ 443   1        int i;
+ 444   1        int oldasize = t->sizearray;
+ 445   1        if (nasize > oldasize)  /* array part must grow? */
+ 446   1          setarrayvector(L, t, nasize);
+ 447   1        resize_hashpart(L, t, nhsize);
+ 448   1        if (nasize < oldasize) {  /* array part must shrink? */
+ 449   2          t->sizearray = nasize;
+ 450   2          /* re-insert elements from vanishing slice */
+ 451   2          for (i=nasize; i<oldasize; i++) {
+ 452   3            if (!ttisnil(&t->array[i]))
+ 453   3              setobjt2t(L, luaH_setnum(L, t, i+1), &t->array[i]);
+*** WARNING C275 IN LINE 453 OF SRC\LTABLE.C: expression with possibly no effect
+ 454   3          }
+ 455   2          /* shrink array */
+ 456   2          luaM_reallocvector(L, t->array, oldasize, nasize, TValue);
+ 457   2        }
+ 458   1      }
+ 459          
+ 460          
+ 461          void luaH_resizearray (lua_State *L, Table *t, int nasize) {
+ 462   1        int nsize = (t->node == dummynode) ? 0 : sizenode(t);
+ 463   1        resize(L, t, nasize, nsize);
+ 464   1      }
+ 465          
+ 466          
+ 467          static void rehash (lua_State *L, Table *t, const TValue *ek) {
+ 468   1        int nasize, na;
+ 469   1        int nums[MAXBITS+1];  /* nums[i] = number of keys between 2^(i-1) and 2^i */
+ 470   1        int i;
+ 471   1        int totaluse;
+ 472   1        for (i=0; i<=MAXBITS; i++) nums[i] = 0;  /* reset counts */
+ 473   1        nasize = numusearray(t, nums);  /* count keys in array part */
+ 474   1        totaluse = nasize;  /* all those keys are integer keys */
+ 475   1        totaluse += numusehash(t, nums, &nasize);  /* count keys in hash part */
+ 476   1        /* count extra key */
+ 477   1        nasize += countint(ek, nums);
+ 478   1        totaluse++;
+ 479   1        /* compute new size for array part */
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 9   
+
+ 480   1        na = computesizes(nums, &nasize);
+ 481   1        /* resize the table to new computed sizes */
+ 482   1        resize(L, t, nasize, totaluse - na);
+ 483   1      }
+ 484          
+ 485          
+ 486          
+ 487          /*
+ 488          ** }=============================================================
+ 489          */
+ 490          
+ 491          
+ 492          Table *luaH_new (lua_State *L, int narray, int nhash) {
+ 493   1        Table *t = luaM_new(L, Table);
+ 494   1        luaC_link(L, obj2gco(t), LUA_TTABLE);
+ 495   1        sethvalue2s(L, L->top, t); /* put table on stack */
+*** WARNING C275 IN LINE 495 OF SRC\LTABLE.C: expression with possibly no effect
+ 496   1        incr_top(L);
+*** WARNING C275 IN LINE 496 OF SRC\LTABLE.C: expression with possibly no effect
+ 497   1        t->metatable = NULL;
+ 498   1        t->flags = cast_byte(~0);
+ 499   1        /* temporary values (kept only if some malloc fails) */
+ 500   1        t->array = NULL;
+ 501   1        t->sizearray = 0;
+ 502   1        t->lsizenode = 0;
+ 503   1        t->node = cast(Node *, dummynode);
+ 504   1        setarrayvector(L, t, narray);
+ 505   1        resizenodevector(L, t, 0, nhash);
+ 506   1        L->top--; /* remove table from stack */
+ 507   1        return t;
+ 508   1      }
+ 509          
+ 510          
+ 511          void luaH_free (lua_State *L, Table *t) {
+ 512   1        if (t->node != dummynode)
+ 513   1          luaM_freearray(L, t->node, sizenode(t), Node);
+ 514   1        luaM_freearray(L, t->array, t->sizearray, TValue);
+ 515   1        luaM_free(L, t);
+ 516   1      }
+ 517          
+ 518          
+ 519          
+ 520          /*
+ 521          ** inserts a new key into a hash table; first, check whether key's main 
+ 522          ** position is free. If not, check whether colliding node is in its main 
+ 523          ** position or not: if it is not, move colliding node to an empty place and 
+ 524          ** put new key in its main position; otherwise (colliding node is in its main 
+ 525          ** position), new key goes to an empty position. 
+ 526          */
+ 527          static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
+ 528   1        Node *mp = mainposition(t, key);
+ 529   1        if (!ttisnil(gval(mp)) || mp == dummynode) {
+ 530   2          Node *othern;
+ 531   2          Node *n = getfreepos(t);  /* get a free place */
+ 532   2          if (n == NULL) {  /* cannot find a free place? */
+ 533   3            rehash(L, t, key);  /* grow table */
+ 534   3            return luaH_set(L, t, key);  /* re-insert key into grown table */
+ 535   3          }
+ 536   2          lua_assert(n != dummynode);
+*** WARNING C275 IN LINE 536 OF SRC\LTABLE.C: expression with possibly no effect
+ 537   2          othern = mainposition(t, key2tval(mp));
+ 538   2          if (othern != mp) {  /* is colliding node out of its main position? */
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 10  
+
+ 539   3            /* yes; move colliding node into free position */
+ 540   3            while (gnext(othern) != mp) othern = gnext(othern);  /* find previous */
+ 541   3            gnext(othern) = n;  /* redo the chain with `n' in place of `mp' */
+ 542   3            *n = *mp;  /* copy colliding node into free pos. (mp->next also goes) */
+ 543   3            gnext(mp) = NULL;  /* now `mp' is free */
+ 544   3            setnilvalue(gval(mp));
+ 545   3          }
+ 546   2          else {  /* colliding node is in its own main position */
+ 547   3            /* new node will go into free position */
+ 548   3            gnext(n) = gnext(mp);  /* chain new position */
+ 549   3            gnext(mp) = n;
+ 550   3            mp = n;
+ 551   3          }
+ 552   2        }
+ 553   1        setobj2t(L, gkey(mp), key);
+*** WARNING C275 IN LINE 553 OF SRC\LTABLE.C: expression with possibly no effect
+ 554   1        luaC_barriert(L, t, key);
+ 555   1        lua_assert(ttisnil(gval(mp)));
+*** WARNING C275 IN LINE 555 OF SRC\LTABLE.C: expression with possibly no effect
+ 556   1        return gval(mp);
+ 557   1      }
+ 558          
+ 559          
+ 560          /*
+ 561          ** search function for integers
+ 562          */
+ 563          const TValue *luaH_getnum (Table *t, int key) {
+ 564   1        /* (1 <= key && key <= t->sizearray) */
+ 565   1        if (cast(unsigned int, key-1) < cast(unsigned int, t->sizearray))
+ 566   1          return &t->array[key-1];
+ 567   1        else {
+ 568   2          lua_Number nk = cast_num(key);
+ 569   2          Node *n = hashnum(t, nk);
+ 570   2          do {  /* check whether `key' is somewhere in the chain */
+ 571   3            if (ttisnumber(gkey(n)) && luai_numeq(nvalue(gkey(n)), nk))
+ 572   3              return gval(n);  /* that's it */
+ 573   3            else n = gnext(n);
+ 574   3          } while (n);
+ 575   2          return luaO_nilobject;
+ 576   2        }
+ 577   1      }
+ 578          
+ 579          /* same thing for rotables */
+ 580          const TValue *luaH_getnum_ro (void *t, int key) {
+ 581   1        const TValue *res = luaR_findentry(t, NULL, key, NULL);
+ 582   1        return res ? res : luaO_nilobject;
+ 583   1      }
+ 584          
+ 585          
+ 586          /*
+ 587          ** search function for strings
+ 588          */
+ 589          const TValue *luaH_getstr (Table *t, TString *key) {
+ 590   1        Node *n = hashstr(t, key);
+ 591   1        do {  /* check whether `key' is somewhere in the chain */
+ 592   2          if (ttisstring(gkey(n)) && rawtsvalue(gkey(n)) == key)
+ 593   2            return gval(n);  /* that's it */
+ 594   2          else n = gnext(n);
+ 595   2        } while (n);
+ 596   1        return luaO_nilobject;
+ 597   1      }
+ 598          
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 11  
+
+ 599          /* same thing for rotables */
+ 600          const TValue *luaH_getstr_ro (void *t, TString *key) {
+ 601   1        char keyname[LUA_MAX_ROTABLE_NAME + 1];
+ 602   1        const TValue *res;  
+ 603   1        if (!t)
+ 604   1          return luaO_nilobject;
+ 605   1        luaR_getcstr(keyname, key, LUA_MAX_ROTABLE_NAME);   
+ 606   1        res = luaR_findentry(t, keyname, 0, NULL);
+ 607   1        return res ? res : luaO_nilobject;
+ 608   1      }
+ 609          
+ 610          
+ 611          /*
+ 612          ** main search function
+ 613          */
+ 614          const TValue *luaH_get (Table *t, const TValue *key) {
+ 615   1        switch (ttype(key)) {
+ 616   2          case LUA_TNIL: return luaO_nilobject;
+ 617   2          case LUA_TSTRING: return luaH_getstr(t, rawtsvalue(key));
+ 618   2          case LUA_TNUMBER: {
+ 619   3            int k;
+ 620   3            lua_Number n = nvalue(key);
+ 621   3            lua_number2int(k, n);
+ 622   3            if (luai_numeq(cast_num(k), nvalue(key))) /* index is int? */
+ 623   3              return luaH_getnum(t, k);  /* use specialized version */
+ 624   3            /* else go through */
+ 625   3          }
+ 626   2          default: {
+ 627   3            Node *n = mainposition(t, key);
+ 628   3            do {  /* check whether `key' is somewhere in the chain */
+ 629   4              if (luaO_rawequalObj(key2tval(n), key))
+ 630   4                return gval(n);  /* that's it */
+ 631   4              else n = gnext(n);
+ 632   4            } while (n);
+ 633   3            return luaO_nilobject;
+ 634   3          }
+ 635   2        }
+ 636   1      }
+ 637          
+ 638          /* same thing for rotables */
+ 639          const TValue *luaH_get_ro (void *t, const TValue *key) {
+ 640   1        switch (ttype(key)) {
+ 641   2          case LUA_TNIL: return luaO_nilobject;
+ 642   2          case LUA_TSTRING: return luaH_getstr_ro(t, rawtsvalue(key));
+ 643   2          case LUA_TNUMBER: {
+ 644   3            int k;
+ 645   3            lua_Number n = nvalue(key);
+ 646   3            lua_number2int(k, n);
+ 647   3            if (luai_numeq(cast_num(k), nvalue(key))) /* index is int? */
+ 648   3              return luaH_getnum_ro(t, k);  /* use specialized version */
+ 649   3            /* else go through */
+ 650   3          }
+ 651   2          default: {
+ 652   3            return luaO_nilobject;
+ 653   3          }
+ 654   2        }
+ 655   1      }
+ 656          
+ 657          
+ 658          TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
+ 659   1        const TValue *p = luaH_get(t, key);
+ 660   1        t->flags = 0;
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 12  
+
+ 661   1        if (p != luaO_nilobject)
+ 662   1          return cast(TValue *, p);
+ 663   1        else {
+ 664   2          if (ttisnil(key)) luaG_runerror(L, "table index is nil");
+ 665   2          else if (ttisnumber(key) && luai_numisnan(nvalue(key)))
+ 666   2            luaG_runerror(L, "table index is NaN");
+ 667   2          return newkey(L, t, key);
+ 668   2        }
+ 669   1      }
+ 670          
+ 671          
+ 672          TValue *luaH_setnum (lua_State *L, Table *t, int key) {
+ 673   1        const TValue *p = luaH_getnum(t, key);
+ 674   1        if (p != luaO_nilobject)
+ 675   1          return cast(TValue *, p);
+ 676   1        else {
+ 677   2          TValue k;
+ 678   2          setnvalue(&k, cast_num(key));
+ 679   2          return newkey(L, t, &k);
+ 680   2        }
+ 681   1      }
+ 682          
+ 683          
+ 684          TValue *luaH_setstr (lua_State *L, Table *t, TString *key) {
+ 685   1        const TValue *p = luaH_getstr(t, key);
+ 686   1        if (p != luaO_nilobject)
+ 687   1          return cast(TValue *, p);
+ 688   1        else {
+ 689   2          TValue k;
+ 690   2          setsvalue(L, &k, key);
+*** WARNING C275 IN LINE 690 OF SRC\LTABLE.C: expression with possibly no effect
+ 691   2          return newkey(L, t, &k);
+ 692   2        }
+ 693   1      }
+ 694          
+ 695          
+ 696          static int unbound_search (Table *t, unsigned int j) {
+ 697   1        unsigned int i = j;  /* i is zero or a present index */
+ 698   1        j++;
+ 699   1        /* find `i' and `j' such that i is present and j is not */
+ 700   1        while (!ttisnil(luaH_getnum(t, j))) {
+ 701   2          i = j;
+ 702   2          j *= 2;
+ 703   2          if (j > cast(unsigned int, MAX_INT)) {  /* overflow? */
+ 704   3            /* table was built with bad purposes: resort to linear search */
+ 705   3            i = 1;
+ 706   3            while (!ttisnil(luaH_getnum(t, i))) i++;
+ 707   3            return i - 1;
+ 708   3          }
+ 709   2        }
+ 710   1        /* now do a binary search between them */
+ 711   1        while (j - i > 1) {
+ 712   2          unsigned int m = (i+j)/2;
+ 713   2          if (ttisnil(luaH_getnum(t, m))) j = m;
+ 714   2          else i = m;
+ 715   2        }
+ 716   1        return i;
+ 717   1      }
+ 718          
+ 719          
+ 720          /*
+ 721          ** Try to find a boundary in table `t'. A `boundary' is an integer index
+C51 COMPILER V9.00   LTABLE                                                                11/27/2017 19:45:04 PAGE 13  
+
+ 722          ** such that t[i] is non-nil and t[i+1] is nil (and 0 if t[1] is nil).
+ 723          */
+ 724          int luaH_getn (Table *t) {
+ 725   1        unsigned int j = t->sizearray;
+ 726   1        if (j > 0 && ttisnil(&t->array[j - 1])) {
+ 727   2          /* there is a boundary in the array part: (binary) search for it */
+ 728   2          unsigned int i = 0;
+ 729   2          while (j - i > 1) {
+ 730   3            unsigned int m = (i+j)/2;
+ 731   3            if (ttisnil(&t->array[m - 1])) j = m;
+ 732   3            else i = m;
+ 733   3          }
+ 734   2          return i;
+ 735   2        }
+ 736   1        /* else must find a boundary in hash part */
+ 737   1        else if (t->node == dummynode)  /* hash part is empty? */
+ 738   1          return j;  /* that is easy... */
+ 739   1        else return unbound_search(t, j);
+ 740   1      }
+ 741          
+ 742          /* same thing for rotables */
+ 743          int luaH_getn_ro (void *t) {
+ 744   1        int i = 1, len=0;
+ 745   1        
+ 746   1        while(luaR_findentry(t, NULL, i ++, NULL))
+ 747   1          len ++;
+ 748   1        return len;
+ 749   1      }
+ 750          
+ 751          #if defined(LUA_DEBUG)
+              
+              Node *luaH_mainposition (const Table *t, const TValue *key) {
+                return mainposition(t, key);
+              }
+              
+              int luaH_isdummy (Node *n) { return n == dummynode; }
+              
+              #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   7952    ----
+   CONSTANT SIZE    =     75    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     15     514
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  15 WARNING(S),  0 ERROR(S)

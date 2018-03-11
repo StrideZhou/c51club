@@ -1,0 +1,7 @@
+"STARTUP.obj",
+"rtx51full.obj",
+"RTXCONF.obj" 
+TO "rtx51full" RTX51 REGFILE (.\rtx51full.ORC) 
+RAMSIZE(256) 
+CODE( 0X0000-0XEFF8 )
+XDATA( 0X0000-0X06FF )

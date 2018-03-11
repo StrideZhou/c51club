@@ -1,0 +1,814 @@
+BL51 BANKED LINKER/LOCATER V6.22                                                        10/15/2017  13:25:56  PAGE 1
+
+
+BL51 BANKED LINKER/LOCATER V6.22, INVOKED BY:
+C:\MY PROGRAM\KEIL\C51\BIN\BL51.EXE STARTUP.obj, rtx51full.obj, RTXCONF.obj TO rtx51full RTX51 REGFILE (.\rtx51full.ORC)
+>>  RAMSIZE (256) CODE (0X0000-0XEFF8) XDATA (0X0000-0X06FF)
+
+
+MEMORY MODEL: LARGE
+
+
+INPUT MODULES INCLUDED:
+  STARTUP.obj (?C_STARTUP)
+  rtx51full.obj (RTX51FULL)
+  RTXCONF.obj (?RTX?CONFIGURATION)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXINIT)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXDATA)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXCLK)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXCREA)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXINT)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXWAIT)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXSEND)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXDELET)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXENABL)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXRUNID)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTX51_LIB____VERSION_0X510)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXBLOCK)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXDISP)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXQUOP)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXIHAND)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTXINS)
+  C:\MY PROGRAM\KEIL\C51\LIB\RTX51.LIB (RTX2C51)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (PRINTF)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (?C?CLDPTR)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (?C?CLDOPTR)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (?C?CSTPTR)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (?C?PLDIXDATA)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (?C?PSTXDATA)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (?C?CCASE)
+  C:\MY PROGRAM\KEIL\C51\LIB\C51L.LIB (PUTCHAR)
+
+
+TASK TABLE OF MODULE:  rtx51full (?C_STARTUP)
+
+TASKID   PRIORITY   REG-BANK   SEGMENT NAME
+-------------------------------------------
+0        1          0          ?PR?CONSUMER_TASK?RTX51FULL
+1        0          0          ?PR?PRODUCER_TASK?RTX51FULL
+2        3          2          ?PR?EXAMPLE_2?RTX51FULL
+3        0          0          ?PR?STARTUP_TASK?RTX51FULL
+
+
+
+LINK MAP OF MODULE:  rtx51full (?C_STARTUP)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 2
+
+
+            DATA    0008H     0005H     UNIT         _DATA_GROUP_
+                    000DH     0003H                  *** GAP ***
+            REG     0010H     0008H     ABSOLUTE     "REG BANK 2"
+                    0018H     0008H                  *** GAP ***
+            DATA    0020H     0002H     BIT_ADDR     ?RTX?RTX_BIT_RELBYTE_SEG
+            BIT     0022H.0   0001H.6   UNIT         ?RTX?RTX_BIT_SEG
+            BIT     0023H.6   0001H.1   UNIT         _BIT_GROUP_
+            BIT     0024H.7   0000H.2   UNIT         ?RTX?FLT_BITSEG
+                    0025H.1   0000H.7                *** GAP ***
+            DATA    0026H     0023H     UNIT         ?RTX?RTX_RELBYTE_SEG
+            DATA    0049H     0009H     UNIT         ?RTX?INT_MASK?RTXCONF
+            IDATA   0052H     0018H     UNIT         ?RTX?FTASKDATA?2
+            IDATA   006AH     0014H     UNIT         ?STACK
+
+            * * * * * * *  X D A T A   M E M O R Y  * * * * * * *
+            XDATA   0000H     0100H     PAGE         ?RTX?RTX_MBX_PAGE
+            XDATA   0100H     0100H     INPAGE       ?RTX?RTX_AUX_PAGE
+            XDATA   0200H     00F4H     INPAGE       ?RTX?RTX_SYS_PAGE
+            XDATA   02F4H     0004H     INPAGE       ?RTX?USER_NUM_TABLE?S
+            XDATA   02F8H     0002H     UNIT         ?XD?RTX51FULL
+                    02FAH     0006H                  *** GAP ***
+            XDATA   0300H     0080H     PAGE         ?RTX?RTX_SEM_PAGE
+            XDATA   0380H     0033H     UNIT         _XDATA_GROUP_
+            XDATA   03B3H     0032H     INPAGE       ?RTX?TASKCONTEXT?0
+                    03E5H     001BH                  *** GAP ***
+            XDATA   0400H     0032H     INPAGE       ?RTX?TASKCONTEXT?1
+            XDATA   0432H     0032H     INPAGE       ?RTX?TASKCONTEXT?3
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     0003H     ABSOLUTE     
+            CODE    0003H     0007H     ABSOLUTE     
+            CODE    000AH     0001H     UNIT         ?RTX?RESET_I_F_F?RTXINT
+            CODE    000BH     0003H     ABSOLUTE     
+            CODE    000EH     0005H     UNIT         ?RTX?RTX_INIT_INT_REG_FLAGS?RTXCONF
+            CODE    0013H     0007H     ABSOLUTE     
+                    001AH     0001H                  *** GAP ***
+            CODE    001BH     0007H     ABSOLUTE     
+                    0022H     0001H                  *** GAP ***
+            CODE    0023H     0007H     ABSOLUTE     
+                    002AH     0001H                  *** GAP ***
+            CODE    002BH     0007H     ABSOLUTE     
+            CODE    0032H     000DH     UNIT         ?RTX?INIT_SEM?RTXINIT
+                    003FH     0004H                  *** GAP ***
+            CODE    0043H     0007H     ABSOLUTE     
+                    004AH     0001H                  *** GAP ***
+            CODE    004BH     0007H     ABSOLUTE     
+                    0052H     0001H                  *** GAP ***
+            CODE    0053H     0007H     ABSOLUTE     
+                    005AH     0001H                  *** GAP ***
+            CODE    005BH     0007H     ABSOLUTE     
+                    0062H     0001H                  *** GAP ***
+            CODE    0063H     0007H     ABSOLUTE     
+            CODE    006AH     0017H     UNIT         ?RTX?INIT_MBX?RTXINIT
+                    0081H     0002H                  *** GAP ***
+            CODE    0083H     0007H     ABSOLUTE     
+                    008AH     0001H                  *** GAP ***
+            CODE    008BH     0007H     ABSOLUTE     
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 3
+
+
+                    0092H     0001H                  *** GAP ***
+            CODE    0093H     0007H     ABSOLUTE     
+                    009AH     0001H                  *** GAP ***
+            CODE    009BH     0007H     ABSOLUTE     
+                    00A2H     0001H                  *** GAP ***
+            CODE    00A3H     0007H     ABSOLUTE     
+            CODE    00AAH     04B3H     UNIT         ?RTX?REDISPATCH?RTXDISP
+            CODE    055DH     0365H     UNIT         ?PR?PRINTF?PRINTF
+            CODE    08C2H     027CH     UNIT         ?RTX?SYSCLK_INTHNDLR?RTXCLK
+            CODE    0B3EH     0259H     UNIT         ?RTX?_OS_CREATE_TASK?RTXCREA
+            CODE    0D97H     01C8H     UNIT         ?RTX?_OS_WAIT?RTXWAIT
+            CODE    0F5FH     019EH     UNIT         ?RTX?_OS_SEND_MESSAGE?RTXSEND
+            CODE    10FDH     018CH     UNIT         ?RTX?_OS_START_SYSTEM?RTXINIT
+            CODE    1289H     0129H     UNIT         ?RTX?_OS_DELETE_TASK?RTXTERM
+            CODE    13B2H     00F2H     UNIT         ?RTX?INT_HANDLER?RTXINT
+            CODE    14A4H     00D3H     UNIT         ?RTX?HANDLE_ISR_SEND_MES?RTXIHA
+            CODE    1577H     00CDH     UNIT         ?RTX?_OS_SEND_TOKEN?RTXSEND
+            CODE    1644H     00ACH     UNIT         ?RTX?_OS_SEND_SIGNAL?RTXSEND
+            CODE    16F0H     009EH     UNIT         ?C?LIB_CODE
+            CODE    178EH     0098H     UNIT         ?RTX?REMOVE_RDY?RTXTERM
+            CODE    1826H     0097H     UNIT         ?RTX?HANDLE_NF_CHECK_REQ?RTXIHA
+            CODE    18BDH     008CH     UNIT         ?RTX?DBLOCK?RTXBLOCK
+            CODE    1949H     0086H     UNIT         ?RTX?MSG_ENQUEUE?RTXQUOP
+            CODE    19CFH     0086H     UNIT         ?RTX?HANDLE_ISR_SEND_SIG?RTXIHA
+            CODE    1A55H     0085H     UNIT         ?RTX?_OS_SET_SLICE?RTXCLK
+            CODE    1ADAH     007FH     UNIT         ?RTX?NDBLOCK?RTXBLOCK
+            CODE    1B59H     0075H     UNIT         ?PR?EXAMPLE_2?RTX51FULL
+            CODE    1BCEH     006CH     UNIT         ?RTX?NFL_DEQUEUE?RTXQUOP
+            CODE    1C3AH     006BH     UNIT         ?RTX?_OS_DISABLE_ISR?RTXENABL
+            CODE    1CA5H     006BH     UNIT         ?RTX?SEM_ENQUEUE?RTXQUOP
+            CODE    1D10H     0068H     UNIT         ?RTX?_OS_ENABLE_ISR?RTXENABL
+            CODE    1D78H     0061H     UNIT         ?RTX?SEM_DEQUEUE?RTXQUOP
+            CODE    1DD9H     005EH     UNIT         ?RTX?IVL_ENQUEUE?RTXQUOP
+            CODE    1E37H     005CH     UNIT         ?CO?RTX51FULL
+            CODE    1E93H     0056H     UNIT         ?RTX?MSG_DEQUEUE?RTXQUOP
+            CODE    1EE9H     0050H     UNIT         ?RTX?NFL_ENQUEUE?RTXQUOP
+            CODE    1F39H     0050H     UNIT         ?RTX?INSERT_RDY_PRIO?RTXIHAND
+            CODE    1F89H     004BH     UNIT         ?RTX?RTX_INT_TO_BIT_TABLE?RTXCONF
+            CODE    1FD4H     0049H     UNIT         ?RTX?FLT_TASKSWITCHING?RTX2C51
+            CODE    201DH     0040H     UNIT         ?PR?PRODUCER_TASK?RTX51FULL
+            CODE    205DH     0035H     UNIT         ?RTX?INT_ENQUEUE?RTXQUOP
+            CODE    2092H     0034H     UNIT         ?RTX?CHECK_INPUT_PARA?RTXENABL
+            CODE    20C6H     0034H     UNIT         ?RTX?TMO_ENQUEUE?RTXQUOP
+            CODE    20FAH     0034H     UNIT         ?RTX?INTSIG_DEQUEUE?RTXQUOP
+            CODE    212EH     0033H     UNIT         ?RTX?OS_RUNNING_TASK_ID?RTXRUNI
+            CODE    2161H     0027H     UNIT         ?PR?PUTCHAR?PUTCHAR
+            CODE    2188H     0026H     UNIT         ?PR?CONSUMER_TASK?RTX51FULL
+            CODE    21AEH     0021H     UNIT         ?RTX?RTXINIT
+            CODE    21CFH     0020H     UNIT         ?PR?RTX51FULL
+            CODE    21EFH     0020H     UNIT         ?RTX?ISRDESCR
+            CODE    220FH     001EH     UNIT         ?PR?STARTUP_TASK?RTX51FULL
+            CODE    222DH     001DH     UNIT         ?RTX?TMO_DEQUEUE?RTXQUOP
+            CODE    224AH     001CH     UNIT         ?RTX?TASKCONST?L
+            CODE    2266H     001AH     UNIT         ?C_C51STARTUP
+            CODE    2280H     001AH     UNIT         ?PR?SERIAL_INIT?RTX51FULL
+            CODE    229AH     0015H     UNIT         ?PR?MAIN?RTX51FULL
+            CODE    22AFH     0014H     UNIT         ?RTX?SIG_ENQUEUE?RTXQUOP
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 4
+
+
+            CODE    22C3H     0009H     UNIT         ?RTX?RTX_IDLE_FUNC?RTXCONF
+            CODE    22CCH     0008H     UNIT         ?RTX?CLEAR_BLOCK_IN_PAGE?RTXINI
+            CODE    22D4H     0007H     UNIT         ?RTX?FILL_BLOCK?RTXINIT
+            CODE    22DBH     0005H     UNIT         ?RTX?SIG_DEQUEUE?RTXQUOP
+
+
+
+OVERLAY MAP OF MODULE:   rtx51full (?C_STARTUP)
+
+
+SEGMENT                                BIT_GROUP          DATA_GROUP          XDATA_GROUP
+  +--> CALLED SEGMENT               START    LENGTH     START    LENGTH     START    LENGTH
+-------------------------------------------------------------------------------------------
+?C_C51STARTUP                       -----    -----      -----    -----      -----    -----
+  +--> ?PR?MAIN?RTX51FULL
+
+*** NEW ROOT ***************************************************
+
+?PR?EXAMPLE_2?RTX51FULL             -----    -----      -----    -----      0380H    0001H
+  +--> ?CO?RTX51FULL
+  +--> ?PR?PRINTF?PRINTF
+  +--> ?PR?RTX51FULL
+
+?PR?PRINTF?PRINTF                   0023H.6  0001H.1    0008H    0005H      0381H    0028H
+  +--> ?PR?PUTCHAR?PUTCHAR
+
+*** NEW ROOT ***************************************************
+
+?PR?PRODUCER_TASK?RTX51FULL         -----    -----      -----    -----      03A9H    0005H
+  +--> ?CO?RTX51FULL
+
+*** NEW ROOT ***************************************************
+
+?PR?CONSUMER_TASK?RTX51FULL         -----    -----      -----    -----      03AEH    0005H
+  +--> ?CO?RTX51FULL
+
+*** NEW ROOT ***************************************************
+
+?PR?STARTUP_TASK?RTX51FULL          -----    -----      -----    -----      -----    -----
+  +--> ?PR?SERIAL_INIT?RTX51FULL
+
+
+
+SYMBOL TABLE OF MODULE:  rtx51full (?C_STARTUP)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        ?C_STARTUP
+  C:2266H         SEGMENT       ?C_C51STARTUP
+  I:006AH         SEGMENT       ?STACK
+  C:0000H         PUBLIC        ?C_STARTUP
+  D:00E0H         SYMBOL        ACC
+  D:00F0H         SYMBOL        B
+  D:0083H         SYMBOL        DPH
+  D:0082H         SYMBOL        DPL
+  N:0000H         SYMBOL        IBPSTACK
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 5
+
+
+  N:0100H         SYMBOL        IBPSTACKTOP
+  N:0100H         SYMBOL        IDATALEN
+  C:2269H         SYMBOL        IDATALOOP
+  N:0000H         SYMBOL        PBPSTACK
+  N:0100H         SYMBOL        PBPSTACKTOP
+  N:0000H         SYMBOL        PDATALEN
+  N:0000H         SYMBOL        PDATASTART
+  N:0000H         SYMBOL        PPAGE
+  N:0000H         SYMBOL        PPAGEENABLE
+  D:00A0H         SYMBOL        PPAGE_SFR
+  D:0081H         SYMBOL        SP
+  C:2266H         SYMBOL        STARTUP1
+  N:0000H         SYMBOL        XBPSTACK
+  N:0000H         SYMBOL        XBPSTACKTOP
+  N:03FFH         SYMBOL        XDATALEN
+  C:2274H         SYMBOL        XDATALOOP
+  N:0000H         SYMBOL        XDATASTART
+  C:0000H         LINE#         126
+  C:2266H         LINE#         133
+  C:2268H         LINE#         134
+  C:2269H         LINE#         135
+  C:226AH         LINE#         136
+  C:226CH         LINE#         140
+  C:226FH         LINE#         141
+  C:2271H         LINE#         143
+  C:2273H         LINE#         147
+  C:2274H         LINE#         148
+  C:2275H         LINE#         149
+  C:2276H         LINE#         150
+  C:2278H         LINE#         151
+  C:227AH         LINE#         185
+  C:227DH         LINE#         196
+  -------         ENDMOD        ?C_STARTUP
+
+  -------         MODULE        RTX51FULL
+  C:0000H         SYMBOL        _ICE_DUMMY_
+  C:201DH         PUBLIC        producer_task
+  D:0080H         PUBLIC        P0
+  D:0090H         PUBLIC        P1
+  D:00A0H         PUBLIC        P2
+  C:1B59H         PUBLIC        example_2
+  D:00B0H         PUBLIC        P3
+  D:00C0H         PUBLIC        P4
+  D:00C8H         PUBLIC        P5
+  C:2188H         PUBLIC        consumer_task
+  D:00A2H         PUBLIC        P_SW1
+  D:00A8H         PUBLIC        IE
+  D:00B8H         PUBLIC        IP
+  C:2280H         PUBLIC        serial_init
+  B:0098H.1       PUBLIC        TI
+  D:00D8H         PUBLIC        CCON
+  C:229AH         PUBLIC        main
+  C:220FH         PUBLIC        startup_task
+  D:0098H         PUBLIC        SCON
+  D:0088H         PUBLIC        TCON
+  D:00F0H         PUBLIC        B
+  D:008EH         PUBLIC        AUXR
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 6
+
+
+  D:00E0H         PUBLIC        ACC
+  D:00D6H         PUBLIC        TH2
+  D:00D7H         PUBLIC        TL2
+  D:00D0H         PUBLIC        PSW
+  C:21CFH         SYMBOL        Com0011
+  C:21CFH         SYMBOL        L?0018
+  -------         PROC          COM0011
+  -------         ENDPROC       COM0011
+  C:1BC2H         SYMBOL        L?0019
+  -------         PROC          EXAMPLE_2
+  -------         DO            
+  X:02F8H         SYMBOL        ch
+  X:0380H         SYMBOL        i
+  -------         ENDDO         
+  C:1B59H         LINE#         12
+  C:1B59H         LINE#         15
+  C:1B5EH         LINE#         16
+  C:1B5EH         LINE#         17
+  C:1B5EH         LINE#         19
+  C:1B61H         LINE#         20
+  C:1B66H         LINE#         21
+  C:1B66H         LINE#         22
+  C:1B6DH         LINE#         23
+  C:1B79H         LINE#         25
+  C:1B82H         LINE#         26
+  C:1B96H         LINE#         27
+  C:1BA0H         LINE#         28
+  C:1BA3H         LINE#         29
+  C:1BADH         LINE#         30
+  C:1BB6H         LINE#         32
+  C:1BBFH         LINE#         36
+  C:1BC2H         LINE#         37
+  -------         ENDPROC       EXAMPLE_2
+  -------         PROC          SERIAL_INIT
+  C:2280H         LINE#         41
+  C:2280H         LINE#         42
+  C:2280H         LINE#         43
+  C:2283H         LINE#         44
+  C:2286H         LINE#         45
+  C:2289H         LINE#         46
+  C:228CH         LINE#         47
+  C:2292H         LINE#         48
+  C:2295H         LINE#         49
+  -------         ENDPROC       SERIAL_INIT
+  -------         PROC          PRODUCER_TASK
+  -------         DO            
+  X:03A9H         SYMBOL        send_mes
+  X:03ABH         SYMBOL        ss
+  -------         ENDDO         
+  C:201DH         LINE#         52
+  C:201DH         LINE#         55
+  C:202BH         LINE#         56
+  C:2033H         LINE#         57
+  C:2033H         LINE#         61
+  C:2042H         LINE#         62
+  C:2050H         LINE#         63
+  C:205BH         LINE#         65
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 7
+
+
+  -------         ENDPROC       PRODUCER_TASK
+  -------         PROC          CONSUMER_TASK
+  -------         DO            
+  X:03AEH         SYMBOL        rec_mes
+  X:03B0H         SYMBOL        sd
+  -------         ENDDO         
+  C:2188H         LINE#         69
+  C:2188H         LINE#         72
+  C:2196H         LINE#         73
+  C:2196H         LINE#         76
+  C:21A1H         LINE#         80
+  C:21ACH         LINE#         81
+  -------         ENDPROC       CONSUMER_TASK
+  -------         PROC          STARTUP_TASK
+  C:220FH         LINE#         83
+  C:220FH         LINE#         85
+  C:2216H         LINE#         86
+  C:2219H         LINE#         87
+  C:221EH         LINE#         88
+  C:2223H         LINE#         89
+  C:2228H         LINE#         90
+  -------         ENDPROC       STARTUP_TASK
+  -------         PROC          MAIN
+  C:229AH         LINE#         93
+  C:229AH         LINE#         94
+  C:229AH         LINE#         97
+  C:22A2H         LINE#         99
+  C:22A5H         LINE#         100
+  C:22A8H         LINE#         101
+  C:22AAH         LINE#         102
+  -------         ENDPROC       MAIN
+  -------         ENDMOD        RTX51FULL
+
+  -------         MODULE        ?RTX?CONFIGURATION
+  C:1F89H         SEGMENT       ?RTX?RTX_INT_TO_BIT_TABLE?RTXCONF
+  D:0049H         SEGMENT       ?RTX?INT_MASK?RTXCONF
+  C:000EH         SEGMENT       ?RTX?RTX_INIT_INT_REG_FLAGS?RTXCONF
+  C:22C3H         SEGMENT       ?RTX?RTX_IDLE_FUNC?RTXCONF
+  I:0000H         SEGMENT       ?RTX?FTASKDATA?U
+  X:0000H         SEGMENT       ?RTX?RTX_MBX_PAGE
+  X:0300H         SEGMENT       ?RTX?RTX_SEM_PAGE
+  N:0000H         PUBLIC        ?B_CURRENTBANK
+  N:0000H         PUBLIC        ?RTX_BANKSWITCHING
+  N:0001H         PUBLIC        ?RTX_CLK_INT_NBR
+  D:004AH         PUBLIC        ?RTX_D_IE
+  D:004DH         PUBLIC        ?RTX_D_IE1
+  D:0050H         PUBLIC        ?RTX_D_IE2
+  N:0032H         PUBLIC        ?RTX_EXTRENTSIZE
+  N:0020H         PUBLIC        ?RTX_EXTSTKSIZE
+  C:22C3H         PUBLIC        ?RTX_IDLE_FUNC
+  D:00A8H         PUBLIC        ?RTX_IE
+  D:008FH         PUBLIC        ?RTX_IEN1
+  N:0000H         PUBLIC        ?RTX_IEN1_INIT
+  D:00AFH         PUBLIC        ?RTX_IEN2
+  N:0000H         PUBLIC        ?RTX_IEN2_INIT
+  N:0000H         PUBLIC        ?RTX_IE_INIT
+  C:000EH         PUBLIC        ?RTX_INIT_INT_REG_FLAGS
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 8
+
+
+  N:0003H         PUBLIC        ?RTX_INTREGSIZE
+  N:0018H         PUBLIC        ?RTX_INTSTKSIZE
+  C:1F89H         PUBLIC        ?RTX_INT_TO_BIT_TABLE_BASE
+  N:0001H         PUBLIC        ?RTX_MAILBOX_SUPPORT
+  N:0018H         PUBLIC        ?RTX_MAX_INT_NBR
+  X:0000H         PUBLIC        ?RTX_MBX_PAGE
+  X:0100H         PUBLIC        ?RTX_MBX_PAGE_END
+  D:004BH         PUBLIC        ?RTX_ND_IE
+  D:004EH         PUBLIC        ?RTX_ND_IE1
+  D:0051H         PUBLIC        ?RTX_ND_IE2
+  D:0049H         PUBLIC        ?RTX_NM_IE
+  D:004CH         PUBLIC        ?RTX_NM_IE1
+  D:004FH         PUBLIC        ?RTX_NM_IE2
+  N:0000H         PUBLIC        ?RTX_SAVE_INT_BANK
+  N:0001H         PUBLIC        ?RTX_SEMAPHORE_SUPPORT
+  X:0300H         PUBLIC        ?RTX_SEM_PAGE
+  X:0380H         PUBLIC        ?RTX_SEM_PAGE_END
+  N:0000H         PUBLIC        ?RTX_SWITCHBANK
+  D:0088H         PUBLIC        ?RTX_TCON
+  B:0088H.4       PUBLIC        ?RTX_TCONTROL
+  N:00FFH         PUBLIC        ?RTX_TCON_AND_MASK
+  N:0000H         PUBLIC        ?RTX_TCON_OR_MASK
+  B:0088H.5       PUBLIC        ?RTX_TFLAG
+  D:008CH         PUBLIC        ?RTX_THIGH
+  N:0001H         PUBLIC        ?RTX_TIMESHARING
+  D:008AH         PUBLIC        ?RTX_TLOW
+  D:0089H         PUBLIC        ?RTX_TMOD
+  N:00F0H         PUBLIC        ?RTX_TMOD_AND_MASK
+  N:0001H         PUBLIC        ?RTX_TMOD_OR_MASK
+  C:0003H         PUBLIC        INT0_VECTOR
+  C:0053H         PUBLIC        INT10_VECTOR
+  C:005BH         PUBLIC        INT11_VECTOR
+  C:0063H         PUBLIC        INT12_VECTOR
+  C:0083H         PUBLIC        INT16_VECTOR
+  C:008BH         PUBLIC        INT17_VECTOR
+  C:0093H         PUBLIC        INT18_VECTOR
+  C:009BH         PUBLIC        INT19_VECTOR
+  C:00A3H         PUBLIC        INT20_VECTOR
+  C:0013H         PUBLIC        INT2_VECTOR
+  C:001BH         PUBLIC        INT3_VECTOR
+  C:0023H         PUBLIC        INT4_VECTOR
+  C:002BH         PUBLIC        INT5_VECTOR
+  C:0043H         PUBLIC        INT8_VECTOR
+  C:004BH         PUBLIC        INT9_VECTOR
+  N:0000H         SYMBOL        ?RTX?CONFIGURATION
+  N:0096H         SYMBOL        ?RTX_CPU_TYPE
+  N:0000H         SYMBOL        ?RTX_INTBASE
+  N:0000H         SYMBOL        ?RTX_SYSTEM_TIMER
+  N:0001H         SYMBOL        ?RTX_USE_IDLE
+  N:0003H         SYMBOL        INT_EN_MASK_NUMBER
+  D:0087H         SYMBOL        PCON
+  C:0003H         LINE#         327
+  C:0005H         LINE#         327
+  C:0007H         LINE#         327
+  C:0013H         LINE#         329
+  C:0015H         LINE#         329
+  C:0017H         LINE#         329
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 9
+
+
+  C:001BH         LINE#         330
+  C:001DH         LINE#         330
+  C:001FH         LINE#         330
+  C:0023H         LINE#         331
+  C:0025H         LINE#         331
+  C:0027H         LINE#         331
+  C:002BH         LINE#         332
+  C:002DH         LINE#         332
+  C:002FH         LINE#         332
+  C:0043H         LINE#         335
+  C:0045H         LINE#         335
+  C:0047H         LINE#         335
+  C:004BH         LINE#         336
+  C:004DH         LINE#         336
+  C:004FH         LINE#         336
+  C:0053H         LINE#         337
+  C:0055H         LINE#         337
+  C:0057H         LINE#         337
+  C:005BH         LINE#         338
+  C:005DH         LINE#         338
+  C:005FH         LINE#         338
+  C:0063H         LINE#         339
+  C:0065H         LINE#         339
+  C:0067H         LINE#         339
+  C:0083H         LINE#         341
+  C:0085H         LINE#         341
+  C:0087H         LINE#         341
+  C:008BH         LINE#         342
+  C:008DH         LINE#         342
+  C:008FH         LINE#         342
+  C:0093H         LINE#         343
+  C:0095H         LINE#         343
+  C:0097H         LINE#         343
+  C:009BH         LINE#         344
+  C:009DH         LINE#         344
+  C:009FH         LINE#         344
+  C:00A3H         LINE#         345
+  C:00A5H         LINE#         345
+  C:00A7H         LINE#         345
+  C:000EH         LINE#         523
+  C:0010H         LINE#         524
+  C:0012H         LINE#         525
+  C:000BH         LINE#         615
+  C:22C3H         LINE#         693
+  C:22C6H         LINE#         693
+  C:22C7H         LINE#         693
+  C:22C8H         LINE#         693
+  C:22C9H         LINE#         693
+  C:22CAH         LINE#         695
+  -------         ENDMOD        ?RTX?CONFIGURATION
+
+  -------         MODULE        RTXINIT
+  C:10FDH         PUBLIC        _OS_START_SYSTEM
+  -------         ENDMOD        RTXINIT
+
+  -------         MODULE        RTXDATA
+  D:0031H         PUBLIC        ?RTX_ACT_LIFO_EL
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 10
+
+
+  X:0100H         PUBLIC        ?RTX_AUX_PAGE
+  X:0200H         PUBLIC        ?RTX_AUX_PAGE_END
+  B:0022H.7       PUBLIC        ?RTX_BANKSW
+  D:0020H         PUBLIC        ?RTX_BIT_RELBYTE_BEG
+  D:0022H         PUBLIC        ?RTX_BIT_RELBYTE_END
+  X:01FFH         PUBLIC        ?RTX_DEBUG_TID
+  X:0133H         PUBLIC        ?RTX_DELAY_LIST_CLK
+  X:0146H         PUBLIC        ?RTX_DELAY_LIST_TID
+  D:002CH         PUBLIC        ?RTX_DISP_TMP1
+  D:002DH         PUBLIC        ?RTX_DISP_TMP2
+  D:002EH         PUBLIC        ?RTX_DISP_TMP3
+  D:002FH         PUBLIC        ?RTX_DISP_TMP4
+  D:0030H         PUBLIC        ?RTX_DISP_TMP5
+  B:0023H.4       PUBLIC        ?RTX_ENA_INT_REG1
+  B:0023H.5       PUBLIC        ?RTX_ENA_INT_REG2
+  B:0022H.3       PUBLIC        ?RTX_FULL_CONTEXT
+  X:02D4H         PUBLIC        ?RTX_INT0_TID
+  X:02DEH         PUBLIC        ?RTX_INT10_TID
+  X:02DFH         PUBLIC        ?RTX_INT11_TID
+  X:02E0H         PUBLIC        ?RTX_INT12_TID
+  X:02E1H         PUBLIC        ?RTX_INT13_TID
+  X:02E2H         PUBLIC        ?RTX_INT14_TID
+  X:02E3H         PUBLIC        ?RTX_INT15_TID
+  X:02E4H         PUBLIC        ?RTX_INT16_TID
+  X:02E5H         PUBLIC        ?RTX_INT17_TID
+  X:02E6H         PUBLIC        ?RTX_INT18_TID
+  X:02E7H         PUBLIC        ?RTX_INT19_TID
+  X:02D5H         PUBLIC        ?RTX_INT1_TID
+  X:02E8H         PUBLIC        ?RTX_INT20_TID
+  X:02E9H         PUBLIC        ?RTX_INT21_TID
+  X:02EAH         PUBLIC        ?RTX_INT22_TID
+  X:02EBH         PUBLIC        ?RTX_INT23_TID
+  X:02ECH         PUBLIC        ?RTX_INT24_TID
+  X:02EDH         PUBLIC        ?RTX_INT25_TID
+  X:02EEH         PUBLIC        ?RTX_INT26_TID
+  X:02EFH         PUBLIC        ?RTX_INT27_TID
+  X:02F0H         PUBLIC        ?RTX_INT28_TID
+  X:02F1H         PUBLIC        ?RTX_INT29_TID
+  X:02D6H         PUBLIC        ?RTX_INT2_TID
+  X:02F2H         PUBLIC        ?RTX_INT30_TID
+  X:02F3H         PUBLIC        ?RTX_INT31_TID
+  X:02D7H         PUBLIC        ?RTX_INT3_TID
+  X:02D8H         PUBLIC        ?RTX_INT4_TID
+  X:02D9H         PUBLIC        ?RTX_INT5_TID
+  X:02DAH         PUBLIC        ?RTX_INT6_TID
+  X:02DBH         PUBLIC        ?RTX_INT7_TID
+  X:02DCH         PUBLIC        ?RTX_INT8_TID
+  X:02DDH         PUBLIC        ?RTX_INT9_TID
+  X:01ECH         PUBLIC        ?RTX_INTERNAL_NUM_TABLE
+  X:0159H         PUBLIC        ?RTX_INTERVAL_LIST
+  X:02D4H         PUBLIC        ?RTX_INT_TID_TABLE_BASE
+  X:016EH         PUBLIC        ?RTX_ISR_LIFO
+  X:0100H         PUBLIC        ?RTX_KNTXT_PTR_TABLE
+  X:028CH         PUBLIC        ?RTX_MBX_CONTROL_BASE
+  B:0023H.2       PUBLIC        ?RTX_MBX_SUPPORT
+  D:0032H         PUBLIC        ?RTX_P2_MIR
+  X:018CH         PUBLIC        ?RTX_POOL_CONTR
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 11
+
+
+  B:0022H.0       PUBLIC        ?RTX_PROCESSOR_ALLOCATED
+  D:0033H         PUBLIC        ?RTX_RDY_COUNT0
+  D:0036H         PUBLIC        ?RTX_RDY_COUNT1
+  D:0039H         PUBLIC        ?RTX_RDY_COUNT2
+  D:003CH         PUBLIC        ?RTX_RDY_COUNT3
+  D:0034H         PUBLIC        ?RTX_RDY_FIRST0
+  D:0037H         PUBLIC        ?RTX_RDY_FIRST1
+  D:003AH         PUBLIC        ?RTX_RDY_FIRST2
+  D:003DH         PUBLIC        ?RTX_RDY_FIRST3
+  D:0035H         PUBLIC        ?RTX_RDY_LAST0
+  D:0038H         PUBLIC        ?RTX_RDY_LAST1
+  D:003BH         PUBLIC        ?RTX_RDY_LAST2
+  D:003EH         PUBLIC        ?RTX_RDY_LAST3
+  X:024CH         PUBLIC        ?RTX_RDY_PRIO0
+  X:025CH         PUBLIC        ?RTX_RDY_PRIO0_END
+  X:025CH         PUBLIC        ?RTX_RDY_PRIO1
+  X:026CH         PUBLIC        ?RTX_RDY_PRIO1_END
+  X:026CH         PUBLIC        ?RTX_RDY_PRIO2
+  X:027CH         PUBLIC        ?RTX_RDY_PRIO2_END
+  X:027CH         PUBLIC        ?RTX_RDY_PRIO3
+  X:028CH         PUBLIC        ?RTX_RDY_PRIO3_END
+  B:0022H.6       PUBLIC        ?RTX_REENTRANTFLAG
+  D:0026H         PUBLIC        ?RTX_RELBYTE_BEG
+  D:0049H         PUBLIC        ?RTX_RELBYTE_END
+  B:0022H.1       PUBLIC        ?RTX_REQ_REDISPATCH
+  B:0022H.5       PUBLIC        ?RTX_ROUND_ROBIN_OK
+  B:0022H.4       PUBLIC        ?RTX_ROUND_ROBIN_REQ
+  D:0020H         PUBLIC        ?RTX_RUNNING_TID
+  D:003FH         PUBLIC        ?RTX_SAVE_INT_A
+  D:0040H         PUBLIC        ?RTX_SAVE_INT_B
+  D:0041H         PUBLIC        ?RTX_SAVE_INT_DPH
+  D:0042H         PUBLIC        ?RTX_SAVE_INT_DPL
+  D:0044H         PUBLIC        ?RTX_SAVE_INT_PSW
+  D:0046H         PUBLIC        ?RTX_SAVE_INT_RSP
+  D:0043H         PUBLIC        ?RTX_SAVE_INT_SP
+  B:0023H.1       PUBLIC        ?RTX_SAVE_INT_SV
+  D:0045H         PUBLIC        ?RTX_SAVE_INT_TID
+  B:0023H.3       PUBLIC        ?RTX_SEM_SUPPORT
+  X:02CCH         PUBLIC        ?RTX_SEM_TOKENS
+  X:0200H         PUBLIC        ?RTX_STATE_TABLE
+  B:0023H.0       PUBLIC        ?RTX_SUPERVISOR_MODE
+  D:0048H         PUBLIC        ?RTX_SYSCLK_COUNT
+  B:0022H.2       PUBLIC        ?RTX_SYSCLK_ISR
+  X:0200H         PUBLIC        ?RTX_SYS_PAGE
+  X:02F4H         PUBLIC        ?RTX_SYS_PAGE_END
+  X:016CH         PUBLIC        ?RTX_SYS_TICK
+  X:0120H         PUBLIC        ?RTX_TID_TABLE
+  D:0021H         PUBLIC        ?RTX_TMP0
+  D:0026H         PUBLIC        ?RTX_TMP1
+  D:0027H         PUBLIC        ?RTX_TMP2
+  D:0028H         PUBLIC        ?RTX_TMP3
+  D:0029H         PUBLIC        ?RTX_TMP4
+  D:002AH         PUBLIC        ?RTX_TMP5
+  D:002BH         PUBLIC        ?RTX_TMP6
+  -------         ENDMOD        RTXDATA
+
+  -------         MODULE        RTXCLK
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 12
+
+
+  C:08C2H         PUBLIC        ?RTX_SYSCLK_INTHNDLR
+  C:1A55H         PUBLIC        _OS_SET_SLICE
+  -------         ENDMOD        RTXCLK
+
+  -------         MODULE        RTXCREA
+  C:0B3EH         PUBLIC        _OS_CREATE_TASK
+  -------         ENDMOD        RTXCREA
+
+  -------         MODULE        RTXINT
+  C:13B2H         PUBLIC        ?RTX_INT_HANDLER
+  C:000AH         PUBLIC        ?RTX_RESET_I_F_F
+  -------         ENDMOD        RTXINT
+
+  -------         MODULE        RTXWAIT
+  C:0D97H         PUBLIC        _OS_WAIT
+  C:0D97H         PUBLIC        _OS_WAIT2
+  -------         ENDMOD        RTXWAIT
+
+  -------         MODULE        RTXSEND
+  C:10FAH         PUBLIC        ?RTX_NFL_DEVENT
+  C:10F4H         PUBLIC        ?RTX_NFL_NDEVENT
+  C:0F5FH         PUBLIC        _OS_SEND_MESSAGE
+  C:1644H         PUBLIC        _OS_SEND_SIGNAL
+  C:1577H         PUBLIC        _OS_SEND_TOKEN
+  -------         ENDMOD        RTXSEND
+
+  -------         MODULE        RTXDELET
+  C:1289H         PUBLIC        _OS_DELETE_TASK
+  -------         ENDMOD        RTXDELET
+
+  -------         MODULE        RTXENABL
+  C:1C3AH         PUBLIC        _OS_DISABLE_ISR
+  C:1D10H         PUBLIC        _OS_ENABLE_ISR
+  -------         ENDMOD        RTXENABL
+
+  -------         MODULE        RTXRUNID
+  C:212EH         PUBLIC        OS_RUNNING_TASK_ID
+  -------         ENDMOD        RTXRUNID
+
+  -------         MODULE        RTX51_LIB____VERSION_0X510
+  N:01FEH         PUBLIC        ?RTX_VERSION_NBR
+  N:0058H         PUBLIC        ?RTX_VERSION_PRE
+  -------         ENDMOD        RTX51_LIB____VERSION_0X510
+
+  -------         MODULE        RTXBLOCK
+  C:18BDH         PUBLIC        ?RTX_DBLOCK
+  C:1ADAH         PUBLIC        ?RTX_NDBLOCK
+  -------         ENDMOD        RTXBLOCK
+
+  -------         MODULE        RTXDISP
+  C:00AAH         PUBLIC        ?RTX_REDISPATCH
+  -------         ENDMOD        RTXDISP
+
+  -------         MODULE        RTXQUOP
+  C:20FAH         PUBLIC        ?RTX_INTSIG_DEQUEUE
+  C:205DH         PUBLIC        ?RTX_INT_ENQUEUE
+  C:1DD9H         PUBLIC        ?RTX_IVL_ENQUEUE
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 13
+
+
+  C:1E93H         PUBLIC        ?RTX_MSG_DEQUEUE
+  C:1949H         PUBLIC        ?RTX_MSG_ENQUEUE
+  C:1BCEH         PUBLIC        ?RTX_NFL_DEQUEUE
+  C:1EE9H         PUBLIC        ?RTX_NFL_ENQUEUE
+  C:1D78H         PUBLIC        ?RTX_SEM_DEQUEUE
+  C:1CA5H         PUBLIC        ?RTX_SEM_ENQUEUE
+  C:22DBH         PUBLIC        ?RTX_SIG_DEQUEUE
+  C:22AFH         PUBLIC        ?RTX_SIG_ENQUEUE
+  C:222DH         PUBLIC        ?RTX_TMO_DEQUEUE
+  C:20C6H         PUBLIC        ?RTX_TMO_ENQUEUE
+  -------         ENDMOD        RTXQUOP
+
+  -------         MODULE        RTXIHAND
+  C:14A4H         PUBLIC        ?RTX_HANDLE_ISR_SEND_MES
+  C:19CFH         PUBLIC        ?RTX_HANDLE_ISR_SEND_SIG
+  C:1826H         PUBLIC        ?RTX_HANDLE_NF_CHECK_REQ
+  -------         ENDMOD        RTXIHAND
+
+  -------         MODULE        RTXINS
+  C:1F39H         PUBLIC        ?RTX_INSERT_RDY_PRIO
+  -------         ENDMOD        RTXINS
+
+  -------         MODULE        RTX2C51
+  N:0012H         PUBLIC        ?RTX_EXTREGSIZE
+  C:21EFH         PUBLIC        ?RTX_ISRDESCR
+  C:224DH         PUBLIC        ?RTX_PRIORITY
+  C:224CH         PUBLIC        ?RTX_REGBANK
+  C:224AH         PUBLIC        ?RTX_TASKCONST
+  C:224FH         PUBLIC        ?RTX_TASKCONTEXT
+  C:224AH         PUBLIC        ?RTX_TASKENTRY
+  C:224EH         PUBLIC        ?RTX_TASKNUMBER
+  C:1FD4H         PUBLIC        ?RTX_TASKSWITCHING
+  B:0024H.7       PUBLIC        ?RTX_TS_DELAY
+  B:0025H.0       PUBLIC        ?RTX_TS_REQ
+  X:02F4H         PUBLIC        ?RTX_USER_NUM_TABLE
+  -------         ENDMOD        RTX2C51
+
+  -------         MODULE        PRINTF
+  X:0381H         PUBLIC        ?_PRINTF517?BYTE
+  X:0381H         PUBLIC        ?_PRINTF?BYTE
+  X:0381H         PUBLIC        ?_SPRINTF517?BYTE
+  X:0381H         PUBLIC        ?_SPRINTF?BYTE
+  C:05C8H         PUBLIC        _PRINTF
+  C:05C8H         PUBLIC        _PRINTF517
+  C:05C2H         PUBLIC        _SPRINTF
+  C:05C2H         PUBLIC        _SPRINTF517
+  -------         ENDMOD        PRINTF
+
+  -------         MODULE        ?C?CLDPTR
+  C:16F0H         PUBLIC        ?C?CLDPTR
+  -------         ENDMOD        ?C?CLDPTR
+
+  -------         MODULE        ?C?CLDOPTR
+  C:1709H         PUBLIC        ?C?CLDOPTR
+  -------         ENDMOD        ?C?CLDOPTR
+
+  -------         MODULE        ?C?CSTPTR
+BL51 BANKED LINKER/LOCATER V6.22                                                      10/15/2017  13:25:56  PAGE 14
+
+
+  C:1736H         PUBLIC        ?C?CSTPTR
+  -------         ENDMOD        ?C?CSTPTR
+
+  -------         MODULE        ?C?PLDIXDATA
+  C:1748H         PUBLIC        ?C?PLDIXDATA
+  -------         ENDMOD        ?C?PLDIXDATA
+
+  -------         MODULE        ?C?PSTXDATA
+  C:175FH         PUBLIC        ?C?PSTXDATA
+  -------         ENDMOD        ?C?PSTXDATA
+
+  -------         MODULE        ?C?CCASE
+  C:1768H         PUBLIC        ?C?CCASE
+  -------         ENDMOD        ?C?CCASE
+
+  -------         MODULE        PUTCHAR
+  C:2161H         PUBLIC        _PUTCHAR
+  -------         ENDMOD        PUTCHAR
+
+
+
+FUNCTION REGISTER MASKS
+
+
+FUNCTION . . . . . . . . . . . REG MASK
+---------------------------------------
+
+
+Program Size: data=114.1 xdata=1091 code=8911
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)
