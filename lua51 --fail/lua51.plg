@@ -1,0 +1,279 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Project:</h2>
+D:\µç×Ó\µç\c\c51git\lua51\lua51.uvproj
+Project File Date:  10/11/2017
+
+<h2>Output:</h2>
+Rebuild target 'Target 1'
+compiling main.c...
+myfile\main.c(1): warning C318: can't open file 'lua.c'
+compiling lapi.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lauxlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lbaselib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lbitlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lcode.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lcorolib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lctype.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling ldblib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling ldebug.c...
+compiling ldo.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling ldump.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lfunc.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lgc.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling linit.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling liolib.c...
+lua-5.3.4\src\liolib.c(15): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling llex.c...
+lua-5.3.4\src\llex.c(13): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lmathlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lmem.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling loadlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lobject.c...
+lua-5.3.4\src\lobject.c(13): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lopcodes.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling loslib.c...
+lua-5.3.4\src\loslib.c(14): warning C318: can't open file 'locale.h'
+lua-5.3.4\src\loslib.c(17): warning C318: can't open file 'time.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lparser.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lstate.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+lua-5.3.4\src\lstate.c(45): warning C318: can't open file 'time.h'
+compiling lstring.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lstrlib.c...
+lua-5.3.4\src\lstrlib.c(16): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling ltable.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling ltablib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+lua-5.3.4\src\ltablib.c(247): warning C318: can't open file 'time.h'
+compiling ltm.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lua.c...
+lua-5.3.4\src\lua.c(12): warning C318: can't open file 'signal.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling luac.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lundump.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lutf8lib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lvm.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+lua-5.3.4\src\lvm.c(57): warning C322: unknown identifier
+compiling lzio.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+Target not created
+Rebuild target 'Target 1'
+compiling main.c...
+myfile\main.c(1): warning C318: can't open file 'lua.c'
+compiling lapi.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lauxlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lbaselib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lbitlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lcode.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lcorolib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lctype.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling ldblib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling ldebug.c...
+compiling ldo.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling ldump.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lfunc.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lgc.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling linit.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling liolib.c...
+lua-5.3.4\src\liolib.c(15): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling llex.c...
+lua-5.3.4\src\llex.c(13): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lmathlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lmem.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling loadlib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lobject.c...
+lua-5.3.4\src\lobject.c(13): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lopcodes.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling loslib.c...
+lua-5.3.4\src\loslib.c(14): warning C318: can't open file 'locale.h'
+lua-5.3.4\src\loslib.c(17): warning C318: can't open file 'time.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lparser.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lstate.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+lua-5.3.4\src\lstate.c(45): warning C318: can't open file 'time.h'
+compiling lstring.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lstrlib.c...
+lua-5.3.4\src\lstrlib.c(16): warning C318: can't open file 'locale.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling ltable.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling ltablib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+lua-5.3.4\src\ltablib.c(247): warning C318: can't open file 'time.h'
+compiling ltm.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lua.c...
+lua-5.3.4\src\lua.c(12): warning C318: can't open file 'signal.h'
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling luac.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lundump.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+compiling lutf8lib.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+compiling lvm.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+lua-5.3.4\src\lvm.c(57): warning C322: unknown identifier
+compiling lzio.c...
+LUA-5.3.4\SRC\LUACONF.H(582): error C320: "Compiler does not support 'long long'. Use option '-DLUA_32BITS' or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
+LUA-5.3.4\SRC\LUA.H(93): error C129: missing ';' before 'lua_Integer'
+LUA-5.3.4\SRC\LSTATE.H(41): warning C318: can't open file 'signal.h'
+Target not created

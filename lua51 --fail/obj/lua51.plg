@@ -1,0 +1,692 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Project:</h2>
+D:\µç×Ó\c\c51git\lua51 --fail\lua51.uvproj
+Project File Date:  10/12/2017
+
+<h2>Output:</h2>
+Rebuild target 'Target 1'
+compiling main.c...
+SRC\MAIN.C(9): warning C230: 'lua_State': uses undefined struct/union tag 'lua_State'
+compiling lapi.c...
+SRC\LAPI.C(52): warning C275: expression with possibly no effect
+SRC\LAPI.C(57): warning C275: expression with possibly no effect
+SRC\LAPI.C(64): warning C275: expression with possibly no effect
+SRC\LAPI.C(91): warning C275: expression with possibly no effect
+SRC\LAPI.C(92): warning C275: expression with possibly no effect
+SRC\LAPI.C(98): warning C275: expression with possibly no effect
+SRC\LAPI.C(102): warning C275: expression with possibly no effect
+SRC\LAPI.C(106): warning C275: expression with possibly no effect
+SRC\LAPI.C(114): warning C275: expression with possibly no effect
+SRC\LAPI.C(115): warning C275: expression with possibly no effect
+SRC\LAPI.C(116): warning C275: expression with possibly no effect
+SRC\LAPI.C(117): warning C275: expression with possibly no effect
+SRC\LAPI.C(120): warning C275: expression with possibly no effect
+SRC\LAPI.C(122): warning C275: expression with possibly no effect
+SRC\LAPI.C(133): warning C275: expression with possibly no effect
+SRC\LAPI.C(136): warning C275: expression with possibly no effect
+SRC\LAPI.C(143): warning C275: expression with possibly no effect
+SRC\LAPI.C(144): warning C275: expression with possibly no effect
+SRC\LAPI.C(146): warning C275: expression with possibly no effect
+SRC\LAPI.C(147): warning C275: expression with possibly no effect
+SRC\LAPI.C(148): warning C275: expression with possibly no effect
+SRC\LAPI.C(149): warning C275: expression with possibly no effect
+SRC\LAPI.C(166): warning C275: expression with possibly no effect
+SRC\LAPI.C(168): warning C275: expression with possibly no effect
+SRC\LAPI.C(174): warning C275: expression with possibly no effect
+SRC\LAPI.C(177): warning C275: expression with possibly no effect
+SRC\LAPI.C(183): warning C275: expression with possibly no effect
+SRC\LAPI.C(185): warning C275: expression with possibly no effect
+SRC\LAPI.C(186): warning C275: expression with possibly no effect
+SRC\LAPI.C(188): warning C275: expression with possibly no effect
+SRC\LAPI.C(195): warning C275: expression with possibly no effect
+SRC\LAPI.C(197): warning C275: expression with possibly no effect
+SRC\LAPI.C(198): warning C275: expression with possibly no effect
+SRC\LAPI.C(199): warning C275: expression with possibly no effect
+SRC\LAPI.C(200): warning C275: expression with possibly no effect
+SRC\LAPI.C(206): warning C275: expression with possibly no effect
+SRC\LAPI.C(210): warning C275: expression with possibly no effect
+SRC\LAPI.C(212): warning C275: expression with possibly no effect
+SRC\LAPI.C(218): warning C275: expression with possibly no effect
+SRC\LAPI.C(224): warning C275: expression with possibly no effect
+SRC\LAPI.C(229): warning C275: expression with possibly no effect
+SRC\LAPI.C(234): warning C275: expression with possibly no effect
+SRC\LAPI.C(235): warning C275: expression with possibly no effect
+SRC\LAPI.C(236): warning C275: expression with possibly no effect
+SRC\LAPI.C(237): warning C275: expression with possibly no effect
+SRC\LAPI.C(254): warning C275: expression with possibly no effect
+SRC\LAPI.C(295): warning C275: expression with possibly no effect
+SRC\LAPI.C(299): warning C275: expression with possibly no effect
+SRC\LAPI.C(307): warning C275: expression with possibly no effect
+SRC\LAPI.C(312): warning C275: expression with possibly no effect
+SRC\LAPI.C(351): warning C275: expression with possibly no effect
+SRC\LAPI.C(354): warning C275: expression with possibly no effect
+SRC\LAPI.C(357): warning C275: expression with possibly no effect
+SRC\LAPI.C(359): warning C275: expression with possibly no effect
+SRC\LAPI.C(375): warning C275: expression with possibly no effect
+SRC\LAPI.C(377): warning C275: expression with possibly no effect
+SRC\LAPI.C(431): warning C275: expression with possibly no effect
+SRC\LAPI.C(433): warning C275: expression with possibly no effect
+SRC\LAPI.C(434): warning C275: expression with possibly no effect
+SRC\LAPI.C(439): warning C275: expression with possibly no effect
+SRC\LAPI.C(441): warning C275: expression with possibly no effect
+SRC\LAPI.C(442): warning C275: expression with possibly no effect
+SRC\LAPI.C(447): warning C275: expression with possibly no effect
+SRC\LAPI.C(449): warning C275: expression with possibly no effect
+SRC\LAPI.C(450): warning C275: expression with possibly no effect
+SRC\LAPI.C(455): warning C275: expression with possibly no effect
+SRC\LAPI.C(456): warning C275: expression with possibly no effect
+SRC\LAPI.C(457): warning C275: expression with possibly no effect
+SRC\LAPI.C(458): warning C275: expression with possibly no effect
+SRC\LAPI.C(459): warning C275: expression with possibly no effect
+SRC\LAPI.C(464): warning C275: expression with possibly no effect
+SRC\LAPI.C(465): warning C275: expression with possibly no effect
+SRC\LAPI.C(466): warning C275: expression with possibly no effect
+SRC\LAPI.C(467): warning C275: expression with possibly no effect
+SRC\LAPI.C(468): warning C275: expression with possibly no effect
+SRC\LAPI.C(483): warning C275: expression with possibly no effect
+SRC\LAPI.C(484): warning C275: expression with possibly no effect
+SRC\LAPI.C(486): warning C275: expression with possibly no effect
+SRC\LAPI.C(494): warning C275: expression with possibly no effect
+SRC\LAPI.C(495): warning C275: expression with possibly no effect
+SRC\LAPI.C(499): warning C275: expression with possibly no effect
+SRC\LAPI.C(506): warning C275: expression with possibly no effect
+SRC\LAPI.C(507): warning C275: expression with possibly no effect
+SRC\LAPI.C(508): warning C275: expression with possibly no effect
+SRC\LAPI.C(513): warning C275: expression with possibly no effect
+SRC\LAPI.C(514): warning C275: expression with possibly no effect
+SRC\LAPI.C(515): warning C275: expression with possibly no effect
+SRC\LAPI.C(516): warning C275: expression with possibly no effect
+SRC\LAPI.C(517): warning C275: expression with possibly no effect
+SRC\LAPI.C(522): warning C275: expression with possibly no effect
+SRC\LAPI.C(524): warning C275: expression with possibly no effect
+SRC\LAPI.C(525): warning C275: expression with possibly no effect
+SRC\LAPI.C(530): warning C275: expression with possibly no effect
+SRC\LAPI.C(532): warning C275: expression with possibly no effect
+SRC\LAPI.C(533): warning C275: expression with possibly no effect
+SRC\LAPI.C(537): warning C275: expression with possibly no effect
+SRC\LAPI.C(539): warning C275: expression with possibly no effect
+SRC\LAPI.C(540): warning C275: expression with possibly no effect
+SRC\LAPI.C(544): warning C275: expression with possibly no effect
+SRC\LAPI.C(546): warning C275: expression with possibly no effect
+SRC\LAPI.C(547): warning C275: expression with possibly no effect
+SRC\LAPI.C(552): warning C275: expression with possibly no effect
+SRC\LAPI.C(553): warning C275: expression with possibly no effect
+SRC\LAPI.C(554): warning C275: expression with possibly no effect
+SRC\LAPI.C(555): warning C275: expression with possibly no effect
+SRC\LAPI.C(568): warning C275: expression with possibly no effect
+SRC\LAPI.C(570): warning C275: expression with possibly no effect
+SRC\LAPI.C(572): warning C275: expression with possibly no effect
+SRC\LAPI.C(579): warning C275: expression with possibly no effect
+SRC\LAPI.C(581): warning C275: expression with possibly no effect
+SRC\LAPI.C(583): warning C275: expression with possibly no effect
+SRC\LAPI.C(586): warning C275: expression with possibly no effect
+SRC\LAPI.C(587): warning C275: expression with possibly no effect
+SRC\LAPI.C(594): warning C275: expression with possibly no effect
+SRC\LAPI.C(596): warning C275: expression with possibly no effect
+SRC\LAPI.C(598): warning C275: expression with possibly no effect
+SRC\LAPI.C(599): warning C275: expression with possibly no effect
+SRC\LAPI.C(605): warning C275: expression with possibly no effect
+SRC\LAPI.C(607): warning C275: expression with possibly no effect
+SRC\LAPI.C(608): warning C275: expression with possibly no effect
+SRC\LAPI.C(609): warning C275: expression with possibly no effect
+SRC\LAPI.C(610): warning C275: expression with possibly no effect
+SRC\LAPI.C(615): warning C275: expression with possibly no effect
+SRC\LAPI.C(616): warning C275: expression with possibly no effect
+SRC\LAPI.C(617): warning C275: expression with possibly no effect
+SRC\LAPI.C(618): warning C275: expression with possibly no effect
+SRC\LAPI.C(619): warning C275: expression with possibly no effect
+SRC\LAPI.C(627): warning C275: expression with possibly no effect
+SRC\LAPI.C(649): warning C275: expression with possibly no effect
+SRC\LAPI.C(650): warning C275: expression with possibly no effect
+SRC\LAPI.C(653): warning C275: expression with possibly no effect
+SRC\LAPI.C(660): warning C275: expression with possibly no effect
+SRC\LAPI.C(662): warning C275: expression with possibly no effect
+SRC\LAPI.C(665): warning C275: expression with possibly no effect
+SRC\LAPI.C(668): warning C275: expression with possibly no effect
+SRC\LAPI.C(671): warning C275: expression with possibly no effect
+SRC\LAPI.C(677): warning C275: expression with possibly no effect
+SRC\LAPI.C(678): warning C275: expression with possibly no effect
+SRC\LAPI.C(689): warning C275: expression with possibly no effect
+SRC\LAPI.C(690): warning C275: expression with possibly no effect
+SRC\LAPI.C(692): warning C275: expression with possibly no effect
+SRC\LAPI.C(695): warning C275: expression with possibly no effect
+SRC\LAPI.C(701): warning C275: expression with possibly no effect
+SRC\LAPI.C(702): warning C275: expression with possibly no effect
+SRC\LAPI.C(704): warning C275: expression with possibly no effect
+SRC\LAPI.C(705): warning C275: expression with possibly no effect
+SRC\LAPI.C(706): warning C275: expression with possibly no effect
+SRC\LAPI.C(709): warning C275: expression with possibly no effect
+SRC\LAPI.C(715): warning C275: expression with possibly no effect
+SRC\LAPI.C(716): warning C275: expression with possibly no effect
+SRC\LAPI.C(718): warning C275: expression with possibly no effect
+SRC\LAPI.C(720): warning C275: expression with possibly no effect
+SRC\LAPI.C(724): warning C275: expression with possibly no effect
+SRC\LAPI.C(730): warning C275: expression with possibly no effect
+SRC\LAPI.C(731): warning C275: expression with possibly no effect
+SRC\LAPI.C(733): warning C275: expression with possibly no effect
+SRC\LAPI.C(735): warning C275: expression with possibly no effect
+SRC\LAPI.C(739): warning C275: expression with possibly no effect
+SRC\LAPI.C(747): warning C275: expression with possibly no effect
+SRC\LAPI.C(748): warning C275: expression with possibly no effect
+SRC\LAPI.C(750): warning C275: expression with possibly no effect
+SRC\LAPI.C(754): warning C275: expression with possibly no effect
+SRC\LAPI.C(781): warning C275: expression with possibly no effect
+SRC\LAPI.C(789): warning C275: expression with possibly no effect
+SRC\LAPI.C(790): warning C275: expression with possibly no effect
+SRC\LAPI.C(792): warning C275: expression with possibly no effect
+SRC\LAPI.C(793): warning C275: expression with possibly no effect
+SRC\LAPI.C(802): warning C275: expression with possibly no effect
+SRC\LAPI.C(810): warning C275: expression with possibly no effect
+SRC\LAPI.C(830): warning C275: expression with possibly no effect
+SRC\LAPI.C(831): warning C275: expression with possibly no effect
+SRC\LAPI.C(832): warning C275: expression with possibly no effect
+SRC\LAPI.C(836): warning C275: expression with possibly no effect
+SRC\LAPI.C(861): warning C275: expression with possibly no effect
+SRC\LAPI.C(862): warning C275: expression with possibly no effect
+SRC\LAPI.C(863): warning C275: expression with possibly no effect
+SRC\LAPI.C(868): warning C275: expression with possibly no effect
+SRC\LAPI.C(875): warning C275: expression with possibly no effect
+SRC\LAPI.C(894): warning C275: expression with possibly no effect
+SRC\LAPI.C(895): warning C275: expression with possibly no effect
+SRC\LAPI.C(897): warning C275: expression with possibly no effect
+SRC\LAPI.C(905): warning C275: expression with possibly no effect
+SRC\LAPI.C(909): warning C275: expression with possibly no effect
+SRC\LAPI.C(918): warning C275: expression with possibly no effect
+SRC\LAPI.C(922): warning C275: expression with possibly no effect
+SRC\LAPI.C(930): warning C275: expression with possibly no effect
+SRC\LAPI.C(931): warning C275: expression with possibly no effect
+SRC\LAPI.C(937): warning C275: expression with possibly no effect
+SRC\LAPI.C(954): warning C275: expression with possibly no effect
+SRC\LAPI.C(983): error C141: syntax error near 'lu_mem'
+SRC\LAPI.C(983): error C202: 'a': undefined identifier
+SRC\LAPI.C(984): error C202: 'a': undefined identifier
+SRC\LAPI.C(985): error C202: 'a': undefined identifier
+SRC\LAPI.C(986): error C202: 'a': undefined identifier
+SRC\LAPI.C(1126): error C199: left side of '->' requires struct/union pointer
+SRC\LAPI.C(1127): error C199: left side of '->' requires struct/union pointer
+compiling lauxlib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling lbaselib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling lcode.c...
+SRC\LCODE.C(43): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(43): error C141: syntax error near ']'
+SRC\LCODE.C(81): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(81): error C141: syntax error near '['
+SRC\LCODE.C(82): error C141: syntax error near 'int'
+SRC\LCODE.C(82): error C202: 'offset': undefined identifier
+SRC\LCODE.C(84): error C202: 'offset': undefined identifier
+SRC\LCODE.C(86): error C202: 'offset': undefined identifier
+SRC\LCODE.C(101): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(101): error C141: syntax error near ')'
+SRC\LCODE.C(101): error C190: '&': not an lvalue
+SRC\LCODE.C(101): error C141: syntax error near ')'
+SRC\LCODE.C(101): error C141: syntax error near ')'
+SRC\LCODE.C(110): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(110): error C141: syntax error near '['
+SRC\LCODE.C(242): error C199: left side of '->' requires struct/union pointer
+SRC\LCODE.C(282): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(282): error C141: syntax error near ']'
+SRC\LCODE.C(282): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(282): error C141: syntax error near ']'
+SRC\LCODE.C(282): error C190: '&': not an lvalue
+SRC\LCODE.C(282): error C141: syntax error near ')'
+SRC\LCODE.C(282): error C141: syntax error near ')'
+SRC\LCODE.C(285): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(285): error C141: syntax error near ']'
+SRC\LCODE.C(285): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(285): error C141: syntax error near ']'
+SRC\LCODE.C(285): error C190: '&': not an lvalue
+SRC\LCODE.C(285): error C141: syntax error near ')'
+SRC\LCODE.C(285): error C141: syntax error near ')'
+SRC\LCODE.C(286): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(286): error C141: syntax error near ']'
+SRC\LCODE.C(286): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(286): error C141: syntax error near ']'
+SRC\LCODE.C(286): error C141: syntax error near ')'
+SRC\LCODE.C(286): error C141: syntax error near ')'
+SRC\LCODE.C(295): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(295): error C141: syntax error near ']'
+SRC\LCODE.C(295): error C141: syntax error near ')'
+SRC\LCODE.C(295): error C190: '&': not an lvalue
+SRC\LCODE.C(295): error C141: syntax error near ')'
+SRC\LCODE.C(298): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(298): error C141: syntax error near ']'
+SRC\LCODE.C(298): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(298): error C141: syntax error near ']'
+SRC\LCODE.C(298): error C190: '&': not an lvalue
+SRC\LCODE.C(298): error C141: syntax error near ')'
+SRC\LCODE.C(298): error C141: syntax error near ')'
+SRC\LCODE.C(363): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(363): error C141: syntax error near '['
+SRC\LCODE.C(363): error C141: syntax error near ']'
+SRC\LCODE.C(526): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(526): error C141: syntax error near '['
+SRC\LCODE.C(526): error C141: syntax error near ']'
+SRC\LCODE.C(755): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(755): error C141: syntax error near ']'
+SRC\LCODE.C(755): error C141: syntax error near ')'
+SRC\LCODE.C(755): error C141: syntax error near ')'
+SRC\LCODE.C(755): error C190: '&': not an lvalue
+SRC\LCODE.C(755): error C141: syntax error near ')'
+SRC\LCODE.C(758): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(758): error C141: syntax error near ']'
+SRC\LCODE.C(758): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(758): error C141: syntax error near ']'
+SRC\LCODE.C(758): error C190: '&': not an lvalue
+SRC\LCODE.C(758): error C141: syntax error near ')'
+SRC\LCODE.C(758): error C141: syntax error near ')'
+SRC\LCODE.C(761): error C141: syntax error near 'else'
+SRC\LCODE.C(794): error C141: syntax error near 'code', expected '<id>'
+SRC\LCODE.C(794): error C141: syntax error near 'code', expected '<id>'
+compiling ldblib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling ldebug.c...
+SRC\LDEBUG.C(40): error C141: syntax error near 'code', expected '<id>'
+SRC\LDEBUG.C(40): error C141: syntax error near ';'
+SRC\LDEBUG.C(294): error C141: syntax error near 'code', expected '<id>'
+SRC\LDEBUG.C(294): error C141: syntax error near ']'
+SRC\LDEBUG.C(294): error C141: syntax error near '>>'
+SRC\LDEBUG.C(294): error C141: syntax error near ')'
+SRC\LDEBUG.C(294): error C190: '&': not an lvalue
+SRC\LDEBUG.C(294): error C141: syntax error near ')'
+SRC\LDEBUG.C(334): error C141: syntax error near 'code', expected '<id>'
+SRC\LDEBUG.C(334): error C141: syntax error near '['
+SRC\LDEBUG.C(335): error C141: syntax error near 'OpCode'
+SRC\LDEBUG.C(335): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(336): error C141: syntax error near 'int'
+SRC\LDEBUG.C(336): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(337): error C141: syntax error near 'int'
+SRC\LDEBUG.C(337): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(338): error C141: syntax error near 'int'
+SRC\LDEBUG.C(338): error C202: 'c': undefined identifier
+SRC\LDEBUG.C(339): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(340): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(341): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(343): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(344): error C202: 'c': undefined identifier
+SRC\LDEBUG.C(345): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(346): error C202: 'c': undefined identifier
+SRC\LDEBUG.C(350): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(351): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(351): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(355): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(356): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(357): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(366): error C141: syntax error near 'code', expected '<id>'
+SRC\LDEBUG.C(366): error C141: syntax error near '['
+SRC\LDEBUG.C(366): error C141: syntax error near ']'
+SRC\LDEBUG.C(377): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(378): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(380): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(382): error C141: syntax error near 'code', expected '<id>'
+SRC\LDEBUG.C(382): error C141: syntax error near ']'
+SRC\LDEBUG.C(382): error C141: syntax error near '>>'
+SRC\LDEBUG.C(382): error C141: syntax error near ')'
+SRC\LDEBUG.C(382): error C190: '&': not an lvalue
+SRC\LDEBUG.C(382): error C141: syntax error near ')'
+SRC\LDEBUG.C(384): error C202: 'op': undefined identifier
+SRC\LDEBUG.C(386): error C202: 'c': undefined identifier
+SRC\LDEBUG.C(389): error C141: syntax error near 'code', expected '<id>'
+SRC\LDEBUG.C(389): error C141: syntax error near ']'
+SRC\LDEBUG.C(389): error C141: syntax error near '>>'
+SRC\LDEBUG.C(389): error C141: syntax error near ')'
+SRC\LDEBUG.C(389): error C190: '&': not an lvalue
+SRC\LDEBUG.C(389): error C141: syntax error near ')'
+SRC\LDEBUG.C(389): error C141: syntax error near 'code', expected '<id>'
+SRC\LDEBUG.C(389): error C141: syntax error near ']'
+SRC\LDEBUG.C(389): error C141: syntax error near ')'
+SRC\LDEBUG.C(389): error C141: syntax error near ')'
+SRC\LDEBUG.C(389): error C141: syntax error near ')'
+SRC\LDEBUG.C(394): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(400): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(405): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(409): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(410): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(414): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(418): error C202: 'c': undefined identifier
+SRC\LDEBUG.C(419): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(420): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(425): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(428): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(431): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(436): error C202: 'b': undefined identifier
+SRC\LDEBUG.C(437): error C202: 'a': undefined identifier
+SRC\LDEBUG.C(439): error C202: 'c': undefined identifier
+SRC\LDEBUG.C(440): error C202: 'c': undefined identifier
+SRC\LDEBUG.C(441): error C141: syntax error near 'code', expected '<id>'
+compiling ldo.c...
+SRC\LDO.C(55): warning C275: expression with possibly no effect
+SRC\LDO.C(60): warning C275: expression with possibly no effect
+SRC\LDO.C(65): warning C275: expression with possibly no effect
+SRC\LDO.C(74): warning C275: expression with possibly no effect
+SRC\LDO.C(107): warning C275: expression with possibly no effect
+SRC\LDO.C(110): error C202: 'EXIT_FAILURE': undefined identifier
+SRC\LDO.C(122): error C212: indirect call: parameters do not fit within registers
+SRC\LDO.C(202): error C212: indirect call: parameters do not fit within registers
+SRC\LDO.C(307): error C141: syntax error near 'code', expected '<id>'
+SRC\LDO.C(516): error C212: indirect call: parameters do not fit within registers
+compiling ldump.c...
+src\ldump.c(8): warning C318: can't open file 'sys/types.h'
+SRC\LDUMP.C(37): warning C275: expression with possibly no effect
+SRC\LDUMP.C(38): error C141: syntax error near 'data', expected '<id>'
+SRC\LDUMP.C(38): error C212: indirect call: parameters do not fit within registers
+SRC\LDUMP.C(82): error C202: 'int16_t': undefined identifier
+SRC\LDUMP.C(82): error C141: syntax error near 'y'
+SRC\LDUMP.C(82): error C141: syntax error near 'x'
+SRC\LDUMP.C(83): error C202: 'y': undefined identifier
+SRC\LDUMP.C(84): error C202: 'y': undefined identifier
+SRC\LDUMP.C(89): error C202: 'int32_t': undefined identifier
+SRC\LDUMP.C(89): error C141: syntax error near 'y'
+SRC\LDUMP.C(89): error C141: syntax error near 'x'
+SRC\LDUMP.C(90): error C202: 'y': undefined identifier
+SRC\LDUMP.C(91): error C202: 'y': undefined identifier
+SRC\LDUMP.C(112): error C141: syntax error near 'uint16_t'
+SRC\LDUMP.C(112): error C202: 'y': undefined identifier
+SRC\LDUMP.C(113): error C202: 'y': undefined identifier
+SRC\LDUMP.C(114): error C202: 'y': undefined identifier
+SRC\LDUMP.C(119): error C141: syntax error near 'uint32_t'
+SRC\LDUMP.C(119): error C202: 'y': undefined identifier
+SRC\LDUMP.C(120): error C202: 'y': undefined identifier
+SRC\LDUMP.C(121): error C202: 'y': undefined identifier
+SRC\LDUMP.C(171): error C141: syntax error near 'char'
+SRC\LDUMP.C(171): error C202: 'buf': undefined identifier
+SRC\LDUMP.C(172): error C141: syntax error near 'int'
+SRC\LDUMP.C(172): error C202: 'i': undefined identifier
+SRC\LDUMP.C(174): error C202: 'i': undefined identifier
+SRC\LDUMP.C(176): error C202: 'buf': undefined identifier
+SRC\LDUMP.C(176): error C141: syntax error near 'code', expected '<id>'
+SRC\LDUMP.C(176): error C141: syntax error near ')'
+SRC\LDUMP.C(178): error C202: 'buf': undefined identifier
+compiling legc.c...
+compiling lfunc.c...
+SRC\LFUNC.C(59): warning C275: expression with possibly no effect
+SRC\LFUNC.C(77): warning C275: expression with possibly no effect
+SRC\LFUNC.C(83): warning C275: expression with possibly no effect
+SRC\LFUNC.C(101): warning C275: expression with possibly no effect
+SRC\LFUNC.C(107): warning C275: expression with possibly no effect
+SRC\LFUNC.C(122): error C141: syntax error near 'code', expected '<id>'
+SRC\LFUNC.C(147): error C141: syntax error near 'code', expected '<id>'
+compiling lgc.c...
+SRC\LGC.C(63): warning C275: expression with possibly no effect
+SRC\LGC.C(70): warning C275: expression with possibly no effect
+SRC\LGC.C(79): warning C265: '_reallymarkobject': recursive call to non-reentrant function
+SRC\LGC.C(80): warning C265: '_reallymarkobject': recursive call to non-reentrant function
+SRC\LGC.C(85): warning C275: expression with possibly no effect
+SRC\LGC.C(85): warning C265: '_reallymarkobject': recursive call to non-reentrant function
+SRC\LGC.C(110): warning C275: expression with possibly no effect
+SRC\LGC.C(181): warning C275: expression with possibly no effect
+SRC\LGC.C(186): warning C275: expression with possibly no effect
+SRC\LGC.C(190): warning C275: expression with possibly no effect
+SRC\LGC.C(191): warning C275: expression with possibly no effect
+SRC\LGC.C(192): warning C275: expression with possibly no effect
+SRC\LGC.C(207): warning C275: expression with possibly no effect
+SRC\LGC.C(229): warning C275: expression with possibly no effect
+SRC\LGC.C(233): warning C275: expression with possibly no effect
+SRC\LGC.C(250): warning C275: expression with possibly no effect
+SRC\LGC.C(254): warning C275: expression with possibly no effect
+SRC\LGC.C(261): warning C275: expression with possibly no effect
+SRC\LGC.C(265): warning C275: expression with possibly no effect
+SRC\LGC.C(269): warning C275: expression with possibly no effect
+SRC\LGC.C(283): warning C275: expression with possibly no effect
+SRC\LGC.C(322): warning C275: expression with possibly no effect
+SRC\LGC.C(360): warning C275: expression with possibly no effect
+SRC\LGC.C(389): warning C275: expression with possibly no effect
+SRC\LGC.C(402): warning C275: expression with possibly no effect
+SRC\LGC.C(417): warning C265: '_sweeplist': recursive call to non-reentrant function
+SRC\LGC.C(419): warning C275: expression with possibly no effect
+SRC\LGC.C(424): warning C275: expression with possibly no effect
+SRC\LGC.C(468): warning C275: expression with possibly no effect
+SRC\LGC.C(469): warning C275: expression with possibly no effect
+SRC\LGC.C(512): warning C275: expression with possibly no effect
+SRC\LGC.C(513): warning C275: expression with possibly no effect
+SRC\LGC.C(522): warning C275: expression with possibly no effect
+SRC\LGC.C(524): warning C275: expression with possibly no effect
+SRC\LGC.C(539): warning C275: expression with possibly no effect
+SRC\LGC.C(564): warning C275: expression with possibly no effect
+SRC\LGC.C(596): warning C275: expression with possibly no effect
+SRC\LGC.C(613): warning C275: expression with possibly no effect
+SRC\LGC.C(622): error C141: syntax error near 'l_mem'
+SRC\LGC.C(622): error C202: 'lim': undefined identifier
+SRC\LGC.C(623): error C202: 'lim': undefined identifier
+SRC\LGC.C(624): error C202: 'lim': undefined identifier
+SRC\LGC.C(629): error C202: 'lim': undefined identifier
+SRC\LGC.C(632): error C202: 'lim': undefined identifier
+compiling linit.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling liolib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling llex.c...
+src\llex.c(9): warning C318: can't open file 'locale.h'
+SRC\LLEX.C(64): warning C280: 'L': unreferenced local variable
+SRC\LLEX.C(73): warning C275: expression with possibly no effect
+SRC\LLEX.C(116): warning C275: expression with possibly no effect
+SRC\LLEX.C(124): warning C275: expression with possibly no effect
+SRC\LLEX.C(174): warning C206: 'localeconv': missing function-prototype
+SRC\LLEX.C(174): error C214: illegal pointer conversion
+SRC\LLEX.C(176): error C230: 'lconv': unknown struct/union/enum tag
+SRC\LLEX.C(176): error C204: 'decimal_point': undefined member
+compiling lmathlib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling lmem.c...
+SRC\LMEM.C(78): warning C275: expression with possibly no effect
+SRC\LMEM.C(79): error C212: indirect call: parameters do not fit within registers
+compiling loadlib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+SRC\LOADLIB.C(333): error C202: 'FILE': undefined identifier
+SRC\LOADLIB.C(333): error C141: syntax error near '='
+SRC\LOADLIB.C(334): error C202: 'f': undefined identifier
+SRC\LOADLIB.C(335): error C202: 'f': undefined identifier
+SRC\LOADLIB.C(463): error C141: syntax error near 'void'
+SRC\LOADLIB.C(463): error C202: 'res': undefined identifier
+SRC\LOADLIB.C(464): error C202: 'res': undefined identifier
+SRC\LOADLIB.C(465): error C202: 'res': undefined identifier
+SRC\LOADLIB.C(554): error C141: syntax error near 'int'
+SRC\LOADLIB.C(554): error C202: 'loaded': undefined identifier
+SRC\LOADLIB.C(556): error C202: 'loaded': undefined identifier
+SRC\LOADLIB.C(563): error C202: 'loaded': undefined identifier
+SRC\LOADLIB.C(575): error C202: 'loaded': undefined identifier
+compiling lobject.c...
+SRC\LOBJECT.C(69): error C249: 'DATA': SEGMENT TOO LARGE
+SRC\LOBJECT.C(136): error C215: illegal type conversion
+SRC\LOBJECT.C(141): error C215: illegal type conversion
+compiling lopcodes.c...
+SRC\LOPCODES.C(102): warning C230: 'lua_State': uses undefined struct/union tag 'lua_State'
+SRC\LOPCODES.C(102): error C249: 'DATA': SEGMENT TOO LARGE
+compiling loslib.c...
+src\loslib.c(9): warning C318: can't open file 'locale.h'
+src\loslib.c(12): warning C318: can't open file 'time.h'
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling lparser.c...
+SRC\LPARSER.C(189): warning C275: expression with possibly no effect
+SRC\LPARSER.C(200): warning C275: expression with possibly no effect
+SRC\LPARSER.C(238): warning C265: '_singlevaraux': recursive call to non-reentrant function
+SRC\LPARSER.C(292): warning C275: expression with possibly no effect
+SRC\LPARSER.C(303): warning C275: expression with possibly no effect
+SRC\LPARSER.C(304): warning C275: expression with possibly no effect
+SRC\LPARSER.C(349): warning C275: expression with possibly no effect
+SRC\LPARSER.C(350): warning C275: expression with possibly no effect
+SRC\LPARSER.C(351): warning C275: expression with possibly no effect
+SRC\LPARSER.C(352): warning C275: expression with possibly no effect
+SRC\LPARSER.C(362): error C141: syntax error near 'code', expected '<id>'
+SRC\LPARSER.C(362): error C141: syntax error near 'code', expected '<id>'
+compiling lrotable.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+SRC\LROTABLE.C(68): error C141: syntax error near 'data'
+compiling lstate.c...
+src\lstate.c(32): warning C318: can't open file 'linenoise.h'
+SRC\LSTATE.C(79): warning C275: expression with possibly no effect
+SRC\LSTATE.C(81): warning C275: expression with possibly no effect
+SRC\LSTATE.C(82): warning C275: expression with possibly no effect
+SRC\LSTATE.C(116): warning C275: expression with possibly no effect
+SRC\LSTATE.C(117): warning C275: expression with possibly no effect
+SRC\LSTATE.C(121): warning C275: expression with possibly no effect
+SRC\LSTATE.C(122): error C212: indirect call: parameters do not fit within registers
+SRC\LSTATE.C(157): error C212: indirect call: parameters do not fit within registers
+compiling lstring.c...
+SRC\LSTRING.C(42): warning C275: expression with possibly no effect
+SRC\LSTRING.C(106): warning C280: 'p': unreferenced local variable
+compiling lstrlib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+SRC\LSTRLIB.C(62): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(75): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(88): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(133): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(596): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(600): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(674): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(702): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(706): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(707): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(719): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(725): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(769): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(771): error C202: 'BUFSIZ': undefined identifier
+SRC\LSTRLIB.C(829): error C241: '_str_format': auto segment too large
+compiling ltable.c...
+SRC\LTABLE.C(169): warning C275: expression with possibly no effect
+SRC\LTABLE.C(175): warning C275: expression with possibly no effect
+SRC\LTABLE.C(176): warning C275: expression with possibly no effect
+SRC\LTABLE.C(214): warning C275: expression with possibly no effect
+SRC\LTABLE.C(334): warning C280: 'L': unreferenced local variable
+SRC\LTABLE.C(379): warning C275: expression with possibly no effect
+SRC\LTABLE.C(372): warning C280: 'L': unreferenced local variable
+SRC\LTABLE.C(426): warning C275: expression with possibly no effect
+SRC\LTABLE.C(453): warning C275: expression with possibly no effect
+SRC\LTABLE.C(495): warning C275: expression with possibly no effect
+SRC\LTABLE.C(496): warning C275: expression with possibly no effect
+SRC\LTABLE.C(536): warning C275: expression with possibly no effect
+SRC\LTABLE.C(553): warning C275: expression with possibly no effect
+SRC\LTABLE.C(555): warning C275: expression with possibly no effect
+SRC\LTABLE.C(690): warning C275: expression with possibly no effect
+compiling ltablib.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling ltm.c...
+SRC\LTM.C(53): warning C275: expression with possibly no effect
+compiling lua.c...
+src\lua.c(8): warning C318: can't open file 'signal.h'
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+compiling luac.c...
+SRC\LAUXLIB.H(138): error C202: 'BUFSIZ': undefined identifier
+SRC\LAUXLIB.H(138): error C136: invalid dimension size: [0]
+SRC\LUAC.C(39): error C202: 'stderr': undefined identifier
+SRC\LUAC.C(40): error C202: 'EXIT_FAILURE': undefined identifier
+SRC\LUAC.C(45): error C202: 'stderr': undefined identifier
+SRC\LUAC.C(46): error C202: 'EXIT_FAILURE': undefined identifier
+SRC\LUAC.C(52): error C202: 'stderr': undefined identifier
+SRC\LUAC.C(54): error C202: 'stderr': undefined identifier
+SRC\LUAC.C(55): error C202: 'stderr': undefined identifier
+SRC\LUAC.C(69): error C202: 'EXIT_FAILURE': undefined identifier
+compiling lundump.c...
+SRC\LUNDUMP.C(135): error C202: 'int16_t': undefined identifier
+SRC\LUNDUMP.C(135): error C141: syntax error near 'y'
+SRC\LUNDUMP.C(136): error C202: 'y': undefined identifier
+SRC\LUNDUMP.C(137): error C202: 'y': undefined identifier
+SRC\LUNDUMP.C(140): error C202: 'int32_t': undefined identifier
+SRC\LUNDUMP.C(140): error C141: syntax error near 'y'
+SRC\LUNDUMP.C(141): error C202: 'y': undefined identifier
+SRC\LUNDUMP.C(142): error C202: 'y': undefined identifier
+SRC\LUNDUMP.C(145): error C202: 'int64_t': undefined identifier
+SRC\LUNDUMP.C(145): error C141: syntax error near 'y'
+SRC\LUNDUMP.C(146): error C202: 'y': undefined identifier
+SRC\LUNDUMP.C(147): error C202: 'y': undefined identifier
+SRC\LUNDUMP.C(161): error C202: 'int32_t': undefined identifier
+SRC\LUNDUMP.C(161): error C141: syntax error near 'size'
+SRC\LUNDUMP.C(162): error C202: 'size': undefined identifier
+SRC\LUNDUMP.C(163): error C202: 'size': undefined identifier
+SRC\LUNDUMP.C(168): error C141: syntax error near 'data', expected '<id>'
+SRC\LUNDUMP.C(168): error C141: syntax error near ')'
+SRC\LUNDUMP.C(169): error C202: 'size': undefined identifier
+SRC\LUNDUMP.C(170): error C202: 'size': undefined identifier
+SRC\LUNDUMP.C(171): error C202: 'size': undefined identifier
+SRC\LUNDUMP.C(172): error C141: syntax error near 'else'
+SRC\LUNDUMP.C(173): error C141: syntax error near 'data', expected '<id>'
+SRC\LUNDUMP.C(173): error C141: syntax error near ')'
+SRC\LUNDUMP.C(174): error C202: 'size': undefined identifier
+SRC\LUNDUMP.C(175): error C202: 'size': undefined identifier
+SRC\LUNDUMP.C(184): error C141: syntax error near 'data', expected '<id>'
+SRC\LUNDUMP.C(184): error C141: syntax error near ')'
+SRC\LUNDUMP.C(185): error C141: syntax error near 'code', expected '<id>'
+SRC\LUNDUMP.C(186): error C141: syntax error near 'code', expected '<id>'
+compiling lvm.c...
+SRC\LVM.C(74): warning C275: expression with possibly no effect
+SRC\LVM.C(90): error C141: syntax error near 'code', expected '<id>'
+SRC\LVM.C(90): error C141: syntax error near ';'
+SRC\LVM.C(91): error C141: syntax error near 'int'
+SRC\LVM.C(91): error C202: 'newline': undefined identifier
+SRC\LVM.C(94): error C202: 'newline': undefined identifier
+SRC\LVM.C(94): error C141: syntax error near 'code', expected '<id>'
+SRC\LVM.C(94): error C141: syntax error near ']'
+SRC\LVM.C(95): error C202: 'newline': undefined identifier
+compiling lzio.c...
+SRC\LZIO.C(25): warning C275: expression with possibly no effect
+SRC\LZIO.C(26): error C141: syntax error near 'data', expected '<id>'
+SRC\LZIO.C(26): error C141: syntax error near ')'
+SRC\LZIO.C(51): error C141: syntax error near 'data', expected '<id>'
+compiling print.c...
+SRC\PRINT.C(76): error C141: syntax error near 'code', expected '<id>'
+SRC\PRINT.C(80): error C141: syntax error near 'code'
+SRC\PRINT.C(80): error C141: syntax error near '['
+SRC\PRINT.C(81): error C141: syntax error near 'OpCode'
+SRC\PRINT.C(81): error C202: 'o': undefined identifier
+SRC\PRINT.C(82): error C141: syntax error near 'int'
+SRC\PRINT.C(82): error C202: 'a': undefined identifier
+SRC\PRINT.C(83): error C141: syntax error near 'int'
+SRC\PRINT.C(83): error C202: 'b': undefined identifier
+SRC\PRINT.C(84): error C141: syntax error near 'int'
+SRC\PRINT.C(84): error C202: 'c': undefined identifier
+SRC\PRINT.C(85): error C141: syntax error near 'int'
+SRC\PRINT.C(85): error C202: 'bx': undefined identifier
+SRC\PRINT.C(86): error C141: syntax error near 'int'
+SRC\PRINT.C(86): error C202: 'sbx': undefined identifier
+SRC\PRINT.C(87): error C141: syntax error near 'int'
+SRC\PRINT.C(87): error C202: 'line': undefined identifier
+SRC\PRINT.C(89): error C202: 'line': undefined identifier
+SRC\PRINT.C(89): error C202: 'line': undefined identifier
+SRC\PRINT.C(90): error C202: 'o': undefined identifier
+SRC\PRINT.C(91): error C202: 'o': undefined identifier
+SRC\PRINT.C(94): error C202: 'a': undefined identifier
+SRC\PRINT.C(95): error C202: 'o': undefined identifier
+SRC\PRINT.C(95): error C202: 'b': undefined identifier
+SRC\PRINT.C(96): error C202: 'o': undefined identifier
+SRC\PRINT.C(96): error C202: 'c': undefined identifier
+SRC\PRINT.C(99): error C202: 'o': undefined identifier
+SRC\PRINT.C(99): error C202: 'a': undefined identifier
+SRC\PRINT.C(99): error C202: 'a': undefined identifier
+SRC\PRINT.C(102): error C202: 'o': undefined identifier
+SRC\PRINT.C(102): error C202: 'sbx': undefined identifier
+SRC\PRINT.C(102): error C202: 'a': undefined identifier
+SRC\PRINT.C(105): error C202: 'o': undefined identifier
+SRC\PRINT.C(108): error C202: 'bx': undefined identifier
+SRC\PRINT.C(112): error C202: 'b': undefined identifier
+SRC\PRINT.C(116): error C202: 'bx': undefined identifier
+SRC\PRINT.C(120): error C202: 'c': undefined identifier
+SRC\PRINT.C(120): error C202: 'c': undefined identifier
+SRC\PRINT.C(131): error C202: 'b': undefined identifier
+SRC\PRINT.C(134): error C202: 'b': undefined identifier
+SRC\PRINT.C(134): error C202: 'b': undefined identifier
+SRC\PRINT.C(136): error C202: 'c': undefined identifier
+SRC\PRINT.C(136): error C202: 'c': undefined identifier
+SRC\PRINT.C(142): error C202: 'sbx': undefined identifier
+SRC\PRINT.C(145): error C202: 'bx': undefined identifier
+SRC\PRINT.C(148): error C202: 'c': undefined identifier
+SRC\PRINT.C(148): error C141: syntax error near 'code'
+SRC\PRINT.C(149): error C202: 'c': undefined identifier
+SRC\PRINT.C(211): error C199: left side of '->' requires struct/union pointer
+assembling STARTUP.A51...
+Target not created
