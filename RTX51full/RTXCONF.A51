@@ -33,6 +33,9 @@ $PAGELENGTH(80) PAGEWIDTH(110)
 ;* 5.10 |  9-MAY-1996 |             | T2 support for CPU=2,5,13,14,16,17*
 ;*      |             |             | Add ?RTX_IDLE_FUNC                *
 ;* 5.10 | 26-MAY-1997 |             | Type 21(C515C) implemented        *
+;* 5.10 | 22-JUL-2017 | Stride      | Delete useless cpu type           *
+;*      |             |             | Type 150(STC15) implemented       *
+;* 5.10 | 11-MAR-2018 | Stride      | Type 80(STC8) implemented         *
 ;************************************************************************
 ;*    (c) METTLER  &  FUCHS  AG,  LOEWENSTRASSE 21,  CH-8953 Dietikon   *
 ;*    Tel. (+41) (1) 740 41 00  /  Fax  (+41) (1) 740 15 67             *
@@ -305,10 +308,10 @@ ENTER_IDLE       MACRO
 
 ;;;;;;;;;;;;;;;;;;;ADDED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ELSEIF (?RTX_CPU_TYPE = 150)
-   ;***********
-   ;* Type 150*	 //'15' represent the 15 series £¬'0' is for distinguish 
-   ;***********
+ELSEIF (?RTX_CPU_TYPE = 150) OR (?RTX_CPU_TYPE = 80)
+   ;**************
+   ;* Type 150&80*	'15'&'8'represent the STC15&8 series '0' for distinguish 
+   ;**************
       ;------------------------------------------------------------------
       ; Define the number and addresses of the interrupt enable registers
       ; stc15 -> 3 interrupt enable register
@@ -428,6 +431,7 @@ ENTER_IDLE       MACRO
 			NOP
 			NOP
          ENDM
+		 
 ;;;;;;;;;;;;;;;;;;;ADDED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -571,13 +575,16 @@ $EJECT
 		 ; Interrupt Vector Entry
 		 ?RTX_CLK_INT_NBR   EQU   3
       ELSEIF (?RTX_SYSTEM_TIMER = 2)
-        ?CPU   EQU     ?RTX_CPU_TYPE
+         ?CPU   EQU     ?RTX_CPU_TYPE
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;modify;;;;;;;;;;;;;;;;
-        IF (?CPU=150)     
+		 IF ( ?CPU=150 ) OR ( ?CPU=80 )     
          ;
-         ; These values apply to  of the STC 15 series only.
+         ; These value s apply to  of the STC 15 series only.
          ;
-         CAN'T SUPPORT	timer 2 Because of AUXR can't be bit
+			  
+		 STC15 CAN'T SUPPORT T2 Because of 'AUXR' can't	be bit. 
+		 So ?RTX_SYSTEM_TIMER CAN'T EQU 2!
+			
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;modify;;;;;;;;;;;;;;;;
         ELSEIF(?CPU=2)
          ;
